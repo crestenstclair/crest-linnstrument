@@ -99,6 +99,15 @@ impl TestHost {
             mode: SurfaceMode::Play,
         };
         host.advertise_capture_parameters()?;
+        // Deliberate test-backend contract: 16 voice-scoped normalized controls
+        // per destination. They have no implicit MIDI CC or production DSP map.
+        let note_addresses: Vec<_> = host
+            .outputs
+            .keys()
+            .flat_map(|destination| note_capture_parameters(*destination))
+            .collect();
+        host.engine
+            .set_note_parameter_capabilities(&note_addresses)?;
         Ok(host)
     }
     /// Configure A/B endpoints for the explicit parameter capture sink. No MIDI
@@ -423,6 +432,13 @@ impl TestHost {
         }
         Ok(())
     }
+}
+
+fn note_capture_parameters(destination: DestinationId) -> impl Iterator<Item = ParameterAddress> {
+    (0..16).map(move |parameter| ParameterAddress {
+        destination,
+        parameter,
+    })
 }
 
 fn append_capture<T>(capture: &mut Vec<T>, count: &mut u64, message: T) {

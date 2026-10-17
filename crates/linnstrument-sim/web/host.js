@@ -16,6 +16,15 @@ function renderMute(state){
   muteButton.textContent=muted?'Selected clip muted':'Hold mute selected';
 }
 const conditionForm=document.querySelector('#condition-form');
+const noteParameterForm=document.querySelector('#note-parameter-form');
+function editNoteParameter(remove=false){
+  if(!selectedNote||!(remove?noteParameterForm.elements.parameter.reportValidity():noteParameterForm.reportValidity()))return;
+  send({type:'note_parameter',slot:selected,note:selectedNote,
+    parameter:Number(noteParameterForm.elements.parameter.value),
+    value:remove?null:Number(noteParameterForm.elements.value.value)});
+}
+noteParameterForm.onsubmit=event=>{event.preventDefault();editNoteParameter();};
+document.querySelector('#remove-note-parameter').onclick=()=>editNoteParameter(true);
 conditionForm.onsubmit=event=>{
   event.preventDefault();if(!selectedNote||!conditionForm.reportValidity())return;
   const fields=new FormData(conditionForm),type=fields.get('condition');
@@ -62,10 +71,13 @@ function noteKey(note){return JSON.stringify(note);}
 function renderNotes(clip){
   pencil.clearRect(0,0,800,140);displayedNotes=[];
   document.querySelector('#condition-state').textContent='Select a note using the canvas or Previous / Next.';
+  document.querySelector('#note-parameter-state').textContent='Select a note to edit its attack parameters.';
   if(!clip)return;
   const active=new Map();for(const event of clip.events){const id=noteKey(event.note);if(event.gesture.type==='on')active.set(id,event);if(event.gesture.type==='off'&&active.has(id)){const on=active.get(id);displayedNotes.push({id:on.note,key:on.gesture.key,start:on.at,duration:event.at-on.at});active.delete(id);}}
   for(const note of displayedNotes)note.condition=clip.conditions?.find(entry=>noteKey(entry.note)===noteKey(note.id))?.condition??{type:'always'};
   const current=displayedNotes.find(note=>noteKey(note.id)===noteKey(selectedNote));
+  const locks=clip.parameter_locks?.filter(entry=>noteKey(entry.note)===noteKey(current?.id))??[];
+  if(current)document.querySelector('#note-parameter-state').textContent=`Note ${current.key} locks: ${locks.length?locks.map(entry=>`${entry.parameter} = ${entry.value}`).join(' · '):'none (instrument defaults)'}`;
   if(current&&noteEditorKey(current)!==renderedNoteValue)selectNote(current);
   if(!current)renderedNoteValue=null;
   document.querySelector('#condition-state').textContent=current?`Note ${current.key}: ${current.condition.type==='every'?`loop ${current.condition.offset+1} of ${current.condition.period}`:current.condition.type.replace('_',' ')}`:'Select a note using the canvas or Previous / Next.';

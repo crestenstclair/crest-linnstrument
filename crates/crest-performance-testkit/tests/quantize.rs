@@ -55,6 +55,7 @@ fn clip() -> Clip {
         }],
         pattern_origin: vec![],
         follow: None,
+        parameter_locks: Vec::new(),
         conditions: vec![ConditionalNote {
             note: event(2, 0, on()).note,
             condition: NoteCondition::Every {

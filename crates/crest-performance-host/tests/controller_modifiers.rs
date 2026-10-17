@@ -117,6 +117,7 @@ fn modifiers_preserve_sounding_expression_and_releases_in_running_clips() {
         pattern_origin: vec![],
         follow: None,
         conditions: vec![],
+        parameter_locks: Vec::new(),
     });
     let mut h = host(session);
     h.launch(0).unwrap();

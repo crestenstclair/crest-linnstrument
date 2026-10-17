@@ -87,14 +87,14 @@ impl Clip {
         }
         Ok(())
     }
-    fn require_unique_attack(&self, note: NoteKey) -> Result<()> {
+    pub(crate) fn require_unique_attack(&self, note: NoteKey) -> Result<()> {
         let count = self
             .events
             .iter()
             .filter(|event| event.note == note && matches!(event.gesture, Gesture::On { .. }))
             .count();
         if count != 1 {
-            return Err(Error::Invalid("condition requires one unique note attack"));
+            return Err(Error::Invalid("note metadata requires one unique attack"));
         }
         Ok(())
     }

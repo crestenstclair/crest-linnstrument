@@ -142,6 +142,9 @@ pub struct Clip {
     /// binary lookup during playback. Absent notes play on every iteration.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conditions: Vec<crate::ConditionalNote>,
+    /// Sorted by (note, parameter); at most 16 locks per unique note attack.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parameter_locks: Vec<crate::NoteParameterLock>,
 }
 impl Clip {
     pub fn validate(&self, track: TrackId) -> Result<()> {
@@ -177,6 +180,7 @@ impl Clip {
             return Err(Error::Invalid("clip has unreleased notes"));
         }
         self.validate_conditions()?;
+        self.validate_parameter_locks()?;
         Ok(())
     }
 }
@@ -227,6 +231,15 @@ impl Default for Session {
 impl Session {
     /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=9).contains(&self.version)
+            && self
+                .slots
+                .iter()
+                .filter_map(|slot| slot.clip.as_ref())
+                .any(|clip| !clip.parameter_locks.is_empty())
+        {
+            return Err(Error::Invalid("older session contains v10 parameter locks"));
+        }
         if (1..=8).contains(&self.version) && self.scene_morph.is_some() {
             return Err(Error::Invalid("older session contains v9 scene morph"));
         }
@@ -302,7 +315,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if matches!(self.version, 3..=8) {
+        if matches!(self.version, 3..=9) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;

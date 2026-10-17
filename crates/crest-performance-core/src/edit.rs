@@ -103,6 +103,7 @@ impl Clip {
             pattern_origin: Vec::new(),
             follow: None,
             conditions: Vec::new(),
+            parameter_locks: Vec::new(),
         };
         if let Some(note) = notes.first() {
             clip.validate(note.id.track)?;
@@ -116,6 +117,8 @@ impl Clip {
         append_overdub_take(&mut clip, take)?;
         clip.events.sort_by_key(|event| event.at);
         clip.conditions.sort_by_key(|entry| entry.note);
+        clip.parameter_locks
+            .sort_by_key(|entry| (entry.note, entry.parameter));
         clip.pattern_origin.extend_from_slice(&take.pattern_origin);
         clip.harmony_origin
             .extend(take.harmony_origin.iter().copied().map(|mut g| {
@@ -147,6 +150,11 @@ fn append_overdub_take(clip: &mut Clip, take: &Clip) -> Result<()> {
             if condition != (NoteCondition::Always {}) {
                 clip.conditions.push(ConditionalNote { note, condition });
             }
+            clip.parameter_locks.extend(
+                take.note_parameters(event.note)
+                    .iter()
+                    .map(|entry| NoteParameterLock { note, ..*entry }),
+            );
         }
         let &(note, original_start, loop_start) = held.get(&key).ok_or(Error::UnknownNote)?;
         let offset = event
@@ -345,6 +353,7 @@ pub(crate) fn retrospective_clip(
         pattern_origin: Vec::new(),
         follow: None,
         conditions: Vec::new(),
+        parameter_locks: Vec::new(),
     };
     clip.validate(track)?;
     Ok(clip)

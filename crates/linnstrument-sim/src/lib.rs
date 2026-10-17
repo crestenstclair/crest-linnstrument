@@ -13,6 +13,8 @@ mod humanized_tests;
 #[cfg(test)]
 mod modifier_tests;
 #[cfg(test)]
+mod parameter_tests;
+#[cfg(test)]
 mod quantize_tests;
 #[cfg(test)]
 mod scene_tests;
@@ -107,6 +109,12 @@ pub enum BridgeCommand {
         slot: usize,
         note: NoteKey,
         condition: NoteCondition,
+    },
+    NoteParameter {
+        slot: usize,
+        note: NoteKey,
+        parameter: u32,
+        value: Option<u16>,
     },
     QuantizeClip {
         slot: usize,
@@ -678,6 +686,17 @@ impl Runtime {
                 slot,
                 note,
                 condition,
+            }),
+            BridgeCommand::NoteParameter {
+                slot,
+                note,
+                parameter,
+                value,
+            } => self.host_command(Command::SetNoteParameter {
+                slot,
+                note,
+                parameter,
+                value,
             }),
             BridgeCommand::Fill { held } => self.host_command(Command::SetFill(held)),
             BridgeCommand::QuantizeClip { slot, ticks } => {

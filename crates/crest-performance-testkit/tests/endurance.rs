@@ -41,6 +41,7 @@ fn clip(slot: usize) -> Clip {
         pattern_origin: vec![],
         follow: None,
         conditions: Vec::new(),
+        parameter_locks: Vec::new(),
     }
 }
 

@@ -1,7 +1,7 @@
-# Public host contract, API 11 (development)
+# Public host contract, API 12 (development)
 
-Stable v0.2.0 exposes API 9/session 8. Development `0.3.0-dev.2` adds A/B parameter
-morphing in API 11/session 9. Tracker remains independently pinned to tested API-10
+Stable v0.2.0 exposes API 9/session 8. Development `0.3.0-dev.3` adds per-note parameter
+locks in API 12/session 10, following A/B morphing in API 11/session 9. Tracker remains independently pinned to tested API-10
 commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`; upgrading is a separate decision.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
@@ -311,7 +311,7 @@ The source command and effective/source snapshot fields require API 8. The schem
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with this development checkout writes schema 9.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with this development checkout writes schema 10.
 
 The stable release package is `0.2.0`, API 9, schema 8. Development package
 `0.3.0-dev.1` introduced API 10 for explicit quantization with schema 8.
@@ -591,7 +591,7 @@ streams; hosts merging them schedule by timestamp, parameter updates before note
 equal times. Snapshot/file/endpoint/capability operations remain outside audio callbacks.
 Pending parameter events must be drained before replacing endpoints or capabilities. Stop
 releases notes and does not reset parameter values; disconnect drops unsent parameter work.
-Parameter automation and per-note parameter locks are not provided by this API addition.
+Parameter automation is not provided. API 12 adds voice-scoped locks below.
 
 The standalone test host explicitly advertises its parameter capture sink for the configured
 addresses. It retains a bounded diagnostic history and exposes it separately from MIDI bytes.
@@ -610,6 +610,56 @@ and the simulator renders decoded LED writes, including the green current positi
 
 Schema 9 adds the optional endpoint field. Schemas 1–8 migrate with no endpoint pair;
 placing a scene under an older version label rejects. Original data is never rewritten on
-read. Saving writes schema 9, which API-10 and older readers reject. Keep the original file
+read. The API-11 writer used schema 9; API 12 now writes schema 10. Earlier readers reject
+newer schemas. Keep the original file
 for rollback; relabeling or discarding the scene is not a migration path. The public Session
 field, command variant and snapshot fields make this an explicit pre-1.0 API change.
+
+
+## Per-note parameter locks (API 12, schema 10)
+
+`Clip.parameter_locks` stores sparse `NoteParameterLock { note, parameter, value }` entries,
+strictly sorted by `(NoteKey, parameter)`. Each key must identify exactly one attack, and
+at most 16 distinct parameters may be attached to it. Values are normalized u16; references
+are instrument-defined u32 identifiers. They are not MIDI controller numbers. Raw note,
+expression and historical intent streams remain authoritative and unchanged.
+
+`Command::SetNoteParameter { slot, note, parameter, value }` edits a stopped clip. `Some`
+sets/replaces one value; `None` removes that reference. The complete old clip supports Undo.
+Moving/quantizing a note preserves its lock association. Duplication maps note track IDs and
+resolves locks at the new track's destination. Overdub retains original locks; new recorded
+notes start without locks. Recording parameter gestures or morph automation is not included.
+
+`Engine::set_note_parameter_capabilities` takes unique, sorted `ParameterAddress` values.
+This control-thread allocation is separate from destination-wide morph capabilities. Both
+lists are transient and initially empty; a stored parameter is not a claim that an output
+instrument supports it. Pending parameter output must be drained before changing either
+list. The scheduler checks capabilities at each sounding attack, after mute/condition
+selection and before voice allocation or publication. Unsupported attacks return an explicit
+error without advancing their cursor; configure support (or stop/edit) before retrying.
+
+`ParameterEvent.voice` is `None` for global morph values and `Some(VoiceId)` for attack locks.
+Voice-scoped events use the same timestamp and destination as the matching Note On. Merge
+parameter and note streams by time, with parameter events before notes at equal time. The
+host must stage locks for exactly that voice, initialize every other parameter from instrument
+defaults, and discard voice-specific state when the voice ends. Applying these values globally
+or reusing the previous channel's values violates the contract. Multiple simultaneous notes
+of the same pitch may therefore have different settings. Each loop allocates fresh voice IDs.
+Hosts lacking this behavior must not advertise note parameter support.
+
+The existing preallocated parameter queue carries both scopes. A whole attack's lock batch
+is preflighted before allocating the voice; output/voice/capability errors emit no partial
+attack or lock batch. Drain both streams and retry the same advance target on capacity pressure.
+Parameters do not consume note-release queue space. Skipped/muted attacks emit no locks; held
+voice expression and release remain independent. Safety stop still releases all voices.
+
+The standalone capture backend advertises references 0–15 at each existing destination,
+displays voice IDs, and stores captured events without converting them to MIDI. This verifies
+the contract, not audible sample-position/effect behavior. Production DSP mapping remains a
+consumer responsibility. The typed webview bridge edits the same public command.
+
+Schemas 1–9 migrate by adding an empty lock list and updating the version. Schema 10 rejects
+false earlier labels carrying locks. Earlier readers reject new session files; they must not
+rewrite them. Keep original files for rollback. Saving is explicit; loading emits no parameter
+values. API 12 adds the command, capability snapshot and `ParameterEvent.voice`; Rust consumers
+must update deliberately. The host envelope remains 2. Tracker stays pinned to API 10.

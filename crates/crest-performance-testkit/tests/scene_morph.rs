@@ -143,7 +143,7 @@ fn persistence_upgrades_without_emitting_or_assuming_backend_capabilities() {
     let before = serde_json::to_vec(&legacy).unwrap();
     let mut session: Session = serde_json::from_slice(&before).unwrap();
     session = session.migrate().unwrap();
-    assert_eq!(session.version, 9);
+    assert_eq!(session.version, SESSION_VERSION);
     assert_eq!(serde_json::to_vec(&legacy).unwrap(), before);
     session.scene_morph = Some(scene());
     let encoded = serde_json::to_vec(&session).unwrap();

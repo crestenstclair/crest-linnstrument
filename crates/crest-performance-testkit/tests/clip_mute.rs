@@ -41,6 +41,7 @@ fn session() -> Session {
             pattern_origin: vec![],
             follow: None,
             conditions: vec![],
+            parameter_locks: Vec::new(),
         });
     }
     s

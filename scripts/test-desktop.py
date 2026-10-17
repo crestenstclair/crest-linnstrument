@@ -254,6 +254,33 @@ def quantize_recorded_phrase(app):
     app.capture('quantized-phrase', state)
 
 
+
+def edit_note_parameters(app):
+    original = app.state(lambda s: s['host']['clips'][0], 'phrase for parameter locks')['host']['clips'][0]
+    app.click('#next-note')
+    app.fill('#note-parameter-form [name=parameter]', '4')
+    app.fill('#note-parameter-form [name=value]', '54321')
+    app.click('#note-parameter-form button[type=submit]')
+    state = app.state(lambda s: s['host']['clips'][0].get('parameter_locks'), 'note parameter edit')
+    changed = state['host']['clips'][0]
+    assert changed['events'] == original['events']
+    assert len(changed['parameter_locks']) == 1
+    lock = changed['parameter_locks'][0]
+    assert (lock['parameter'], lock['value']) == (4, 54321)
+    app.click('#remove-note-parameter')
+    app.state(lambda s: s['host']['clips'][0] == original, 'remove only selected parameter')
+    app.click('#undo')
+    app.state(lambda s: s['host']['clips'][0] == changed, 'Undo restores note parameter')
+    path = ARTIFACTS / 'desktop-note-parameters.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'note parameter session saved')
+    app.click('#open')
+    app.state(lambda s: s['host']['clips'][0] == changed and s['host']['parameter_capture_count'] == 0,
+              'locks reopen silently with exact expression')
+    app.capture('note-parameter-edit-reopened')
+
+
 def launch_with_firmware_pad(app):
     app.click('#clips')
     app.state(lambda s: s['host']['performance']['mode'] == 'clips', 'user mode')
@@ -267,6 +294,10 @@ def launch_with_firmware_pad(app):
     pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(63,315,1,1).data)")
     assert pixel[1] > 200 and pixel[1] > pixel[0] and pixel[1] > pixel[2], pixel
     app.capture('firmware-pad-playing', state)
+    state = app.state(lambda s: s['host']['parameter_capture_count'] > 0, 'pad launch emits note lock')
+    assert all(event['voice'] is not None and event['address']['parameter'] == 4
+               and event['value'] == 54321 for event in state['host']['recent_parameters'])
+    app.capture('firmware-pad-note-parameters', state)
     app.touch(1, 0)
     app.state(lambda s: s['host']['performance']['slots'][0] == 'recorded' and
               s['host']['performance']['active_voices'] == 0, 'pad stop cleanup')
@@ -940,7 +971,7 @@ def morph_parameter_capture(app):
     app.click('#save')
     wait_for(path.exists, bool, 'scene endpoints saved')
     document = json.loads(path.read_text())
-    assert document['session']['version'] == 9
+    assert document['session']['version'] == 10
     assert document['session']['scene_morph'] == state['host']['scene_morph']
     app.click('#open')
     reopened = app.state(lambda s: s['host']['scene_morph'] == state['host']['scene_morph']
@@ -963,6 +994,7 @@ def main():
             app.start()
             record_expressive_keyboard_phrase(app)
             quantize_recorded_phrase(app)
+            edit_note_parameters(app)
             launch_with_firmware_pad(app)
             focus_recovery(app)
             record_timed_strum(app)
@@ -975,7 +1007,7 @@ def main():
             change_showcase_tempo(app)
             record_controller_modifiers(app)
             morph_parameter_capture(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase, firmware-row A/B parameter morph')
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase, firmware-row A/B parameter morph, voice-scoped note locks')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

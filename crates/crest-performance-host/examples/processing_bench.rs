@@ -86,6 +86,7 @@ fn session() -> Session {
         pattern_origin: Vec::new(),
         follow: None,
         conditions: Vec::new(),
+        parameter_locks: Vec::new(),
     });
     session
 }

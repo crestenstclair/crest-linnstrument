@@ -46,6 +46,7 @@ fn phrase() -> Clip {
         harmony_origin: vec![],
         pattern_origin: vec![],
         follow: None,
+        parameter_locks: Vec::new(),
         conditions: vec![
             ConditionalNote {
                 note: note(1),

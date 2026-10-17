@@ -53,6 +53,7 @@ fn session() -> Session {
         pattern_origin: vec![],
         follow: None,
         conditions: vec![],
+        parameter_locks: Vec::new(),
     });
     s.slots[1].track = TrackId(2);
     s.slots[1].clip = Some(Clip {
@@ -79,6 +80,7 @@ fn session() -> Session {
             reference: HarmonySettings::default(),
         }),
         conditions: vec![],
+        parameter_locks: Vec::new(),
     });
     s
 }

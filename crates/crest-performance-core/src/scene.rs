@@ -59,6 +59,7 @@ impl SceneMorph {
                 + u64::from(parameter.b) * u64::from(position);
             ParameterEvent {
                 at,
+                voice: None,
                 address: parameter.address,
                 value: ((weighted + 32_767) / 65_535) as u16,
             }
@@ -69,6 +70,12 @@ impl SceneMorph {
 #[serde(deny_unknown_fields)]
 pub struct ParameterEvent {
     pub at: BeatTime,
+    /// None updates destination-wide state. Some binds this attack setting to
+    /// exactly the matching OutputEvent voice, before its Note On. Never apply
+    /// it globally; discard it when that voice ends. No previous voice value
+    /// may carry into a fresh voice without a lock.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<crate::VoiceId>,
     pub address: ParameterAddress,
     pub value: u16,
 }

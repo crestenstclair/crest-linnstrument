@@ -1,7 +1,7 @@
 # Delivery status — October 17, 2026, Pacific
 
 Stable version `0.2.0` carries API 9, session schema 8 and host document envelope 1.
-Development version `0.3.0-dev.2` uses API 11, schema 9 and host envelope 2; its additions are not yet tagged.
+Development version `0.3.0-dev.3` uses API 12, schema 10 and host envelope 2; its additions are not yet tagged.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
 the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
@@ -76,7 +76,7 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: parameter locks and additional momentary transforms remain future work. A/B morphing now has a parameter-capture implementation; production parameter mappings remain host integration work.
+open: parameter automation and additional momentary transforms remain future work. A/B morphing and per-note locks have parameter-capture implementations; production parameter mappings remain host integration work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
 is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
@@ -88,11 +88,13 @@ to the tested API-10 development pin `6c37aa5e695dd6968d69b693137f0f9bee16b67f`.
 Schema-2 projects migrate in memory with exact playback fixtures produced by the old
 API-2 Git consumer; explicit saves write schema 8 and older readers reject them. Original
 files remain unchanged for rollback. Current integration also supports independent clip
-players and block-chord/manual-strumplate controls at `088192b`. Local source, native DSP,
-firmware-backed desktop and bundle checks passed; full CI for this newer work is pending.
+players, chord/manual-strumplate controls and native-clock live strum/arpeggio/humanization
+at `b979ab5`. Local source, native Sample/Braids witnesses and optimized firmware-backed
+desktop checks passed; full CI for this newer articulation work is pending. Debug desktop
+stalls remain explicitly rejected with the take retained.
 The earlier API-2 retrospective integration at `f56f6fe3` passed
 [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393).
-M6 remains open: continuous live articulation scheduling, external performance routes and
+M6 remains open: external performance routes and
 Linux MIDI/audio clock correlation still need integration work. Deck and physical-device
 qualification remain separate. This library has no dependency on Tracker's checkout.
 Older sections below describe the dependency pins current when those features landed.
@@ -474,7 +476,7 @@ within-cell motion, cross-cell slides, competing fingers, actual green LED outpu
 stock MPE and exact repeated parameter traces. Focused tests cover endpoints, interpolation,
 capability rejection, saturation without losing note releases and schema-8 migration.
 
-Development version is now 0.3.0-dev.2/API 11/session 9/host envelope 2. Tracker remains pinned
+This slice introduced 0.3.0-dev.2/API 11/session 9/host envelope 2. Tracker remains pinned
 to API 10 and stable release tags are unchanged. Workspace tests, source and desktop-feature
 Clippy, and all 25 native simulator tests passed locally. A real macOS webview session applied
 two inverse endpoints, verified exact A/B values, and used mouse and keyboard movement on
@@ -487,5 +489,37 @@ The actual API-10 Git consumer rejects the schema-9 file without changing its in
 and [extracted-package acceptance 39029580321](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39029580321)
 passed at `b105885f3a3bca66c46fff891f205217e859bd6f`. The desktop gate delivers small native
 mouse moves explicitly: WebKit's single long-duration move did not generate intermediate
-positions and correctly failed the continuous-slide assertion. Per-note parameter locks,
-automation recording and production sound-engine parameter mappings remain separate work.
+positions and correctly failed the continuous-slide assertion. The subsequent API-12 work below adds per-note locks; automation recording and production
+sound-engine parameter mappings remain separate work.
+
+
+## Per-note parameter lock development (API 12)
+
+Development `0.3.0-dev.3` adds schema-10 per-note attack locks. The standalone note editor
+sets/removes normalized values by parameter reference, with complete Undo and silent
+save/reopen. The explicit capture backend advertises references 0–15 at each destination;
+production sound-engine mappings remain unimplemented. A/B morph values remain global;
+lock output carries the matching fresh voice ID and never substitutes a MIDI channel.
+
+Nine focused tests verify unison/live/clip isolation, loop voice reuse, expression and
+releases, conditions/mute, capacity retry without partial attacks, independent destination
+capabilities, duplication/overdub/edit/quantization/Undo, invalid data and migration. The
+workspace suite passed before a behavior-preserving split of one test; focused tests passed
+again afterward. All 26 native simulator tests and workspace/desktop lint passed. The new
+firmware case records independent expression, edits locks, saves/reopens and launches/stops
+from raw sensor contacts on both geometries, checking exact output and decoded LEDs.
+
+A separate Git consumer of API-11 commit `9e48200` rejects schema-10 files both with locks
+and with lock fields removed, leaving the original bytes unchanged. Schemas 1–9 migrate in
+memory; explicit saves write 10. The host envelope remains 2. Stable tags and Tracker's API-10
+pin are unchanged.
+
+Real macOS desktop acceptance recorded a firmware-driven three-note phrase, applied
+parameter 4 = 54321 to one note, removed/undid it, and saved/reopened. Mouse pad launching
+captured the same value on fresh voices 2 and 5 over two loops; pad stop returned the decoded
+light to blue with zero active voices. Local evidence is
+`target/dev/firmware-note-parameters.json`, SHA-256
+`7edf5a92eb3fa91e5287c55fdba3c0c4b1fe2b2a38368a67abef5b55015f1189`.
+The Linux desktop acceptance script now performs the same edit/Undo/reopen/pad capture checks;
+CI and extracted-package evidence for this candidate are pending. Parameter automation
+recording, audible parameter DSP, Deck and physical qualification remain separate work.

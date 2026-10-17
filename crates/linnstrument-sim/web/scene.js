@@ -65,6 +65,6 @@ export function renderScene(host) {
   const position = host.performance.morph_position;
   slider.value = position ?? 0;
   document.querySelector('#scene-position-value').textContent = position === null ? 'No position emitted' : `${(position/65535*100).toFixed(2)}% B`;
-  document.querySelector('#parameter-capture').textContent = host.recent_parameters.map(event => `${event.at} · destination ${event.address.destination} · parameter ${event.address.parameter} = ${event.value}`).join('\n');
-  document.querySelector('#scene-status').textContent = `${host.parameter_capture_count} captured parameter events · ${enabled?'Clip pads row 3 controls the morph':'Add endpoints, then Apply'}`;
+  document.querySelector('#parameter-capture').textContent = host.recent_parameters.map(event => `${event.at} · destination ${event.address.destination} · ${event.voice==null?'global':`voice ${event.voice}`} · parameter ${event.address.parameter} = ${event.value}`).join('\n');
+  document.querySelector('#scene-status').textContent = `${host.parameter_capture_count} captured parameter events · ${enabled?'Clip pads row 3 controls the morph':'No A/B morph configured'}`;
 }

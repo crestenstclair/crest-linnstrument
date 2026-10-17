@@ -6,7 +6,7 @@ The workspace is named `crest-performance`; it currently lives in the existing
 physical controller, MIDI device, or sound card is needed for the development path.
 
 **Standalone release: `0.2.0`, public API 9, session schema 8.**
-Development on this branch is `0.3.0-dev.2`, API 11/session 9/host envelope 2;
+Development on this branch is `0.3.0-dev.3`, API 12/session 10/host envelope 2;
 the release tag remains unchanged.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
@@ -17,8 +17,8 @@ Version 0.2 adds timed strumming, humanized chords, learned chord banks, repeati
 per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
 [v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
 API 2/session 2. Crest Tracker's independent integration branch pins tested API-10 commit
-`6c37aa5`; this API-11 development work does not change that dependency.
-Schemas 1–8 load losslessly; saving with this checkout writes schema 9, rejected by
+`6c37aa5`; this API-12 development work does not change that dependency.
+Schemas 1–9 load losslessly; saving with this checkout writes schema 10, rejected by
 older readers. Keep the original session to return to its previous library version.
 
 The test host's **A/B MORPH** panel configures up to 16 parameter endpoints. Add parameters,
@@ -34,7 +34,16 @@ slide handovers through the normal sensor path. The first finger owns the row un
 other held fingers cannot steal it. Blue marks the row, and decoded firmware green shows the
 current position. A/B endpoints persist; the current gesture position and backend capabilities
 do not. Reopening emits no parameter values. Notes, expression and clips remain unchanged.
-Parameter automation recording and per-note parameter locks remain further work.
+Parameter automation recording remains further work.
+
+The note editor adds voice-scoped parameter locks to recorded or generated notes. Choose
+a parameter reference 0–15 and normalized value 0–65535, then Apply. Remove clears that
+reference only; Undo restores the complete previous clip. Values follow each note through
+moves, quantization, duplication, save/reopen and loop playback. Conditions and temporary
+mute suppress both the attack and its locks. Each iteration binds values to a fresh voice;
+other notes keep their instrument defaults. The A/B panel capture trace distinguishes
+global values from voice IDs. This is explicit capture-backend support, with no MIDI CC
+conversion or production sound-engine mapping.
 
 Conditional playback keeps the original notes and expression. In the note editor, select a
 note with the canvas or Previous/Next, then choose every loop, loop N of a period, Fill or
@@ -98,7 +107,7 @@ under the active tempo; this does not add a recorded tempo map. Save/reopen and 
 reset retain the current tempo. External MIDI mode uses the connected host's clock.
 New host files use envelope 2; envelope-1 and plain sessions load at 120 BPM without
 rewriting the source. Stable v0.2 rejects envelope 2, so keep original files for rollback.
-The embedded core session stays schema 8 and can still be consumed independently.
+The embedded core session uses schema 10 and can still be consumed independently.
 
 In this development checkout, **Clip pads** also uses top-row pads 1–7 for I–VII.
 Pressing one selects that degree using the configured harmony settings and takes over

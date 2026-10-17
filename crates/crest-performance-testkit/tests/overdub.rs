@@ -35,6 +35,7 @@ fn clip(events: Vec<InputEvent>) -> Clip {
         pattern_origin: Vec::new(),
         follow: None,
         conditions: Vec::new(),
+        parameter_locks: Vec::new(),
     }
 }
 fn engine(original: Clip) -> Engine {

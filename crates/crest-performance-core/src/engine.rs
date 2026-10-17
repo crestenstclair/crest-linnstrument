@@ -54,6 +54,12 @@ pub enum Command {
         note: NoteKey,
         condition: NoteCondition,
     },
+    SetNoteParameter {
+        slot: usize,
+        note: NoteKey,
+        parameter: u32,
+        value: Option<u16>,
+    },
     /// Momentary host control. Affects future attacks only, at engine time.
     SetFill(bool),
     /// Emit every configured scene parameter at current engine time. This does
@@ -125,6 +131,7 @@ pub struct PerformanceSnapshot {
     pub fill: bool,
     pub morph_position: Option<u16>,
     pub parameter_capabilities: Vec<ParameterAddress>,
+    pub note_parameter_capabilities: Vec<ParameterAddress>,
     pub active_voices: usize,
     pub voice_capacity: usize,
     pub slots: Vec<SlotState>,
@@ -210,6 +217,7 @@ impl Recording {
             pattern_origin: Vec::new(),
             follow: None,
             conditions: Vec::new(),
+            parameter_locks: Vec::new(),
         };
         clip.validate(track)?;
         if let Some(previous) = &self.previous {
@@ -235,6 +243,7 @@ pub struct Engine {
     output: VecDeque<OutputEvent>,
     parameter_output: VecDeque<ParameterEvent>,
     parameter_capabilities: Vec<ParameterAddress>,
+    note_parameter_capabilities: Vec<ParameterAddress>,
     morph_position: Option<u16>,
     recording: Option<Recording>,
     undo: Option<UndoState>,
@@ -272,6 +281,7 @@ impl Engine {
             output: VecDeque::with_capacity(limits.output_events),
             parameter_output: VecDeque::with_capacity(limits.output_events),
             parameter_capabilities: Vec::new(),
+            note_parameter_capabilities: Vec::new(),
             morph_position: None,
             recording: None,
             undo: None,
@@ -355,6 +365,7 @@ impl Engine {
             fill: self.fill,
             morph_position: self.morph_position,
             parameter_capabilities: self.parameter_capabilities.clone(),
+            note_parameter_capabilities: self.note_parameter_capabilities.clone(),
             active_voices: self.active.len(),
             voice_capacity: self.limits.voices,
             harmony: self.session.harmony,
@@ -530,6 +541,9 @@ impl Engine {
         if self.output.len() == self.limits.output_events {
             return Err(Error::Capacity("output; drain and retry"));
         }
+        if matches!(event.gesture, Gesture::On { .. }) {
+            self.check_note_parameter_output(owner, event.note.track)?;
+        }
         let voice = match (event.gesture, position) {
             (Gesture::On { .. }, Some(_)) => return Err(Error::DuplicateNote),
             (Gesture::On { key, .. }, None) => self.allocate_voice(owner, event.note.track, key)?,
@@ -537,6 +551,9 @@ impl Engine {
             (Gesture::Expression { .. }, Some(index)) => self.active[index],
             (_, None) => return Err(Error::UnknownNote),
         };
+        if matches!(event.gesture, Gesture::On { .. }) {
+            self.emit_note_parameters(owner, voice, event.at);
+        }
         self.output.push_back(OutputEvent {
             at: event.at,
             destination: voice.destination,
@@ -633,6 +650,21 @@ impl Engine {
                 note,
                 condition,
             } => self.set_note_condition(slot, note, condition),
+            Command::SetNoteParameter {
+                slot,
+                note,
+                parameter,
+                value,
+            } => {
+                self.ensure_editable(slot)?;
+                let clip = self.session.slots[slot]
+                    .clip
+                    .as_ref()
+                    .ok_or(Error::NotFound)?
+                    .with_note_parameter(note, parameter, value)?;
+                self.commit_clip(slot, clip);
+                Ok(())
+            }
             Command::SetFill(fill) => {
                 self.fill = fill;
                 Ok(())
@@ -855,6 +887,9 @@ impl Engine {
             event.note.track = self.session.slots[to].track;
         }
         for entry in &mut clip.conditions {
+            entry.note.track = self.session.slots[to].track;
+        }
+        for entry in &mut clip.parameter_locks {
             entry.note.track = self.session.slots[to].track;
         }
         self.commit_clip(to, clip);

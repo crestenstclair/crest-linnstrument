@@ -60,7 +60,7 @@
 <form id="scene-form"><div id="scene-parameters"></div><div class="degree-strip"><button id="scene-add" type="button">Add parameter</button><button type="submit">Apply A/B endpoints</button></div></form>
 <div class="degree-strip"><button id="scene-a" disabled>State A</button><label>A/B position <input id="scene-position" type="range" min="0" max="65535" step="1" value="0" disabled></label><button id="scene-b" disabled>State B</button><output id="scene-position-value">No position emitted</output></div>
 <p id="scene-status" class="note" aria-live="polite"></p>
-<p class="note">In Clip pads mode, slide across the third row from the bottom. Stock firmware supplies continuous X through sensors; the first finger owns the row until release. Blue marks the morph row; green marks the current position. Release leaves the last value. Stop releases notes but leaves parameter values. Changing endpoints requires releasing the row and touching again. Endpoints save with the session; reopening emits no values until a gesture. Parameter automation recording and per-note parameter locks are separate work.</p>
+<p class="note">In Clip pads mode, slide across the third row from the bottom. Stock firmware supplies continuous X through sensors; the first finger owns the row until release. Blue marks the morph row; green marks the current position. Release leaves the last value. Stop releases notes but leaves parameter values. Changing endpoints requires releasing the row and touching again. Endpoints save with the session; reopening emits no values until a gesture. Use the note editor for voice-scoped attack locks. Parameter automation recording remains separate work.</p>
 <pre id="parameter-capture" aria-label="Captured parameter events"></pre></details>
 <details id="output-panel"><summary>OUTPUT · explicit MIDI destination profiles</summary>
 <form id="output-form" class="harmony-fields">
@@ -83,5 +83,11 @@
 <label>Period <input name="period" type="number" min="1" max="65535" value="4" required></label>
 <button type="submit">Apply note condition</button></form>
 <p id="condition-state" class="note" aria-live="polite">Select a note using the canvas or Previous / Next.</p>
+<form id="note-parameter-form" class="harmony-fields">
+<label>Note parameter reference <input name="parameter" type="number" min="0" max="15" step="1" value="0" required></label>
+<label>Note parameter value <input name="value" type="number" min="0" max="65535" step="1" value="32768" required></label>
+<button type="submit">Apply note parameter</button><button id="remove-note-parameter" type="button">Remove note parameter</button></form>
+<p id="note-parameter-state" class="note" aria-live="polite">Select a note to edit its attack parameters.</p>
+<p class="note">Capture backend supports references 0–15, normalized values 0–65535. Values bind only to this note's playback voice, including each loop; other notes keep their defaults. Muted or condition-skipped attacks emit no locks. These are not MIDI controller numbers and have no audible DSP mapping. Edits require a stopped slot and support Undo. Saved locks follow moved, quantized and duplicated notes.</p>
 <p class="note">Conditions decide at attack only; held notes keep their expression and release even when Fill changes. Loop 4 of period 4 plays on loops 4, 8, 12… Relaunch starts at loop 1. Hold Fill with pointer, or focus it and hold Space / Enter. Focus loss releases Fill. Stop slot before edits; Undo restores original rules. Original notes and curves stay intact.</p>
 </section><div class="session"><input id="path" aria-label="Session file path" value="/tmp/crest-performance-session.json"><button id="save">Save session</button><button id="open">Reopen</button></div><p id="transport" class="note"></p><pre id="capture"></pre><p id="error" role="alert"></p></main><footer>Standalone public API host · deterministic MIDI capture · optional audio not connected</footer><script src="bridge.js"></script><script type="module" src="host.js"></script></body></html>

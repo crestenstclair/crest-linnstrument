@@ -9,7 +9,9 @@ pub use harmony_source::HarmonySource;
 use harmony_source::HarmonyTimeline;
 mod learned_chord;
 pub use learned_chord::*;
+mod parameter_lock;
 mod pattern;
+pub use parameter_lock::*;
 mod quantize;
 mod random;
 mod scene;
@@ -23,8 +25,8 @@ pub use engine::*;
 pub use model::*;
 pub use time::*;
 
-pub const API_VERSION: u32 = 11;
-pub const SESSION_VERSION: u32 = 9;
+pub const API_VERSION: u32 = 12;
+pub const SESSION_VERSION: u32 = 10;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
