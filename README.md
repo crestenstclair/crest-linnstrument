@@ -5,30 +5,32 @@ The workspace is named `crest-performance`; it currently lives in the existing
 `crest-linnstrument` repository. No Crest Tracker checkout, application code, sound engine,
 physical controller, MIDI device, or sound card is needed for the development path.
 
-**Development: `0.4.0-dev.1`, public API 13, session schema 10, host envelope 2.**
-Stable standalone release: `v0.3.0` (API 12, schema 10).
+**Version `0.4.0`, public API 13, session schema 10, host envelope 2.**
+The previous `v0.3.0` release uses API 12 and the same persistence formats.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
-The matching [v0.3.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.3.0)
+The matching [v0.4.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.4.0)
 defines this contract; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Version 0.3 adds firmware-pad harmony controls, local tempo changes, explicit attack
+Version 0.4 adds temporary clip octaves and firmware-pad articulation selection.
+Version 0.3 added firmware-pad harmony controls, local tempo changes, explicit attack
 quantization, A/B morph capture and voice-scoped parameter locks. Version 0.2 added timed strumming, humanized chords, learned chord banks, repeating arpeggios,
 per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
 [v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
 API 2/session 2. Crest Tracker's independent integration branch now consumes released v0.3.0 commit
-`a05f8df` (API 12). It remains pinned while this repository develops API 13.
+`a05f8df` (API 12). It remains pinned while this repository advances API 13.
 Schemas 1–9 load losslessly; saving with this checkout writes schema 10, rejected by
-older readers. Keep the original session to return to its previous library version.
+readers older than v0.3. Both v0.3 and v0.4 read the same schema-10 sessions; temporary
+octaves never alter saved pitches. Keep original files when migrating earlier schemas.
 
-Development API 13 adds temporary clip transposition. **Hold octave down/up** changes
+API 13 adds temporary clip transposition. **Hold octave down/up** changes
 only future attacks of the selected playing clip; stored notes, held expression and releases
 remain intact. In **Clip pads**, rows 3 and 4 above bottom row 0 hold down/up for each clip
 column. Blue means available; magenta shows the effective shift. Host and firmware contacts
 retain independent ownership. Opposing directions cancel, then the remaining direction
 resumes when one releases. Focus loss releases host controls and momentary virtual contacts;
 latched fingers require explicit release. Pitch overflow rejects without clipping notes.
-This is development work, not part of the v0.3 tag.
+These controls are introduced in v0.4 and are not part of the v0.3 tag.
 
 The test host's **A/B MORPH** panel configures up to 16 parameter endpoints. Add parameters,
 choose destination/reference and normalized A/B values (0–65535), then Apply. Buttons select
@@ -338,7 +340,7 @@ the original ARM build/layout, and Linux desktop mouse/keyboard record/reopen/la
 and dependency notices, then exercises the extracted application. See [package usage](docs/package.md).
 Tags and releases are published only after the matching source and extracted-package gates pass.
 Crest Tracker consumes the accepted `v0.3.0` commit (`a05f8df`, API 12) in its own
-repository. This API-13 development branch remains independent; upgrades are deliberate
+repository. The API-13 library remains independent; upgrades are deliberate
 integration changes validated by shared fixtures.
 
 Licensed Apache-2.0. Upstream firmware is copyright Roger Linn Design, Roger Linn and

@@ -1,7 +1,7 @@
-# Public host contract, API 13 development
+# Public host contract, API 13
 
-Development v0.4.0-dev.1 exposes API 13/session 10/host envelope 2. It adds temporary
-clip transposition without changing persisted data. Stable v0.3.0 remains API 12/session 10,
+Version v0.4.0 exposes API 13/session 10/host envelope 2. It adds temporary
+clip transposition without changing persisted data. Version v0.3.0 remains API 12/session 10,
 including per-note locks and A/B morphing. Tracker consumes that immutable release commit
 `a05f8dfcb56f27498fb42693d4c8930f10d8e621`; later upgrades remain deliberate decisions.
 
@@ -14,8 +14,8 @@ An application outside this workspace consumes the current standalone release by
 
 ```toml
 [dependencies]
-crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.3.0" }
-crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.3.0" }
+crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.4.0" }
+crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.4.0" }
 ```
 
 A fresh external Cargo application verified engine creation, clock advance, session save,
@@ -346,7 +346,7 @@ The source command and effective/source snapshot fields require API 8. The schem
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with v0.3.0 writes schema 10.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with v0.3 or v0.4 writes schema 10.
 
 The current release package is `0.3.0`, API 12, schema 10, host envelope 2. The previous
 `0.2.0` release remains API 9/schema 8. Development package

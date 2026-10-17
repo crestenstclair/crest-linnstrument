@@ -1,6 +1,6 @@
 # Delivery status — October 17, 2026, Pacific
 
-Development `0.4.0-dev.1` carries API 13, session schema 10 and host document envelope 2.
+Version `0.4.0` carries API 13, session schema 10 and host document envelope 2.
 The published `v0.3.0` release remains API 12/session 10/host envelope 2.
 The previous `v0.2.0` tag remains API 9/session 8/host envelope 1.
 The first
@@ -561,11 +561,18 @@ Protocol tests cover exact presets, custom timing/seed retention, ownership, lea
 persistence and unchanged sounding MIDI. All 28 native simulator tests pass, including both
 geometries selecting every articulation through sensors, decoded blue/green LEDs, exact
 descending strum timing and save/reopen/pad launch. The workspace suite and desktop lint pass.
+Real macOS mouse and keyboard input selected descending strum from a sensor pad,
+recorded C/E/G with exact 60,000-tick attack spacing and 19 expression events, saved and
+reopened, then launched it from a pad with decoded green feedback. The app was left in
+Play with zero voices. `target/dev/firmware-articulation-pads.json` has SHA-256
+`10efb7d1eb39201ed34078f0af5bf2d2c7b0b40ba1f04baf1bffef5946f48376`.
 The native test advances several host turns for the bounded 16-cell LED repaint, then a
-complete firmware multiplexing interval before observing brightness. Linux desktop and
-extracted-package acceptance for this new control slice are pending.
+complete firmware multiplexing interval before observing brightness. Source CI [39036977686](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39036977686)
+passed at `80f7b82`, including Linux native mouse selection and exact descending-strum
+record/save/reopen. [Extracted-package acceptance 39036977335](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39036977335)
+also passed at that revision. Exact v0.4 release-revision gates are pending.
 
-Development v0.4.0-dev.1 adds per-clip transient semitone offsets and independent host/pad
+Version v0.4.0 adds per-clip transient semitone offsets and independent host/pad
 octave holds. Future attacks resolve harmony then transpose; held X/Y/Z and releases retain
 their voices. Conditions, locks, live notes, other clips, loop phase, saved clips and Undo
 remain independent. Range errors never clamp notes; failed future attacks remain retryable.
