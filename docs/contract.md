@@ -276,3 +276,9 @@ missing and unknown destinations fail before replacement. Legacy plain library s
 remain readable and explicitly receive lower-MPE defaults. The independent core session
 contains no MIDI backend types. Core `storage::save_session` remains available for fixtures;
 the standalone application's Save uses `save_document`. Both retain atomic 8 MB-bounded I/O.
+
+`Engine::capture_recent_at(slot, length, cutoff)` exposes the same explicit-cutoff
+capture operation directly. This additive method is also available on the API-2 integration
+baseline without adding an enum variant or changing its persistence version. It never
+advances input time, emits releases, or changes live ownership. The requested range must
+remain inside retained history; failure leaves the old clip and Undo state unchanged.
