@@ -3,6 +3,8 @@
 mod condition_tests;
 mod contact_envelope;
 #[cfg(test)]
+mod harmony_source_tests;
+#[cfg(test)]
 mod harmony_tests;
 #[cfg(test)]
 mod humanized_tests;
@@ -15,8 +17,8 @@ mod virtual_midi;
 mod worker;
 use crest_linnstrument::*;
 use crest_performance_core::{
-    BeatTime, Command, HarmonySettings, NoteCondition, NoteEdit, NoteKey, PatternSettings, Session,
-    SurfaceMode,
+    BeatTime, Command, HarmonySettings, HarmonySource, NoteCondition, NoteEdit, NoteKey,
+    PatternSettings, Session, SurfaceMode,
 };
 use crest_performance_host::{HostSnapshot, TestHost};
 pub use scenario::{ContactAction, ContactScenario, ContactStep};
@@ -115,6 +117,9 @@ pub enum BridgeCommand {
     },
     Harmony {
         settings: HarmonySettings,
+    },
+    HarmonySource {
+        source: HarmonySource,
     },
     LearnChord {
         slot: usize,
@@ -669,6 +674,9 @@ impl Runtime {
             }),
             BridgeCommand::Surface { mode } => self.set_surface(mode),
             BridgeCommand::Harmony { settings } => self.host_command(Command::SetHarmony(settings)),
+            BridgeCommand::HarmonySource { source } => {
+                self.host_command(Command::SetHarmonySource(source))
+            }
             BridgeCommand::LearnChord { slot, degree, root } => {
                 let track = self
                     .host

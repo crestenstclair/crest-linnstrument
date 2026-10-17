@@ -3,6 +3,8 @@
 <main><div class="host-toolbar"><button id="play">Play mode</button><button id="clips">Clip pads</button><button id="chords">Chord pads</button><button id="record">Record selected</button><button id="overdub">Overdub</button><button id="retro">Capture last 4 beats</button><button id="undo">Undo</button><button id="duplicate">Duplicate to next</button><button id="finish">Finish take</button><button id="cancel">Cancel take</button><button id="stop-slot">Stop selected</button><button id="stop">Stop all</button><button id="fill" aria-pressed="false">Hold Fill</button></div><label class="note">Launch grid <select id="launch-quantum"><option value="0">Off · immediate</option><option value="960000">1 beat</option><option value="3840000">4 beats</option></select></label><div id="grid" class="clip-grid"></div>
 <p class="note">Select slot. Record, then play the virtual LinnStrument. Finish take; click slot again to launch. In Clip pads mode, bottom-row pads 1–8 launch recorded slots or stop playing slots. Click the selected playing slot to stop it.</p>
 <details id="harmony-panel" open><summary>HARMONY · chord pads and strumplate</summary>
+<label>Follower harmony source <select id="harmony-source"><option value="selected">Live / selected chord</option></select></label>
+<p id="harmony-source-state" class="note"></p>
 <form id="harmony-form" class="harmony-fields">
 <label>Tonic MIDI <input name="tonic" type="number" min="0" max="127" value="60" required></label>
 <label>Scale <select name="scale"><option value="major">Major</option><option value="natural_minor">Natural minor</option><option value="dorian">Dorian</option><option value="mixolydian">Mixolydian</option></select></label>
@@ -44,10 +46,10 @@
 <label>Velocity <input name="velocity" type="number" min="1" max="127" value="90" required></label>
 <label>Velocity variation <input name="velocity_variation" type="number" min="0" max="63" value="0" required></label>
 <label>Timing variation ticks <input name="timing_variation" type="number" min="0" max="3840000" value="0" required></label>
-<label><input name="follow_harmony" type="checkbox">Follow selected/live chord</label>
+<label><input name="follow_harmony" type="checkbox">Follow active harmony</label>
 <button type="submit">Generate selected slot</button></form>
 <div class="degree-strip"><button id="follow-on">Follow harmony</button><button id="follow-off">Use original notes</button><button id="freeze">Freeze current harmony</button></div>
-<p id="pattern-state" class="note"></p><p class="note">Stop selected slot before generating, changing follow mode, or freezing. Changes support Undo. Different slots loop independently. Timing variation delays attacks within each step. Following changes future attacks only; freeze stores the currently selected harmony as fixed pitches.</p>
+<p id="pattern-state" class="note"></p><p class="note">Stop selected slot before generating, changing follow mode, or freezing. Changes support Undo. Different slots loop independently. Timing variation delays attacks within each step. Following changes future attacks only; freeze stores the current follower harmony as fixed pitches. A clip source uses its recorded chord gestures, including timing before delayed strums. Its last chord carries across loop pickup gaps; stopping it restores live/selected harmony. Empty slots and clips without chord gestures use live/selected harmony. Editing rendered notes does not rewrite recorded chord intent.</p>
 </details>
 <details id="output-panel"><summary>OUTPUT · explicit MIDI destination profiles</summary>
 <form id="output-form" class="harmony-fields">

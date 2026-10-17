@@ -78,7 +78,10 @@ impl Engine {
     }
     pub(super) fn generate(&mut self, slot: usize, settings: PatternSettings) -> Result<()> {
         self.ensure_editable(slot)?;
-        let clip = settings.render(self.session.harmony, self.session.slots[slot].track)?;
+        let clip = settings.render(
+            self.effective_harmony_at(self.at),
+            self.session.slots[slot].track,
+        )?;
         if clip.events.len() > self.limits.recorded_events {
             return Err(Error::Capacity("generated clip events"));
         }
@@ -93,7 +96,7 @@ impl Engine {
             .ok_or(Error::NotFound)?;
         if enabled && clip.follow.is_none() {
             clip.follow = Some(HarmonyFollow {
-                reference: self.session.harmony,
+                reference: self.effective_harmony_at(self.at),
             });
         } else if !enabled {
             clip.follow = None;
@@ -110,15 +113,51 @@ impl Engine {
         let follow = clip
             .follow
             .ok_or(Error::State("clip is not following harmony"))?;
+        let current = self.effective_harmony_at(self.at);
         for event in &mut clip.events {
             if let Gesture::On { key, .. } = &mut event.gesture {
-                *key = follow.pitch(*key, self.session.harmony)?;
+                *key = follow.pitch(*key, current)?;
             }
         }
         clip.follow = None;
         clip.validate(self.session.slots[slot].track)?;
         self.commit_clip(slot, clip);
         Ok(())
+    }
+    pub(super) fn set_harmony_source(&mut self, source: HarmonySource) -> Result<()> {
+        if let HarmonySource::Clip { slot } = source
+            && slot >= self.session.slots.len()
+        {
+            return Err(Error::NotFound);
+        }
+        self.session.harmony_source = source;
+        Ok(())
+    }
+    /// Resolve at the event timestamp, not the render frame or previous engine
+    /// position. Queued sources remain inactive; each accepted launch restarts
+    /// the intent timeline. No allocation or scan of recorded gestures occurs.
+    pub(super) fn effective_harmony_at(&self, at: BeatTime) -> HarmonySettings {
+        let selected = self.session.harmony;
+        let HarmonySource::Clip { slot } = self.session.harmony_source else {
+            return selected;
+        };
+        let Some(start) = self
+            .players
+            .iter()
+            .find(|p| p.slot == slot)
+            .map(|p| p.scheduled_start)
+        else {
+            return selected;
+        };
+        let Some(elapsed) = at.0.checked_sub(start.0) else {
+            return selected;
+        };
+        let Some(clip) = &self.session.slots[slot].clip else {
+            return selected;
+        };
+        self.harmony_timelines[slot]
+            .at(BeatTime(elapsed % clip.length.0), elapsed >= clip.length.0)
+            .unwrap_or(selected)
     }
     pub(super) fn set_harmony(&mut self, settings: HarmonySettings) -> Result<()> {
         settings.validate()?;

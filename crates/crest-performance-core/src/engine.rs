@@ -71,6 +71,7 @@ pub enum Command {
     Stop,
     SetMode(SurfaceMode),
     SetHarmony(HarmonySettings),
+    SetHarmonySource(HarmonySource),
     LearnChord {
         source: SourceId,
         track: TrackId,
@@ -113,6 +114,8 @@ pub struct PerformanceSnapshot {
     pub voice_capacity: usize,
     pub slots: Vec<SlotState>,
     pub harmony: HarmonySettings,
+    pub harmony_source: HarmonySource,
+    pub effective_harmony: HarmonySettings,
     pub last_voicing: Option<Voicing>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -204,6 +207,7 @@ impl Recording {
 /// work and must run outside an audio callback. No locks or I/O are performed.
 pub struct Engine {
     session: Session,
+    harmony_timelines: Vec<HarmonyTimeline>,
     limits: Limits,
     at: BeatTime,
     next_voice: u64,
@@ -233,6 +237,11 @@ impl Engine {
         }
         Ok(Self {
             players: Vec::with_capacity(session.slots.len()),
+            harmony_timelines: session
+                .slots
+                .iter()
+                .map(|slot| HarmonyTimeline::from_clip(slot.clip.as_ref()))
+                .collect(),
             session,
             limits,
             at: BeatTime(0),
@@ -324,6 +333,8 @@ impl Engine {
             active_voices: self.active.len(),
             voice_capacity: self.limits.voices,
             harmony: self.session.harmony,
+            harmony_source: self.session.harmony_source,
+            effective_harmony: self.effective_harmony_at(self.at),
             last_voicing: self.last_voicing,
             slots: (0..self.session.slots.len())
                 .map(|slot| self.slot_state(slot))
@@ -420,7 +431,7 @@ impl Engine {
             ) = (clip.follow, event.gesture)
         {
             event.gesture = Gesture::On {
-                key: follow.pitch(key, self.session.harmony)?,
+                key: follow.pitch(key, self.effective_harmony_at(event.at))?,
                 velocity,
                 expression,
             };
@@ -622,6 +633,7 @@ impl Engine {
                 Ok(())
             }
             Command::SetHarmony(settings) => self.set_harmony(settings),
+            Command::SetHarmonySource(source) => self.set_harmony_source(source),
             Command::LearnChord {
                 source,
                 track,
@@ -825,6 +837,7 @@ impl Engine {
     }
     /// Publish a prepared control-thread edit and its complete Undo snapshot.
     fn commit_clip(&mut self, slot: usize, clip: Clip) {
+        self.harmony_timelines[slot] = HarmonyTimeline::from_clip(Some(&clip));
         self.undo = Some(UndoState::Clip {
             slot,
             clip: self.session.slots[slot].clip.replace(clip).map(Box::new),
@@ -941,6 +954,7 @@ impl Engine {
         }
         match self.undo.take().ok_or(Error::State("nothing to undo"))? {
             UndoState::Clip { slot, clip } => {
+                self.harmony_timelines[slot] = HarmonyTimeline::from_clip(clip.as_deref());
                 self.session.slots[slot].clip = clip.map(|clip| *clip)
             }
             UndoState::LearnedChord { degree, chord } => {

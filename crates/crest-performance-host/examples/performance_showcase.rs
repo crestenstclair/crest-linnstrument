@@ -94,6 +94,7 @@ fn session() -> Result<Session> {
             condition: NoteCondition::Fill {},
         })?;
     }
+    e.command(Command::SetHarmonySource(HarmonySource::Clip { slot: 0 }))?;
     e.save_session()
 }
 

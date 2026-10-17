@@ -2,6 +2,10 @@ use super::*;
 use crest_performance_core::{ExpressionPolicy, Gesture, HarmonyPlaying, SlotState};
 
 pub(super) fn runtime(model: u16) -> Runtime {
+    runtime_with_session(model, Session::default())
+}
+
+pub(super) fn runtime_with_session(model: u16, session: Session) -> Runtime {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let flash = root.join(format!("target/firmware-native/ideal-{model}.bin"));
     let (worker, firmware) = Worker::start(
@@ -19,7 +23,7 @@ pub(super) fn runtime(model: u16) -> Runtime {
         run: GestureRun::new(&firmware, &flash).unwrap(),
         worker,
         firmware,
-        host: TestHost::new(Session::default(), geometry).unwrap(),
+        host: TestHost::new(session, geometry).unwrap(),
         geometry,
         contacts: vec![],
         contact_profile: ContactProfile::default(),

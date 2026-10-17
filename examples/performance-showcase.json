@@ -1,7 +1,7 @@
 {
   "host_version": 1,
   "session": {
-    "version": 7,
+    "version": 8,
     "tracks": [
       {
         "id": 1,
@@ -1946,6 +1946,10 @@
       ],
       "input_anchor": 30,
       "bass_track": 2
+    },
+    "harmony_source": {
+      "type": "clip",
+      "slot": 0
     }
   },
   "outputs": [

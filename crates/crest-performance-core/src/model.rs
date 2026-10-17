@@ -1,6 +1,6 @@
 use crate::{
-    BeatTime, Error, HarmonyFollow, HarmonyGesture, HarmonySettings, PatternOrigin, Result,
-    SESSION_VERSION,
+    BeatTime, Error, HarmonyFollow, HarmonyGesture, HarmonySettings, HarmonySource, PatternOrigin,
+    Result, SESSION_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -194,12 +194,15 @@ pub struct Session {
     pub slots: Vec<ClipSlot>,
     #[serde(default)]
     pub harmony: HarmonySettings,
+    #[serde(default)]
+    pub harmony_source: HarmonySource,
 }
 impl Default for Session {
     fn default() -> Self {
         Self {
             version: SESSION_VERSION,
             harmony: HarmonySettings::default(),
+            harmony_source: HarmonySource::default(),
             tracks: vec![Track {
                 id: TrackId(1),
                 name: "LinnStrument".into(),
@@ -221,6 +224,9 @@ impl Default for Session {
 impl Session {
     /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=7).contains(&self.version) && self.harmony_source != HarmonySource::default() {
+            return Err(Error::Invalid("older session contains v8 harmony source"));
+        }
         if (1..=6).contains(&self.version)
             && (self.harmony.articulation.is_humanized()
                 || self
@@ -290,7 +296,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if matches!(self.version, 3..=6) {
+        if matches!(self.version, 3..=7) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;
@@ -301,6 +307,11 @@ impl Session {
             return Err(Error::Version(self.version));
         }
         self.harmony.validate()?;
+        if let HarmonySource::Clip { slot } = self.harmony_source
+            && slot >= self.slots.len()
+        {
+            return Err(Error::NotFound);
+        }
         if self
             .harmony
             .bass_track

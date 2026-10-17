@@ -1,4 +1,4 @@
-# Public host contract, API 7
+# Public host contract, API 8
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -237,8 +237,8 @@ host also releases it on pointer-capture or focus loss. Rules are not an audio-b
 
 ## Persistence and compatibility
 
-`Session.version == 7`; unknown schema versions are rejected. `Session::migrate` upgrades
-schemas 1–6 without changing tracks, slots, times or expression. Missing articulation
+`Session.version == 8`; unknown schema versions are rejected. `Session::migrate` upgrades
+schemas 1–7 without changing tracks, slots, times or expression. Missing articulation
 means Block; version-2 data containing strum settings or algorithm-2 harmony origins is rejected. Engine construction and the
 host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. Missing learned-bank entries default to seven empty degrees. Schemas 1–3 reject learned
 banks, harmony algorithm 3 and pattern algorithm 2, including nested origins/followers.
@@ -249,13 +249,16 @@ must handle it deliberately. No automatic regeneration occurs during migration.
 Schemas 1–5 reject nonempty note conditions. Missing conditions mean every note plays on
 every loop. Adding `Clip.conditions`, `PerformanceSnapshot.fill` and the condition/Fill
 commands requires API 6. Schemas 1–6 reject Humanized articulation, harmony algorithm 5 and pattern algorithm 4,
-including nested origins and followers. Adding Humanized requires API 7. The schema contains tracks,
+including nested origins and followers. Adding Humanized requires API 7. Schema 8 adds
+`Session.harmony_source`, defaulting to Selected. Schemas 1–7 reject a clip source hidden
+under an old label; unknown source variants, extra fields and out-of-bounds slots reject.
+The source command and effective/source snapshot fields require API 8. The schema contains tracks,
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 7.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 8.
 
-This development package is `0.2.0-dev`, API 7, schema 7. The accepted `v0.1.0` release
+This development package is `0.2.0-dev`, API 8, schema 8. The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
@@ -367,6 +370,24 @@ fixed pitches and clears following, retaining historical provenance and one-step
 Disabling following instead restores original raw pitches. Freeze before overdub; mixing
 fixed incoming notes with relative playback is intentionally rejected. Editing preserves
 historical provenance; it is not a claim that regeneration reproduces subsequent edits.
+
+`SetHarmonySource` chooses live/selected settings or a clip slot's recorded harmonic
+intent. A running clip source resolves the latest original chord attack at each follower
+attack's timestamp. It uses `harmony_origin` settings, not chord inference from edited
+rendered notes. Strum/humanized timing therefore does not delay the harmonic change, and
+conditional silence does not remove harmonic intent. Same-tick source gestures use the
+last recorded settings, independent of player launch order. No pitch is changed mid-note.
+
+A queued, stopped or empty source, or a clip without chord gestures, uses live/selected
+harmony. A new launch restarts the source timeline; its first pickup gap uses selected
+harmony. Later loop pickup gaps retain the previous loop's final chord. Stop restores the
+latest live/selected settings. The selection persists; source playback never mutates it.
+`PerformanceSnapshot.harmony` remains the selected/live settings; `effective_harmony` is
+the follower target. Generate, enabling following and Freeze use that current target.
+Freeze stores the current chord, not an entire future progression. Original audio, source
+gestures and Undo remain exact. Source indices rebuild on clip commit/Undo and reopen on
+the control thread; playback uses binary lookup with no allocation. Source resolution
+never consumes generated follower output, so it cannot create a feedback cycle.
 
 Clip state distinguishes initial queued launch from later loop positions, so silent loop
 tails remain Playing. Generated lanes keep independent loop lengths and output ownership.

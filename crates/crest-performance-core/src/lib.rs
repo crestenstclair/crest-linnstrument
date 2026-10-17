@@ -4,6 +4,9 @@ mod edit;
 pub use condition::*;
 mod engine;
 mod harmony;
+mod harmony_source;
+pub use harmony_source::HarmonySource;
+use harmony_source::HarmonyTimeline;
 mod learned_chord;
 pub use learned_chord::*;
 mod pattern;
@@ -17,8 +20,8 @@ pub use engine::*;
 pub use model::*;
 pub use time::*;
 
-pub const API_VERSION: u32 = 7;
-pub const SESSION_VERSION: u32 = 7;
+pub const API_VERSION: u32 = 8;
+pub const SESSION_VERSION: u32 = 8;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {

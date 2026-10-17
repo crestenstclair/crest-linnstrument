@@ -545,6 +545,21 @@ def play_showcase_bank(app):
                       s['host']['performance']['slots'][:3] == ['recorded'] * 3,
                       'showcase bank reopened')
     assert [route['destination'] for route in state['host']['outputs']] == [1, 2, 3]
+    app.click('#harmony-source option[value="selected"]')
+    app.click('#degrees button:first-child')
+    app.state(lambda s: s['host']['performance']['harmony_source']['type'] == 'selected' and
+              s['host']['performance']['effective_harmony']['degree'] == 0, 'selected chord source')
+    app.click('#harmony-source option[value="0"]')
+    app.state(lambda s: s['host']['performance']['harmony_source'] == {'type': 'clip', 'slot': 0},
+              'recorded chord source selected')
+    saved = ARTIFACTS / 'desktop-harmony-source.json'
+    app.fill('#path', str(saved))
+    app.click('#save')
+    wait_for(saved.exists, bool, 'harmony source saved')
+    assert json.loads(saved.read_text())['session']['harmony_source'] == {'type': 'clip', 'slot': 0}
+    app.click('#open')
+    app.state(lambda s: s['host']['performance']['harmony_source'] == {'type': 'clip', 'slot': 0} and
+              s['host']['performance']['effective_harmony']['degree'] == 0, 'source reopened stopped')
     app.click('#clips')
     app.state(lambda s: s['host']['performance']['mode'] == 'clips', 'showcase clip pad mode')
     app.switch('instrument')
@@ -557,6 +572,8 @@ def play_showcase_bank(app):
     app.capture('showcase-three-clips', state)
     app.switch('host')
     app.watch_input()
+    app.state(lambda s: s['host']['performance']['effective_harmony']['degree'] == 2 and
+              s['host']['performance']['harmony']['degree'] == 0, 'leader overrides selected chord')
     app.click('#fill')
     app.native('keydown', 'space')
     app.state(lambda s: s['host']['performance']['fill'], 'showcase keyboard Fill held')
@@ -565,6 +582,12 @@ def play_showcase_bank(app):
         for m in s['host']['recent_midi']), 'showcase Fill reaches independent destination')
     app.native('keyup', 'space')
     app.state(lambda s: not s['host']['performance']['fill'], 'showcase Fill released')
+    app.click('#harmony-source option[value="selected"]')
+    app.state(lambda s: s['host']['performance']['effective_harmony']['degree'] == 0,
+              'running followers return to selected harmony')
+    app.click('#harmony-source option[value="0"]')
+    app.state(lambda s: s['host']['performance']['effective_harmony']['degree'] == 2,
+              'running followers resume clip harmony')
     app.switch('instrument')
     app.touch(2, 0)
     state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing', 'recorded', 'playing'] and

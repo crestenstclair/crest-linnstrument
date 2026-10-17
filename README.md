@@ -11,9 +11,9 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 7, session schema 7**. Timed strumming, humanized chords, learned chord banks, repeating arpeggios and per-note conditions are
+Current development is **0.2.0-dev, API 8, session schema 8**. Timed strumming, humanized chords, learned chord banks, repeating arpeggios per-note conditions and chord-clip leaders are
 versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
-Schemas 1–6 load losslessly; saving with this checkout writes schema 7, rejected by
+Schemas 1–7 load losslessly; saving with this checkout writes schema 8, rejected by
 older readers. Keep the original session to return to the baseline release.
 
 Conditional playback keeps the original notes and expression. In the note editor, select a
@@ -28,6 +28,11 @@ delay, velocity variation and seed in Harmony. Each trigger gets its own determi
 variation. Expression follows each voice from its actual attack; releasing early cancels
 waiting tones. Bass and manual strumplate remain immediate. Recording stores exact rendered
 notes plus the original gestures and settings, so replay does not roll the dice again.
+
+Choose **Follower harmony source** in Harmony to follow a recorded chord clip. Its original
+chord gestures lead accompaniment while it loops, even when its rendered notes are strummed
+or humanized. Followers keep rhythm, expression and held-note pitches. Stopping the leader
+restores live/selected harmony. The choice survives save/reopen; reopening starts stopped.
 
 ## Run
 

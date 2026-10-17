@@ -52,6 +52,17 @@ function renderNotes(clip){
   for(const note of displayedNotes){note.rect={x:note.start/clip.length*800,y:140-(note.key-low+1)/(high-low)*140,w:Math.max(3,note.duration/clip.length*800),h:Math.min(18,140/(high-low)-2)};const r=note.rect;pencil.fillStyle=noteKey(selectedNote)===noteKey(note.id)?'#f2dec0':'#b5db83';pencil.fillRect(r.x,r.y,r.w,r.h);}
 }
 piano.onclick=event=>{const box=piano.getBoundingClientRect(),x=(event.clientX-box.left)/box.width*800,y=(event.clientY-box.top)/box.height*140;const note=displayedNotes.find(n=>x>=n.rect.x&&x<=n.rect.x+n.rect.w&&y>=n.rect.y&&y<=n.rect.y+n.rect.h);if(note)selectNote(note);};
+const sourceSelect=document.querySelector('#harmony-source');let sourceSlots=-1;
+sourceSelect.onchange=()=>send({type:'harmony_source',source:sourceSelect.value==='selected'?{type:'selected'}:{type:'clip',slot:Number(sourceSelect.value)}});
+function renderHarmonySource(state){
+  if(sourceSlots!==state.slots.length){
+    sourceSelect.replaceChildren(new Option('Live / selected chord','selected'),...state.slots.map((_,slot)=>new Option(`Clip ${String(slot+1).padStart(2,'0')}`,String(slot))));
+    sourceSlots=state.slots.length;
+  }
+  sourceSelect.value=state.harmony_source.type==='clip'?String(state.harmony_source.slot):'selected';
+  const current=state.effective_harmony;
+  document.querySelector('#harmony-source-state').textContent=`Follower harmony: ${['I','II','III','IV','V','VI','VII'][current.degree]} · tonic MIDI ${current.tonic}`;
+}
 const harmonyForm=document.querySelector('#harmony-form');let harmonySettings=null;let renderedHarmony='';let renderedTracks='';
 function sendHarmony(degree){
   harmonyForm.elements.arpeggio_gate.setCustomValidity('');
@@ -144,6 +155,7 @@ subscribers.push(snapshot=>{
   document.querySelector('#launch-quantum').value=String(snapshot.host.launch_quantum);
   renderNotes(snapshot.host.clips[selected]);
   renderHarmony(state,snapshot.host.tracks);
+  renderHarmonySource(state);
   renderOutputs(snapshot.host);
   const selectedClip=snapshot.host.clips[selected],origin=selectedClip?.pattern_origin?.at(-1);
   document.querySelector('#pattern-state').textContent=selectedClip?`${selectedClip.follow?'FOLLOWING SELECTED/LIVE CHORD':'FIXED PITCHES'}${origin?` · seed ${origin.settings.seed} · ${origin.settings.pulses}/${origin.settings.steps} pulses · algorithm ${origin.algorithm_version}`:''}`:'Select an empty or stopped clip slot.';

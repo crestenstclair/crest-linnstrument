@@ -74,8 +74,7 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: chord-clip leaders,
-parameter locks, momentary transforms and scene morphing remain future work.
+open: parameter locks, momentary transforms and scene morphing remain future work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
 is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
@@ -83,7 +82,7 @@ owns its adapter, engine capability changes, production UI, project mapping and 
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
 
 Tracker's separate `feat/performance-v0.1` branch now consumes API-2 patch commit
-`b47950f63f4dbacfd9de4cbc0e0bed34e8c6b78b`. Its retrospective capture integration at
+`2e86f2af04c456ad1ac0d989c3ab5d2e3783d909`. Its retrospective capture integration at
 `f56f6fe3e4f6820f2fd59f950201fbbb2c4cb4ea` passed [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393),
 including native Sample monitoring/capture/reopen/replay and the macOS bundle. M6 remains
 open: simultaneous performance clips, external performance routes and Linux MIDI/audio
@@ -92,7 +91,7 @@ remain separate. This library has no dependency on that checkout or its applicat
 
 ## Post-baseline timed strum candidate
 
-Development 0.2.0-dev now uses API 7/session 7; Tracker continues to consume its separately
+Development 0.2.0-dev now uses API 8/session 8; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -233,3 +232,31 @@ through public APIs from the existing firmware phrase: expressive humanized chor
 following Euclidean bass and Fill-gated accompaniment. The builder checks 108 balanced
 attacks/releases, destination isolation, Fill silence and exact persistence. It remains
 usable with only capture sinks and does not require a sound engine or Tracker checkout.
+
+
+## Post-baseline chord-clip harmony source candidate
+
+API/session 8 adds a persisted choice of live/selected harmony or recorded chord-clip
+intent. Followers resolve source gestures at each attack, independently of launch order
+and delayed source audio. Queued/stopped sources use selected harmony; loop pickup gaps
+retain the previous iteration's final chord. Held follower voices keep pitch and expression.
+Generate and Freeze use the active target. Playback uses a control-thread-built binary
+lookup index, rebuilt on commit, Undo and reopen. Schemas 1–7 migrate losslessly and reject
+new clip-source state hidden under an earlier version.
+
+Six focused core scenarios verify timing, expression ownership, launch order, queue/stop/
+relaunch, simultaneous/unsorted provenance, Freeze, replacement/Undo, persistence and invalid
+source rejection. Both firmware geometries record I/V from sensor contacts, save/reopen,
+launch source and follower from firmware pads, compare independently specified follower
+pitches across loops, then stop the source and verify D-minor fallback with independent
+firmware LEDs. Desktop and release checks are still required for this candidate.
+
+
+The API-2 overdub patch preserves the original raw stream, zero-duration notes and closing
+expression, assigns fresh take identities and retains exact Undo. It passed independent
+[baseline CI 39017257775](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39017257775).
+Tracker adopted this pin with seven adapter contracts and 261 application tests passing
+locally. Development full [CI 39017632570](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39017632570)
+and extracted-package [CI 39017800242](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39017800242)
+passed the three-route showcase, firmware-pad launches, held Fill, independent stop and
+firmware LED checks. These runs precede the API-8 harmony-source candidate.
