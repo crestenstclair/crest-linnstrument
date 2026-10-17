@@ -1,8 +1,9 @@
-# Public host contract, API 12
+# Public host contract, API 13 development
 
-Release v0.3.0 exposes API 12/session 10/host envelope 2. It adds per-note parameter
-locks after A/B morphing in API 11/session 9. The earlier v0.2.0 remains API 9/session 8. Tracker remains independently pinned to tested API-10
-commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`; upgrading is a separate decision.
+Development v0.4.0-dev.1 exposes API 13/session 10/host envelope 2. It adds temporary
+clip transposition without changing persisted data. Stable v0.3.0 remains API 12/session 10,
+including per-note locks and A/B morphing. Tracker consumes that immutable release commit
+`a05f8dfcb56f27498fb42693d4c8930f10d8e621`; later upgrades remain deliberate decisions.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -289,6 +290,40 @@ The standalone host's momentary button captures the selected slot at press and r
 that same slot on pointer/key release or focus loss. A disabled/stopped control clears its
 hold. Firmware feedback uses cyan (`MUTED_SLOT_COLOR = 4`) while muted, with the actual
 Queued/Playing status retained independently in snapshots and the host grid.
+
+## Temporary clip transposition (API 13)
+
+`SetClipTranspose { slot, semitones: i8 }` affects future attacks of one launched or queued
+clip. `PerformanceSnapshot.clip_transpositions` parallels slot states; inactive slots read
+zero. The offset applies after harmony-following pitch resolution, before voice allocation
+and note-parameter emission. Every accepted voice retains its own expression and release,
+including when the offset changes while it sounds. Live notes, other clips, original curves,
+conditions, parameter ownership, recorded harmony leadership and Undo are unchanged. This
+transforms audible note pitches only; it does not transpose the selected/leader harmony.
+
+A nonzero change validates every attack against the currently resolved harmony before
+mutation. MIDI pitches outside 0–127 reject rather than clamp or drop notes. Later leader or
+selected harmony changes are checked again at each attack; a failing attack allocates no
+voice and remains retryable after correcting the setting. Skipped/muted attacks consume no
+voice. Setting zero always restores the original future phrase, even after a clip stops.
+Unknown slots reject. New launches, overdub restarts, successful mode changes, Stop and
+source disconnect reset offsets. Quantized launch times and loop phase do not change.
+The state is transient: saves contain the original clip and reopen with no shift.
+
+The standalone host's `hold_clip_octave(slot, direction, held)` merges separate host and
+firmware owners for Down and Up. Either direction applies one octave, never one octave per
+finger/source; holding both produces zero. Releasing one surface cannot cancel another
+surface's same-direction hold. Player replacement and safety transitions retire owners even
+when opposing holds had a net zero effect. Rejected presses acquire no ownership. If release
+exposes an out-of-range remaining direction, the host restores zero and clears that slot's
+holds while returning the range error; physically released owners cannot remain latched.
+
+Clip-mode rows 3 and 4 (bottom row is 0), columns matching clip slots, hold down/up. Pads are
+blue when available, magenta for the effective direction, and dark for inactive slots.
+Row 2 remains reserved for optional continuous A/B morphing. Host buttons capture the selected
+slot at press; pointer/key release and focus loss release that same owner. Firmware control
+pads exercise actual sensor contacts, upstream User Firmware Mode MIDI, and decoded LEDs.
+This adds an API command and snapshot field, not a persistence or host-envelope migration.
 
 ## Persistence and compatibility
 

@@ -54,7 +54,7 @@ fn prepare(model: u16) -> Runtime {
     r.advance(100_000).unwrap();
     r
 }
-fn contact(r: &mut Runtime, id: u32, x: f64, y: f64) {
+pub(super) fn contact(r: &mut Runtime, id: u32, x: f64, y: f64) {
     r.set_contact(Contact {
         id,
         x,
@@ -68,7 +68,7 @@ fn contact(r: &mut Runtime, id: u32, x: f64, y: f64) {
     // parse those bytes and complete the decoder's >=25 ms exposure window.
     r.advance(50_000).unwrap();
 }
-fn attacks(r: &mut Runtime) -> Vec<u8> {
+pub(super) fn attacks(r: &mut Runtime) -> Vec<u8> {
     let before = r.host.output_count();
     r.advance(200_000).unwrap();
     r.host
@@ -79,7 +79,7 @@ fn attacks(r: &mut Runtime) -> Vec<u8> {
         .map(|event| event.message.bytes()[1])
         .collect()
 }
-fn assert_color(r: &Runtime, cell: usize, expected: [bool; 3]) {
+pub(super) fn assert_color(r: &Runtime, cell: usize, expected: [bool; 3]) {
     for (actual, on) in r.firmware.leds[cell].into_iter().zip(expected) {
         assert!(
             if on { actual > 200 } else { actual < 50 },

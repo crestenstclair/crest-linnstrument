@@ -9,6 +9,7 @@ pub mod storage;
 use crest_linnstrument::*;
 use crest_performance_core::*;
 use crest_performance_testkit::CapturedMidi;
+pub use holds::OctaveDirection;
 use holds::{ControlSource, Holds};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -261,12 +262,30 @@ impl TestHost {
         self.capture_output()
     }
     pub fn command(&mut self, command: Command) -> Result<()> {
+        let replaced_slot =
+            match command {
+                Command::Launch { slot, .. }
+                | Command::StopSlot { slot }
+                | Command::BeginOverdub { slot }
+                | Command::SetClipTranspose { slot, .. } => Some(slot),
+                Command::FinishRecord => self.engine.snapshot().slots.iter().position(|state| {
+                    matches!(state, SlotState::Recording | SlotState::Overdubbing)
+                }),
+                _ => None,
+            };
         match command {
             Command::SetFill(held) => self.set_fill(ControlSource::Host, held)?,
             Command::SetClipMuted { slot, muted } => {
                 self.set_muted(ControlSource::Host, slot, muted)?;
             }
             _ => self.engine.command(command)?,
+        }
+        // A pair of opposing holds has a net offset of zero. Retire those
+        // owners explicitly on player replacement and safety transitions too.
+        if matches!(command, Command::Stop | Command::SetMode(_)) {
+            self.holds.reset_octaves(None);
+        } else if let Some(slot) = replaced_slot {
+            self.holds.reset_octaves(Some(slot));
         }
         self.holds.reconcile(&self.engine.snapshot());
         if matches!(command, Command::Stop) {
@@ -410,6 +429,7 @@ impl TestHost {
         self.engine.drain_output().for_each(drop);
         self.engine.drain_parameter_output().for_each(drop);
         self.engine.command(Command::Stop)?;
+        self.holds.reset_octaves(None);
         self.holds.reconcile(&self.engine.snapshot());
         self.engine.drain_output().for_each(drop);
         self.input.reset();

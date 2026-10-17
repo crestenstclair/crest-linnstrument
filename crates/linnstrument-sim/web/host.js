@@ -15,6 +15,24 @@ function renderMute(state){
   muteButton.setAttribute('aria-pressed',String(muted));
   muteButton.textContent=muted?'Selected clip muted':'Hold mute selected';
 }
+const octaveControls=['down','up'].map(direction=>{
+  const button=document.querySelector(`#octave-${direction}`);let heldSlot=null;
+  const clear=bindHoldControl(button,window,held=>{
+    if(held){heldSlot=selected;send({type:'clip_octave',slot:heldSlot,direction,held:true});}
+    else if(heldSlot!==null){const slot=heldSlot;heldSlot=null;send({type:'clip_octave',slot,direction,held:false});}
+  });
+  return {button,clear,direction};
+});
+function renderOctaves(state){
+  const shift=state.clip_transpositions[selected];
+  for(const {button,clear,direction} of octaveControls){
+    button.disabled=!['playing','queued'].includes(state.slots[selected]);
+    if(button.disabled)clear();
+    const active=direction==='down'?shift<0:shift>0;
+    button.setAttribute('aria-pressed',String(active));
+    button.textContent=active?`Octave ${direction} active`:`Hold octave ${direction}`;
+  }
+}
 const conditionForm=document.querySelector('#condition-form');
 const noteParameterForm=document.querySelector('#note-parameter-form');
 function editNoteParameter(remove=false){
@@ -196,7 +214,7 @@ subscribers.push(snapshot=>{
   const selectedClip=snapshot.host.clips[selected],origin=selectedClip?.pattern_origin?.at(-1);
   document.querySelector('#pattern-state').textContent=selectedClip?`${selectedClip.follow?'FOLLOWING SELECTED/LIVE CHORD':'FIXED PITCHES'}${origin?` · seed ${origin.settings.seed} · ${origin.settings.pulses}/${origin.settings.steps} pulses · algorithm ${origin.algorithm_version}`:''}`:'Select an empty or stopped clip slot.';
   renderClips(state.slots,state.muted_slots);
-  renderMute(state);
+  renderMute(state);renderOctaves(state);
   document.querySelector('#transport').textContent=`${(state.at/960000).toFixed(3)} beats · ${snapshot.host.tempo_milli_bpm/1000} BPM · ${state.active_voices} voices · ${snapshot.host.capture_count} captured MIDI messages · ${state.mode.toUpperCase()}`;
   document.querySelector('#capture').textContent=snapshot.host.recent_midi.map(m=>`${String(m.at).padStart(10)}  ${m.message.bytes.slice(0,m.message.len).map(b=>b.toString(16).padStart(2,'0')).join(' ')}`).join('\n');
 });

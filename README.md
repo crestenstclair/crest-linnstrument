@@ -5,7 +5,8 @@ The workspace is named `crest-performance`; it currently lives in the existing
 `crest-linnstrument` repository. No Crest Tracker checkout, application code, sound engine,
 physical controller, MIDI device, or sound card is needed for the development path.
 
-**Standalone release: `0.3.0`, public API 12, session schema 10, host envelope 2.**
+**Development: `0.4.0-dev.1`, public API 13, session schema 10, host envelope 2.**
+Stable standalone release: `v0.3.0` (API 12, schema 10).
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.3.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.3.0)
 defines this contract; an untagged checkout remains a candidate. See
@@ -15,10 +16,19 @@ Version 0.3 adds firmware-pad harmony controls, local tempo changes, explicit at
 quantization, A/B morph capture and voice-scoped parameter locks. Version 0.2 added timed strumming, humanized chords, learned chord banks, repeating arpeggios,
 per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
 [v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
-API 2/session 2. Crest Tracker's independent integration branch pins tested API-10 commit
-`6c37aa5`; this API-12 release does not change that dependency.
+API 2/session 2. Crest Tracker's independent integration branch now consumes released v0.3.0 commit
+`a05f8df` (API 12). It remains pinned while this repository develops API 13.
 Schemas 1–9 load losslessly; saving with this checkout writes schema 10, rejected by
 older readers. Keep the original session to return to its previous library version.
+
+Development API 13 adds temporary clip transposition. **Hold octave down/up** changes
+only future attacks of the selected playing clip; stored notes, held expression and releases
+remain intact. In **Clip pads**, rows 3 and 4 above bottom row 0 hold down/up for each clip
+column. Blue means available; magenta shows the effective shift. Host and firmware contacts
+retain independent ownership. Opposing directions cancel, then the remaining direction
+resumes when one releases. Focus loss releases host controls and momentary virtual contacts;
+latched fingers require explicit release. Pitch overflow rejects without clipping notes.
+This is development work, not part of the v0.3 tag.
 
 The test host's **A/B MORPH** panel configures up to 16 parameter endpoints. Add parameters,
 choose destination/reference and normalized A/B values (0–65535), then Apply. Buttons select

@@ -1,6 +1,7 @@
 # Delivery status — October 17, 2026, Pacific
 
-Version `0.3.0` carries API 12, session schema 10 and host document envelope 2.
+Development `0.4.0-dev.1` carries API 13, session schema 10 and host document envelope 2.
+The published `v0.3.0` release remains API 12/session 10/host envelope 2.
 The previous `v0.2.0` tag remains API 9/session 8/host envelope 1.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
@@ -83,15 +84,19 @@ is Rust, so a direct dependency is available; no speculative FFI wrapper was add
 owns its adapter, engine capability changes, production UI, project mapping and later Deck
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
 
-Tracker's separate `feat/performance-v0.1` branch deliberately upgraded at `4562762`
-to the tested API-10 development pin `6c37aa5e695dd6968d69b693137f0f9bee16b67f`.
-Schema-2 projects migrate in memory with exact playback fixtures produced by the old
-API-2 Git consumer; explicit saves write schema 8 and older readers reject them. Original
-files remain unchanged for rollback. Current integration also supports independent clip
-players, chord/manual-strumplate controls and native-clock live strum/arpeggio/humanization
-at `b979ab5`. Local source, native Sample/Braids witnesses and optimized firmware-backed
-desktop checks passed; full CI for this newer articulation work is pending. Debug desktop
-stalls remain explicitly rejected with the take retained.
+Tracker's separate `feat/performance-v0.1` branch now consumes the published v0.3.0 commit
+`a05f8df` at Tracker commit `4506510`. API-2/schema-2 and API-10/schema-8 consumer fixtures
+prove exact ordered playback and lossless in-memory migration; explicit saves write schema
+10. The original files remain unchanged. Scene endpoints and per-note locks survive projects;
+unsupported locked clips reject before playback without canceling unrelated sounding clips.
+The core suite, 270 app tests, 17 native performance witnesses, scoped lint and release bundle
+passed locally. Desktop testing reopened the previous firmware-recorded Sample/arpeggio
+project, looped two clips, saved a schema-10 copy and reopened it with every performance field
+unchanged except version. The old API-10 reader rejects that save without rewriting it.
+[Upgrade CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39033542214) is pending.
+The preceding native-clock articulation integration passed
+[full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39031168510).
+Debug desktop stalls remain explicitly rejected with the take retained.
 The earlier API-2 retrospective integration at `f56f6fe3` passed
 [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393).
 M6 remains open: external performance routes and
@@ -530,11 +535,38 @@ and balanced releases, without simulator or Tracker dependencies. Parameter auto
 recording, audible parameter DSP, Deck and physical qualification remain separate work.
 
 
-## v0.3 release preparation
+## v0.3 release
 
 Version 0.3 promotes the tested controller, timing, quantization and parameter-capture
 contracts to an independently consumable release. API 12, schema 10 and host envelope 2
 are explicit upgrades from v0.2; keep original files for rollback and validate host upgrades
-with shared fixtures. Tagged source/package gates are repeated after the version change.
+with shared fixtures. [Source CI](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39032518828) and
+[extracted-package acceptance](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39032518693)
+both passed at exact release commit `a05f8df`. The published Linux archive SHA-256 is
+`f00374943049a0473c40235c834e1af70ee0132c06a23e24962938da29c2e211`.
 This release does not claim production parameter DSP, Linux MIDI/audio clock correlation,
-Steam Deck or physical-device qualification. Tracker remains on its tested API-10 pin.
+Steam Deck or physical-device qualification. Tracker now deliberately consumes this released baseline as described above.
+
+
+## Temporary clip octaves development (API 13)
+
+Development v0.4.0-dev.1 adds per-clip transient semitone offsets and independent host/pad
+octave holds. Future attacks resolve harmony then transpose; held X/Y/Z and releases retain
+their voices. Conditions, locks, live notes, other clips, loop phase, saved clips and Undo
+remain independent. Range errors never clamp notes; failed future attacks remain retryable.
+Opposing direction holds cancel, and player/safety resets retire both owners. Release that
+would expose an invalid remaining direction reports the error and restores the original.
+
+Core and host tests cover ownership, exact wire release pitch, independent notes, queued
+launches, follower range retry, conditions/parameters, output pressure, reset/relaunch,
+Undo, persistence and rejected hold ownership. All 27 native simulator tests pass, including
+both geometries' real firmware contacts, independent source holds and decoded magenta/blue
+LEDs. Real macOS desktop mouse contacts exercised up, opposing cancellation, down after one
+finger released, Release All, Stop and return to ordinary Play with zero voices. Workspace
+and desktop lint pass. Linux desktop acceptance now includes keyboard holds and focus loss;
+its CI result is pending. The unchanged three-virtual-minute processing workload retained
+216,546 events, 651,276 MIDI messages and 546 balanced attacks/releases. On this macOS/aarch64
+machine, p50/p95/p99 were 708/1,084/1,875 ns, maximum 75,458 ns; no batch reached 1 ms. This
+excludes sensors, transport, UI and audio and is not Deck qualification. Session schema 10
+and host envelope 2 remain unchanged. Tracker
+continues consuming API 12 and does not acquire these controls implicitly.

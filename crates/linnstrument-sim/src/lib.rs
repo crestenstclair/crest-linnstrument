@@ -13,6 +13,8 @@ mod humanized_tests;
 #[cfg(test)]
 mod modifier_tests;
 #[cfg(test)]
+mod octave_tests;
+#[cfg(test)]
 mod parameter_tests;
 #[cfg(test)]
 mod quantize_tests;
@@ -34,7 +36,7 @@ use crest_performance_core::{
     BeatTime, Command, HarmonySettings, HarmonySource, NoteCondition, NoteEdit, NoteKey,
     PatternSettings, Session, SurfaceMode,
 };
-use crest_performance_host::{HostSnapshot, TestHost};
+use crest_performance_host::{HostSnapshot, OctaveDirection, TestHost};
 pub use scenario::{ContactAction, ContactScenario, ContactStep};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -119,6 +121,11 @@ pub enum BridgeCommand {
     QuantizeClip {
         slot: usize,
         ticks: u64,
+    },
+    ClipOctave {
+        slot: usize,
+        direction: OctaveDirection,
+        held: bool,
     },
     Fill {
         held: bool,
@@ -698,6 +705,18 @@ impl Runtime {
                 parameter,
                 value,
             }),
+            BridgeCommand::ClipOctave {
+                slot,
+                direction,
+                held,
+            } => {
+                if self.external() {
+                    return Err("OS MIDI mode: use the connected external host".into());
+                }
+                self.host
+                    .hold_clip_octave(slot, direction, held)
+                    .map_err(|e| e.to_string())
+            }
             BridgeCommand::Fill { held } => self.host_command(Command::SetFill(held)),
             BridgeCommand::QuantizeClip { slot, ticks } => {
                 self.host_command(Command::QuantizeClip {

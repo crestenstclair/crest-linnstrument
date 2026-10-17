@@ -665,6 +665,43 @@ def hold_showcase_mute(app):
         'released mute resumes future attacks')
 
 
+def hold_showcase_octaves(app):
+    # The released showcase's first clip has these fixed rendered pitches.
+    original = {64, 67, 69, 71, 72, 74, 76, 77}
+    app.click('#octave-up')
+    app.native('keydown', 'Return')
+    state = app.state(lambda s: s['host']['performance']['clip_transpositions'][:3] == [12, 0, 0]
+                      and s['firmware']['leds'][12][0] > 200 and s['firmware']['leds'][12][2] > 200,
+                      'keyboard octave-up and decoded magenta pad')
+    start = state['host']['performance']['at']
+    state = app.state(lambda s: s['host']['performance']['at'] > start + 3840000,
+                      'shifted clip keeps looping alongside accompaniment')
+    notes = [m['message']['bytes'][1] for m in state['host']['recent_midi']
+             if m['destination'] == 1 and m['at'] > start and m['message']['bytes'][0] & 0xf0 == 0x90]
+    assert notes and set(notes) <= {key + 12 for key in original}, notes
+    assert any(key > 77 for key in notes), notes
+    assert state['host']['performance']['slots'][:3] == ['playing'] * 3
+    app.capture('showcase-octave-up', state)
+    app.native('keyup', 'Return')
+    state = app.state(lambda s: s['host']['performance']['clip_transpositions'][0] == 0,
+                      'key release restores original clip pitch')
+    start = state['host']['performance']['at']
+    state = app.state(lambda s: s['host']['performance']['at'] > start + 3840000,
+                      'restored clip plays original future notes')
+    notes = [m['message']['bytes'][1] for m in state['host']['recent_midi']
+             if m['destination'] == 1 and m['at'] > start and m['message']['bytes'][0] & 0xf0 == 0x90]
+    assert notes and set(notes) <= original, notes
+    app.click('#octave-down')
+    app.native('keydown', 'Return')
+    app.state(lambda s: s['host']['performance']['clip_transpositions'][0] == -12,
+              'keyboard octave-down')
+    app.switch('instrument')
+    app.state(lambda s: s['host']['performance']['clip_transpositions'][0] == 0,
+              'host focus loss releases octave hold')
+    app.native('keyup', 'Return')
+    app.switch('host')
+
+
 def hold_showcase_pads(app):
     app.click('details:has(#keyboard-form) > summary')
     app.fill('#keyboard-settings', json.dumps({
@@ -794,6 +831,7 @@ def play_showcase_bank(app):
     app.state(lambda s: s['host']['performance']['effective_harmony']['degree'] == 2,
               'running followers resume clip harmony')
     hold_showcase_mute(app)
+    hold_showcase_octaves(app)
     app.switch('instrument')
     app.touch(5, 7)
     state = app.state(lambda s: s['host']['performance']['harmony_source']['type'] == 'selected' and
@@ -1021,7 +1059,7 @@ def main():
             change_showcase_tempo(app)
             record_controller_modifiers(app)
             morph_parameter_capture(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase, firmware-row A/B parameter morph, voice-scoped note locks')
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase, firmware-row A/B parameter morph, voice-scoped note locks, momentary clip octaves')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

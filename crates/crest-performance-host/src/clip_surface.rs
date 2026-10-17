@@ -130,6 +130,17 @@ impl TestHost {
                     self.set_muted(ControlSource::Pad, index, pad.pressed)?;
                 }
             }
+            3 | 4 if index < self.engine.session().slots.len() => {
+                let state = self.engine.snapshot().slots[index];
+                if !pad.pressed || matches!(state, SlotState::Playing | SlotState::Queued) {
+                    let direction = if pad.row == 3 {
+                        OctaveDirection::Down
+                    } else {
+                        OctaveDirection::Up
+                    };
+                    self.set_octave(ControlSource::Pad, index, direction, pad.pressed)?;
+                }
+            }
             6 if index == 0 => self.set_fill(ControlSource::Pad, pad.pressed)?,
             5 | 6 => {
                 let effective = self.engine.snapshot().effective_harmony;
@@ -167,6 +178,9 @@ pub(super) fn frame(state: &PerformanceSnapshot) -> [[u8; 8]; 26] {
             slot_color(*status)
         };
         if matches!(status, SlotState::Playing | SlotState::Queued) {
+            let transpose = state.clip_transpositions[slot];
+            frame[slot + 1][3] = if transpose < 0 { 6 } else { 5 };
+            frame[slot + 1][4] = if transpose > 0 { 6 } else { 5 };
             frame[slot + 1][1] = if state.muted_slots[slot] {
                 MUTED_SLOT_COLOR
             } else {

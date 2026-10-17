@@ -1,6 +1,7 @@
 mod articulation;
 mod harmony;
 mod scene;
+mod transpose;
 use crate::*;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -87,6 +88,12 @@ pub enum Command {
         slot: usize,
         muted: bool,
     },
+    /// Temporary semitone offset for future attacks of one launched clip.
+    /// Existing voices, stored events and Undo remain unchanged.
+    SetClipTranspose {
+        slot: usize,
+        semitones: i8,
+    },
     Stop,
     SetMode(SurfaceMode),
     SetHarmony(HarmonySettings),
@@ -136,6 +143,7 @@ pub struct PerformanceSnapshot {
     pub voice_capacity: usize,
     pub slots: Vec<SlotState>,
     pub muted_slots: Vec<bool>,
+    pub clip_transpositions: Vec<i8>,
     pub harmony: HarmonySettings,
     pub harmony_source: HarmonySource,
     pub effective_harmony: HarmonySettings,
@@ -163,6 +171,7 @@ struct ActiveVoice {
 struct Player {
     slot: usize,
     muted: bool,
+    transpose: i8,
     loop_start: BeatTime,
     scheduled_start: BeatTime,
     cursor: usize,
@@ -372,6 +381,9 @@ impl Engine {
             harmony_source: self.session.harmony_source,
             effective_harmony: self.effective_harmony_at(self.at),
             last_voicing: self.last_voicing,
+            clip_transpositions: (0..self.session.slots.len())
+                .map(|slot| self.slot_transpose(slot))
+                .collect(),
             muted_slots: (0..self.session.slots.len())
                 .map(|slot| self.slot_muted(slot))
                 .collect(),
@@ -455,17 +467,19 @@ impl Engine {
                 return Ok(());
             }
         }
-        if let (
-            Some(follow),
-            Gesture::On {
-                key,
-                velocity,
-                expression,
-            },
-        ) = (clip.follow, event.gesture)
+        if let Gesture::On {
+            key,
+            velocity,
+            expression,
+        } = event.gesture
         {
             event.gesture = Gesture::On {
-                key: follow.pitch(key, self.effective_harmony_at(event.at))?,
+                key: transpose::playback_pitch(
+                    key,
+                    clip.follow,
+                    self.effective_harmony_at(event.at),
+                    self.players[player_index].transpose,
+                )?,
                 velocity,
                 expression,
             };
@@ -683,6 +697,9 @@ impl Engine {
             Command::Launch { slot, quantum } => self.launch(slot, quantum),
             Command::StopSlot { slot } => self.stop_slot(slot),
             Command::SetClipMuted { slot, muted } => self.set_clip_muted(slot, muted),
+            Command::SetClipTranspose { slot, semitones } => {
+                self.set_clip_transpose(slot, semitones)
+            }
             Command::Stop => self.stop(),
             Command::SetMode(mode) => {
                 if self.recording.is_some() {
@@ -693,7 +710,7 @@ impl Engine {
                 self.release_matching(|owner| matches!(owner, Owner::Live(_) | Owner::Harmony(_)))?;
                 self.mode = mode;
                 self.fill = false;
-                self.unmute_clips();
+                self.reset_clip_controls();
                 Ok(())
             }
             Command::SetMorphPosition(position) => self.morph_scene(position),
@@ -827,6 +844,7 @@ impl Engine {
             self.players.push(Player {
                 slot,
                 muted: false,
+                transpose: 0,
                 loop_start,
                 scheduled_start: loop_start,
                 cursor: 0,
@@ -858,6 +876,7 @@ impl Engine {
         self.players.push(Player {
             slot,
             muted: false,
+            transpose: 0,
             loop_start: self.at,
             scheduled_start: self.at,
             cursor: 0,
@@ -965,6 +984,7 @@ impl Engine {
         self.players.push(Player {
             slot,
             muted: false,
+            transpose: 0,
             loop_start,
             scheduled_start: loop_start,
             cursor: 0,
@@ -976,9 +996,10 @@ impl Engine {
             .iter()
             .any(|player| player.slot == slot && player.muted)
     }
-    fn unmute_clips(&mut self) {
+    fn reset_clip_controls(&mut self) {
         for player in &mut self.players {
             player.muted = false;
+            player.transpose = 0;
         }
     }
     /// Mute keeps the playhead running. Releases are reserved before changing
@@ -1082,7 +1103,7 @@ impl Engine {
             |owner| matches!(owner, Owner::Live(key) | Owner::Harmony(key) if key.source == source),
         )?;
         self.fill = false;
-        self.unmute_clips();
+        self.reset_clip_controls();
         self.recording = None;
         Ok(())
     }
