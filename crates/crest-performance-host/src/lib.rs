@@ -46,6 +46,7 @@ pub struct TestHost {
     leds: LedRenderer,
     mode: SurfaceMode,
     holds: Holds,
+    clip_controls: clip_surface::Controls,
 }
 impl TestHost {
     pub fn new(session: Session, geometry: Geometry) -> Result<Self> {
@@ -64,6 +65,7 @@ impl TestHost {
             .collect::<Result<BTreeMap<_, _>>>()?;
         Ok(Self {
             holds: Holds::new(session.slots.len()),
+            clip_controls: clip_surface::Controls::default(),
             engine: Engine::new(
                 API_VERSION,
                 session,
@@ -223,9 +225,11 @@ impl TestHost {
         self.holds.reconcile(&self.engine.snapshot());
         if matches!(command, Command::Stop) {
             self.input.reset();
+            self.clip_controls = clip_surface::Controls::default();
         }
         if let Command::SetMode(mode) = command {
             self.mode = mode;
+            self.clip_controls = clip_surface::Controls::default();
             self.input.reset();
             self.parser = MidiParser::default();
             self.device_commands
@@ -320,6 +324,7 @@ impl TestHost {
         self.holds.reconcile(&self.engine.snapshot());
         self.engine.drain_output().for_each(drop);
         self.input.reset();
+        self.clip_controls = clip_surface::Controls::default();
         self.parser = MidiParser::default();
         let at = self.engine.snapshot().at;
         for (destination, output) in &mut self.outputs {

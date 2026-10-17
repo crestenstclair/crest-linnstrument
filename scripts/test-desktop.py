@@ -658,6 +658,38 @@ def hold_showcase_pads(app):
     app.click('details:has(#keyboard-form) > summary')
 
 
+def change_showcase_voicing(app):
+    before = app.state(lambda s: s['host']['performance']['effective_harmony']['degree'] == 4,
+                       'V selected before voicing controls')
+    controls = [(3, 'inversion', 1, 59), (2, 'inversion', 0, 55),
+                (5, 'register', 1, 67), (4, 'register', 0, 55),
+                (6, 'spread', True, 55), (7, 'voice_leading', True, 55)]
+    for column, field, value, pitch in controls:
+        app.touch(column, 6)
+        state = app.state(lambda s: s['host']['performance']['harmony'][field] == value and
+                          s['host']['performance']['effective_harmony']['degree'] == 4 and
+                          s['host']['performance']['slots'][:3] == ['playing'] * 3,
+                          f'controller changes {field} without changing chord or stopping clips')
+        assert state['host']['clips'] == before['host']['clips']
+        app.state(lambda s: any(m['destination'] == 2 and m['message']['bytes'][0] & 0xf0 == 0x90 and
+                               m['message']['bytes'][1] == pitch for m in s['host']['recent_midi']),
+                  f'following bass uses independently expected pitch {pitch}')
+    state = app.state(lambda s: all(s['firmware']['leds'][column * 8 + 6][1] > 200 and
+                                   s['firmware']['leds'][column * 8 + 6][2] < 50 for column in [6, 7]),
+                      'enabled spread and voice-leading firmware LEDs are green')
+    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(273,63,1,1).data)")
+    assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
+    app.capture('showcase-controller-voicing', state)
+    app.switch('host')
+    assert app.observe("return document.querySelector('#harmony-form [name=spread]').checked")
+    assert app.observe("return document.querySelector('#harmony-form [name=voice_leading]').checked")
+    app.switch('instrument')
+    app.touch(6, 6)
+    app.touch(7, 6)
+    app.state(lambda s: not s['host']['performance']['harmony']['spread'] and
+              not s['host']['performance']['harmony']['voice_leading'], 'voicing toggles restored')
+
+
 def play_showcase_bank(app):
     app.switch('host')
     packaged = BINARY.parent / 'examples/performance-showcase.json'
@@ -728,6 +760,7 @@ def play_showcase_bank(app):
     pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(231,21,1,1).data)")
     assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
     app.capture('showcase-controller-harmony', state)
+    change_showcase_voicing(app)
     hold_showcase_pads(app)
     app.touch(2, 0)
     state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing', 'recorded', 'playing'] and

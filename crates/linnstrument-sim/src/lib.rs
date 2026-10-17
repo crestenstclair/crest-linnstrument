@@ -14,6 +14,8 @@ mod humanized_tests;
 mod quantize_tests;
 #[cfg(test)]
 mod tempo_tests;
+#[cfg(test)]
+mod voicing_tests;
 pub use contact_envelope::ContactProfile;
 use contact_envelope::PressureRamp;
 mod scenario;

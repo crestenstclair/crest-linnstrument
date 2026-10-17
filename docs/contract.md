@@ -399,6 +399,19 @@ release cannot clear another source's new hold. The holds are transient and do n
 session files or Undo. A freshly launched player starts unmuted even if an old contact
 has not yet been physically released; a new pad attack is required to mute it again.
 
+Row 6, columns 2–7, applies inversion down/up, register down/up, spread toggle and
+voice-leading toggle. These use the current `effective_harmony`, apply one validated
+change, then select it as the harmony source. The current degree, scale, learned bank
+and other settings survive takeover from a running recorded leader. Already sounding
+voices, clip data and loop phases do not change. Future chord/follower attacks use the
+new voicing. The ordinary settings limits apply: inversions −4…4, register −3…3, and
+every chord pitch must fit MIDI 0…127. Unavailable controls are dark and inert; available
+steps/off toggles are blue and enabled toggles green. There is no wrap, clamp or dropped
+tone. A press acts once until a release, including velocity-zero Note On; duplicate
+attacks do not repeat. Stop, mode change and disconnect clear this input bookkeeping.
+The resulting harmony settings persist; press ownership does not. This is standalone
+host policy using the existing core API and session schema.
+
 `LearnChord { source, track, degree, root }` learns the currently held live notes of one
 source and track in Play mode while recording is idle. It does not read retrospective
 history or include clip/generated voices. It stores their MIDI attack pitches, preserving

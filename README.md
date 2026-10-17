@@ -93,6 +93,14 @@ pressed. Held notes and fixed clips keep their pitches; future follower attacks 
 selection. The selection persists with the session. All pad input still crosses the
 firmware sensor path, and the displayed LEDs still come from firmware output.
 
+Beside Fill, row 6 columns 2–7 step inversion down/up, register down/up, toggle spread,
+and toggle voice leading. They take over the current effective chord from a recorded
+leader, preserving its degree and other settings. Held voices and fixed clips stay
+unchanged; future chord/follower attacks use the new voicing. Blue pads are available;
+enabled toggles are green. Invalid steps are dark and inert, including MIDI pitch limits.
+Release before pressing again; duplicate attacks do not repeat steps. These changes
+persist with harmony settings. The host displays current inversion, register and toggles.
+
 Hold the pad directly above a running/queued clip to mute it; both pads turn cyan.
 Release resumes future attacks at the existing loop phase. Dark mute pads are inactive.
 The pad directly below degree I holds **Fill**, yellow when ready and magenta while held.

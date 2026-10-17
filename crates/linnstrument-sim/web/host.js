@@ -82,7 +82,7 @@ function renderHarmonySource(state){
   }
   sourceSelect.value=state.harmony_source.type==='clip'?String(state.harmony_source.slot):'selected';
   const current=state.effective_harmony;
-  document.querySelector('#harmony-source-state').textContent=`Follower harmony: ${['I','II','III','IV','V','VI','VII'][current.degree]} · tonic MIDI ${current.tonic}`;
+  document.querySelector('#harmony-source-state').textContent=`Follower harmony: ${['I','II','III','IV','V','VI','VII'][current.degree]} · tonic MIDI ${current.tonic} · inversion ${current.inversion} · register ${current.register} · spread ${current.spread?'on':'off'} · voice leading ${current.voice_leading?'on':'off'}`;
 }
 const harmonyForm=document.querySelector('#harmony-form');let harmonySettings=null;let renderedHarmony='';let renderedTracks='';
 function sendHarmony(degree){

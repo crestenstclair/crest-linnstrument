@@ -360,4 +360,22 @@ sub-tick backward timestamps, expressive recording, queued playback, migration, 
 save preservation and version rejection. Both firmware sizes exercise three-finger
 recording, pad launch, tempo changes, decoded LEDs, reopen and firmware reset. Desktop
 acceptance also checks native clock rate, unchanged clips and saved/restored tempo.
-Full CI and extracted-package verification are pending for this development change.
+[Full CI 39023083887](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39023083887)
+passed Rust, both native firmware platforms, the ARM baseline and Linux desktop tempo
+changes, rate checks, save/reopen and reset. Extracted-package verification is pending.
+
+## Controller voicing (development)
+
+Clips-mode row 6 columns 2–7 step inversion down/up, register down/up, toggle spread and
+toggle voice leading. They reuse existing harmony commands and take over the currently
+effective chord from a recorded leader without changing its degree. Held voices, fixed
+clips, stored performances and loop phase remain intact. Steps are blue, enabled toggles
+green, and invalid steps dark/inert. Duplicate presses do not repeat; releases and safety
+transitions retire press ownership. API 10 and persistence versions remain unchanged.
+
+Three protocol regressions cover future follower pitches, held-note isolation, leader
+takeover, independent controls, limits, duplicate presses, persistence and safety cleanup.
+Both native firmware sizes exercise all six controls through sensor contacts with exact
+expected follower pitches and decoded LED colors, then record/save/reopen the selected
+voicing. Desktop acceptance adds real pad clicks, independent bass-pitch assertions,
+host field updates and actual canvas pixels. Full CI is pending for this addition.

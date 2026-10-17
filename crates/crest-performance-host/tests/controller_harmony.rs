@@ -87,7 +87,7 @@ fn releases_control_column_and_unused_pads_never_select_harmony_or_launch_clips(
         [0x97, 7, 0],
         [0x97, 0, 90],
         [0x97, 8, 90],
-        [0x96, 5, 90],
+        [0x96, 8, 90],
         [0x90, 9, 90],
     ] {
         pad(&mut host, 0, bytes).unwrap();
@@ -114,4 +114,138 @@ fn invalid_degree_preserves_selected_harmony_and_clip_source() {
     assert!(pad(&mut host, 0, [0x97, 7, 90]).is_err());
     assert_eq!(host.document().unwrap(), before);
     assert_eq!(host.output_count(), 0);
+}
+
+#[test]
+fn voicing_steps_keep_held_notes_and_fixed_clips_then_change_future_follower_attacks() {
+    let mut host = looping_host();
+    let original = host.document().unwrap().session.slots;
+    let before = host.output_count();
+    pad(&mut host, 250_000, [0x96, 3, 90]).unwrap(); // inversion up
+    pad(&mut host, 250_000, [0x96, 3, 90]).unwrap(); // duplicate is not a second step
+    pad(&mut host, 250_000, [0x86, 3, 0]).unwrap();
+    assert_eq!(host.engine.snapshot().harmony.inversion, 1);
+    assert_eq!(host.engine.snapshot().active_voices, 2);
+    assert_eq!(host.output_count(), before);
+    host.advance_micros(500_000).unwrap();
+    assert_eq!(
+        notes(&host, 0x90),
+        [(0, 60), (0, 60), (960_000, 64), (960_000, 60)]
+    );
+    pad(&mut host, 750_000, [0x96, 5, 90]).unwrap(); // register up
+    pad(&mut host, 750_000, [0x86, 5, 0]).unwrap();
+    host.advance_micros(1_000_000).unwrap();
+    assert_eq!(
+        &notes(&host, 0x90)[4..],
+        &[(1_920_000, 76), (1_920_000, 60)]
+    );
+    assert_eq!(host.engine.session().slots, original);
+    host.command(Command::Stop).unwrap();
+    assert_eq!(notes(&host, 0x90).len(), notes(&host, 0x80).len());
+    let reopened = TestHost::from_document(host.document().unwrap(), Geometry::Pads128).unwrap();
+    assert_eq!(reopened.engine.snapshot().harmony.inversion, 1);
+    assert_eq!(reopened.engine.snapshot().harmony.register, 1);
+}
+
+#[test]
+fn voicing_control_takes_over_current_recorded_chord_without_changing_its_identity() {
+    let mut document = looping_host().document().unwrap();
+    document.session.harmony.degree = 1;
+    document.session.harmony_source = HarmonySource::Clip { slot: 0 };
+    let clip = document.session.slots[0].clip.as_mut().unwrap();
+    clip.harmony_origin.push(HarmonyGesture {
+        algorithm_version: HARMONY_ALGORITHM_VERSION,
+        input: clip.events[0],
+        settings: HarmonySettings {
+            degree: 4,
+            ..HarmonySettings::default()
+        },
+    });
+    let original = document.session.slots.clone();
+    let mut host = TestHost::from_document(document, Geometry::Pads128).unwrap();
+    host.command(Command::SetMode(SurfaceMode::Clips)).unwrap();
+    host.launch(0).unwrap();
+    host.advance_micros(0).unwrap();
+    assert_eq!(host.engine.snapshot().effective_harmony.degree, 4);
+    let before = host.output_count();
+    pad(&mut host, 250_000, [0x96, 3, 90]).unwrap();
+    let state = host.engine.snapshot();
+    assert_eq!(
+        state.harmony,
+        HarmonySettings {
+            degree: 4,
+            inversion: 1,
+            ..HarmonySettings::default()
+        }
+    );
+    assert_eq!(state.harmony_source, HarmonySource::Selected {});
+    assert_eq!(host.output_count(), before);
+    assert_eq!(host.engine.session().slots, original);
+    host.advance_micros(500_000).unwrap();
+    assert_eq!(notes(&host, 0x90), [(0, 67), (960_000, 71)]);
+    host.command(Command::Stop).unwrap();
+}
+
+#[test]
+fn voicing_toggles_debounce_and_steps_stop_at_valid_limits_without_taking_over_source() {
+    let mut host = looping_host();
+    for column in [6, 7] {
+        pad(&mut host, 0, [0x96, column, 90]).unwrap();
+        pad(&mut host, 0, [0x96, column, 90]).unwrap();
+        pad(&mut host, 0, [0x86, column, 0]).unwrap();
+    }
+    assert!(host.engine.snapshot().harmony.spread);
+    assert!(host.engine.snapshot().harmony.voice_leading);
+    for column in [6, 7] {
+        pad(&mut host, 0, [0x96, column, 90]).unwrap();
+        pad(&mut host, 0, [0x96, column, 0]).unwrap(); // velocity-zero release
+    }
+    assert!(!host.engine.snapshot().harmony.spread);
+    assert!(!host.engine.snapshot().harmony.voice_leading);
+    host.command(Command::Stop).unwrap();
+    host.command(Command::SetHarmony(HarmonySettings {
+        tonic: 120,
+        ..HarmonySettings::default()
+    }))
+    .unwrap();
+    host.command(Command::SetHarmonySource(HarmonySource::Clip { slot: 0 }))
+        .unwrap();
+    let before = host.document().unwrap();
+    for column in [3, 5, 6] {
+        // inversion, register and spread would exceed MIDI 127
+        pad(&mut host, 0, [0x96, column, 90]).unwrap();
+        pad(&mut host, 0, [0x86, column, 0]).unwrap();
+    }
+    assert_eq!(
+        host.document().unwrap(),
+        before,
+        "dark steps preserve source and settings"
+    );
+    host.command(Command::SetHarmony(HarmonySettings {
+        inversion: -4,
+        register: -3,
+        ..HarmonySettings::default()
+    }))
+    .unwrap();
+    let before = host.document().unwrap();
+    for column in [2, 4] {
+        pad(&mut host, 0, [0x96, column, 90]).unwrap();
+        pad(&mut host, 0, [0x86, column, 0]).unwrap();
+    }
+    assert_eq!(host.document().unwrap(), before);
+    // A lost release retired by a mode/safety transition cannot block the next press.
+    host.command(Command::SetHarmony(HarmonySettings::default()))
+        .unwrap();
+    for command in [Command::Stop, Command::SetMode(SurfaceMode::Clips)] {
+        pad(&mut host, 0, [0x96, 6, 90]).unwrap();
+        assert!(host.engine.snapshot().harmony.spread);
+        host.command(command).unwrap();
+        pad(&mut host, 0, [0x96, 6, 90]).unwrap();
+        assert!(!host.engine.snapshot().harmony.spread);
+        pad(&mut host, 0, [0x86, 6, 0]).unwrap();
+    }
+    pad(&mut host, 0, [0x96, 6, 90]).unwrap();
+    host.disconnect().unwrap();
+    pad(&mut host, 0, [0x96, 6, 90]).unwrap();
+    assert!(!host.engine.snapshot().harmony.spread);
 }
