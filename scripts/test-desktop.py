@@ -481,6 +481,10 @@ def edit_conditions_and_hold_fill(app):
     app.state(lambda s: not s['host']['performance']['fill'], 'focus loss releases Fill')
     app.native('keyup', 'space')
     app.switch('host')
+    # WebKit's automation retains this window's depressed-key state when the
+    # release went to another webview. Clear it here too before the next scenario;
+    # otherwise the next fresh Space arrives as repeat=true and is rightly ignored.
+    app.native('keyup', 'space')
     app.click('#stop')
     app.state(lambda s: s['host']['performance']['active_voices'] == 0, 'conditional playback stopped')
     app.capture('conditional-notes-and-fill')
