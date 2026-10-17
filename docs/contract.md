@@ -369,3 +369,9 @@ attack; already accepted releases remain available, and the host can finish or c
 Time/identity exhaustion rejects before a new attack; a sounding gate release does not
 allocate its next identity. Recording and retrospective capture store rendered gates and
 curves plus source gestures/settings. Playback uses those exact events without regenerating.
+
+`Engine::capture_recent_at(slot, length, cutoff)` exposes the same explicit-cutoff
+capture operation directly. This additive method is also available on the API-2 integration
+baseline without adding an enum variant or changing its persistence version. It never
+advances input time, emits releases, or changes live ownership. The requested range must
+remain inside retained history; failure leaves the old clip and Undo state unchanged.

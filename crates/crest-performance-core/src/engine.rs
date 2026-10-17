@@ -556,12 +556,7 @@ impl Engine {
                 slot,
                 length,
                 cutoff,
-            } => {
-                if cutoff <= self.at {
-                    return Err(Error::TimeOrder);
-                }
-                self.capture_recent(slot, length, cutoff)
-            }
+            } => self.capture_recent_at(slot, length, cutoff),
             Command::FinishRecord => self.finish_record(),
             Command::CancelRecord => {
                 self.recording = None;
@@ -603,6 +598,20 @@ impl Engine {
                 .max(BeatTime(evicted.at.0.saturating_add(1)));
         }
         self.recent.push_back(event);
+    }
+    /// Copies recent input through an explicit host boundary without advancing
+    /// live input time or releasing its notes. The cutoff must follow the last
+    /// accepted input; only gestures already received enter the copied clip.
+    pub fn capture_recent_at(
+        &mut self,
+        slot: usize,
+        length: BeatTime,
+        cutoff: BeatTime,
+    ) -> Result<()> {
+        if cutoff <= self.at {
+            return Err(Error::TimeOrder);
+        }
+        self.capture_recent(slot, length, cutoff)
     }
     fn capture_recent(&mut self, slot: usize, length: BeatTime, cutoff: BeatTime) -> Result<()> {
         self.ensure_editable(slot)?;
