@@ -75,7 +75,7 @@ subscribers.push(snapshot=>{
   document.querySelector('#run-status').textContent=snapshot.run_full?'Buffer full: reset before new capture':`${snapshot.run_steps} steps captured${snapshot.verified_steps===null?'':` · ${snapshot.verified_steps} replay steps verified`}`;
   document.querySelector('#model').textContent=snapshot.firmware.model;
   document.querySelector('#revision').textContent=`54bb1c9 · sensor SPI / native C++`;
-  document.querySelector('#mode').textContent=snapshot.host.performance.mode==='clips'?'CLIPS · USER FIRMWARE MODE':snapshot.host.performance.mode==='chords'?'CHORDS · FIRMWARE MPE ±48 ST':'PLAY · MPE ±48 ST';
+  document.querySelector('#mode').textContent=snapshot.external_host?'EXTERNAL HOST CONTROLS MODE':snapshot.host.performance.mode==='clips'?'CLIPS · USER FIRMWARE MODE':snapshot.host.performance.mode==='chords'?'CHORDS · FIRMWARE MPE ±48 ST':'PLAY · MPE ±48 ST';
   document.querySelector('#fingers').textContent=`${snapshot.contacts.length} FINGERS`;
   document.querySelector('#pause').textContent=snapshot.paused?'Resume':'Pause';document.querySelector('#step').disabled=!snapshot.paused;
   draw(snapshot);
