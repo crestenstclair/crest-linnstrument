@@ -5,14 +5,17 @@ The workspace is named `crest-performance`; it currently lives in the existing
 `crest-linnstrument` repository. No Crest Tracker checkout, application code, sound engine,
 physical controller, MIDI device, or sound card is needed for the development path.
 
-**Standalone integration baseline: `0.1.0`, public API 2, session schema 2.**
+**Standalone release: `0.2.0`, public API 9, session schema 8.**
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
-The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
-establishes the accepted baseline; an untagged checkout remains a candidate. See
+The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
+defines this contract; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 9, session schema 8**. Timed strumming, humanized chords, learned chord banks, repeating arpeggios per-note conditions and chord-clip leaders are
-versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
+Version 0.2 adds timed strumming, humanized chords, learned chord banks, repeating arpeggios,
+per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
+[v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
+API 2/session 2. Crest Tracker retains its deliberate API-2 patch pin while this library
+advances independently.
 Schemas 1–7 load losslessly; saving with this checkout writes schema 8, rejected by
 older readers. Keep the original session to return to the baseline release.
 
@@ -241,8 +244,9 @@ Independent CI checks Rust without the firmware checkout, native firmware on Lin
 the original ARM build/layout, and Linux desktop mouse/keyboard record/reopen/launch tests.
 `candidate-artifacts` creates relocatable development archives with checksums, provenance
 and dependency notices, then exercises the extracted application. See [package usage](docs/package.md).
-It does not tag or publish an unqualified v0.1.
-Crest Tracker will consume an accepted tag or commit in its own repository after M3.
+Tags and releases are published only after the matching source and extracted-package gates pass.
+Crest Tracker consumes its accepted API-2 patch pin in its own repository; upgrades to this
+release remain deliberate integration changes.
 
 Licensed Apache-2.0. Upstream firmware is copyright Roger Linn Design, Roger Linn and
 Geert Bevin, with contributions credited upstream. Its unmodified source, Apache license,

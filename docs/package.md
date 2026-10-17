@@ -1,14 +1,16 @@
-# Native development candidate
+# Standalone Linux package
 
 The `candidate-artifacts` workflow builds a Linux x86_64 archive on Ubuntu 24.04.
-It is a development package, not a qualified Steam Deck release. The archive contains
+Tagged standalone releases promote the exact tested archive; this does not qualify Steam Deck.
+The archive contains
 the standalone host, simulator, replay tool, firmware worker, both ideal flash fixtures,
 example sessions, contact scripts, documentation and third-party license notices.
 `build-info.json` identifies the repository revision, Rust version, lockfile hash and
 firmware/patch/calibration provenance. `dependencies.json` lists resolved dependency
 versions and declared licenses. `SHA256SUMS` covers the extracted files.
 
-Download the `development-candidate-linux-x86_64` workflow artifact, unpack it, verify
+Download an archive from the matching GitHub release, or unpack the
+`development-candidate-linux-x86_64` workflow artifact. Verify
 the archive checksum, and extract the tarball. In the extracted directory:
 
 ```sh
@@ -39,7 +41,8 @@ The package workflow extracts into a fresh temporary directory, verifies every c
 opens both example sessions with the CLI, hides the build-tree firmware assets, and runs
 the same real keyboard/mouse desktop acceptance scenario against the packaged executable.
 Screenshots and observations are retained separately as `package-acceptance-linux`.
-No release or Git tag is created by this workflow.
+No release or Git tag is created by this workflow. Publication attaches the tested archive
+without repacking; its build-info retains the candidate assembly provenance.
 
 To build a candidate locally, use a clean committed checkout, build the firmware worker
 with `scripts/build-native.sh`, build both Rust applications with the release profile and

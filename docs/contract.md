@@ -5,12 +5,12 @@ filesystem, MIDI backend, audio backend, tracker document, or host scene type en
 The application owns one mutable Engine and its clock. The simulator's C++ worker is a
 separate development dependency. No C ABI is introduced before a consumer needs it.
 
-An application outside this workspace consumes the accepted baseline by tag:
+An application outside this workspace consumes the current standalone release by tag:
 
 ```toml
 [dependencies]
-crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.1.0" }
-crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.1.0" }
+crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.2.0" }
+crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.2.0" }
 ```
 
 A fresh external Cargo application verified engine creation, clock advance, session save,
@@ -279,11 +279,12 @@ integer times and expression; save/reopen preserves them exactly. The host limit
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
 Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 8.
 
-This development package is `0.2.0-dev`, API 9, schema 8. The accepted `v0.1.0` release
+This release package is `0.2.0`, API 9, schema 8. The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
-The accepted M3 tag `v0.1.0` defines the first integration baseline. Consumers should pin it;
+The accepted M3 tag `v0.1.0` defines the first integration baseline. `v0.2.0` is a deliberate
+upgrade to API 9/schema 8; it does not silently change an API-2 consumer. Pin a matching release;
 a local path override is only a development convenience.
 
 ## Optional OS transport

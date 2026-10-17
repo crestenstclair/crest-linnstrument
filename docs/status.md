@@ -1,8 +1,8 @@
 # Delivery status — October 17, 2026, Pacific
 
-Version `0.1.0` is the first standalone integration baseline: API 2, session schema 2,
-host document envelope 1. Acceptance is attached to the matching `v0.1.0` tag and release
-checks; an untagged checkout is a candidate. There is no dependency on Crest Tracker and
+Version `0.2.0` carries API 9, session schema 8 and host document envelope 1. The first
+standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
+the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
 no Tracker application code was copied. Its current framework versions were confirmed
 from GitHub and the working checkout: Tauri 2.12.4, tauri-build 2.7.3, Wry 0.57.0, with
 plain HTML/CSS/JavaScript.
@@ -89,9 +89,9 @@ open: simultaneous performance clips, external performance routes and Linux MIDI
 clock correlation still need integration work. Deck and physical-device qualification
 remain separate. This library has no dependency on that checkout or its application.
 
-## Post-baseline timed strum candidate
+## Timed strum
 
-Development 0.2.0-dev now uses API 9/session 8; Tracker continues to consume its separately
+Version 0.2.0 uses API 9/session 8; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -121,7 +121,7 @@ contacts. The standalone Capture button uses this boundary. Expired source-gestu
 cannot become available again when the rendered-event ring later evicts an older event.
 
 
-## Post-baseline learned chord bank candidate
+## Learned chord bank
 
 Seven pad degrees now accept learned live voicings. The existing voicing capacity is five
 notes plus separate bass; unisons survive and overflow rejects the whole learn operation.
@@ -142,10 +142,10 @@ The learned-bank candidate passed the complete standalone CI run, including the 
 webview scenario, both native firmware platforms and the ARM baseline. Native macOS
 keyboard input also learned pitches 42/45/49, triggered the bank from one firmware pad,
 recorded three notes with 21 expression events and nine source gestures, and reopened the
-schema-4 session stopped with zero held voices. This candidate is not a new release tag.
+schema-4 session stopped with zero held voices. These checks precede the v0.2.0 tag.
 
 
-## Post-baseline repeating arpeggio candidate
+## Repeating arpeggio
 
 Ascending and descending held-chord arpeggios use the native musical clock, configurable
 beat spacing and a bounded gate. Each repeat gets a fresh note identity and retains its
@@ -160,7 +160,7 @@ Both native firmware geometries run three actual expressive sensor contacts thro
 stock MIDI path, render repeating library notes, verify independently calculated pitch,
 attack and gate times, then save/reopen/replay exact events. The standalone host exposes
 arpeggio direction, step spacing and gate; Linux desktop acceptance includes a held mouse
-contact, expression and session reopening. This remains a development candidate.
+contact, expression and session reopening. These checks precede the v0.2.0 tag.
 
 Native macOS desktop acceptance selected ascending arpeggio, latched a keyboard contact,
 changed X/Y/Z, released, finished, saved and reopened. The saved take contains 266 attacks
@@ -177,7 +177,7 @@ releases with no MPE channel collisions. Sensing, transport, files, UI and audio
 excluded; this does not qualify Steam Deck latency. CI publishes the same workload.
 
 
-## Post-baseline conditional playback candidate
+## Conditional playback
 
 API/session 6 adds per-note every-Nth-loop, Fill and Not Fill rules. Stored raw notes and
 expression remain unchanged. Attack decisions own complete note lifetimes; later Fill
@@ -191,7 +191,7 @@ record the stock three-finger scenario, apply rules through the typed bridge, sa
 launch through an actual sensor pad and check independently specified loop/pitch/timing
 expectations. Decoded LEDs stay green during conditional silence and blue after pad stop.
 The standalone note editor exposes the rules and a pointer/keyboard Fill hold with focus
-recovery. This remains an untagged development candidate; Tracker stays on API 2.
+recovery. This feature is included in v0.2.0; Tracker stays on API 2.
 
 
 The conditional candidate passed full standalone CI [39015475727](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39015475727),
@@ -200,7 +200,7 @@ condition editing/Undo/save/reopen, both native firmware platforms and the ARM b
 Local macOS UI verification additionally edited fourth-loop/Fill rules and reopened the
 schema-6 session. The standalone baseline tag remains unchanged.
 
-## Post-baseline humanized chord candidate
+## Humanized chords
 
 API/session 7 adds seeded positive attack jitter and bounded velocity variation for held
 chords. Each trigger chooses deterministic per-tone variation; voice ownership, top-voice
@@ -215,8 +215,7 @@ expression, complete source gestures, recording reservations, early release, cap
 cleanup, separate bass, top-voice policy and exact save/replay. Both native firmware sizes
 record three sensor-generated triggers and independently check nine delayed attacks and
 velocity changes, expression and exact persistence/replay. Desktop acceptance adds a held
-mouse chord, all three expressive dimensions and session reopening. This remains an
-untagged development candidate, independent of Tracker's API-2 integration.
+mouse chord, all three expressive dimensions and session reopening. This feature is included in v0.2.0, independent of Tracker's API-2 integration.
 
 The humanized release-mode workload ran three repeating chord triggers alongside six
 looping notes, with X/Y/Z at 100 Hz for three virtual minutes on macOS/aarch64. The 17,900
@@ -234,7 +233,7 @@ attacks/releases, destination isolation, Fill silence and exact persistence. It 
 usable with only capture sinks and does not require a sound engine or Tracker checkout.
 
 
-## Post-baseline chord-clip harmony source candidate
+## Chord-clip harmony sources
 
 API/session 8 adds a persisted choice of live/selected harmony or recorded chord-clip
 intent. Followers resolve source gestures at each attack, independently of launch order
@@ -267,7 +266,7 @@ and [extracted-package CI 39018207872](https://github.com/crestenstclair/crest-l
 Real desktop actions select and reopen the source, launch three clips through firmware
 pads, verify the leader overrides selected harmony, and switch sources during playback.
 
-## Post-baseline temporary clip mute candidate
+## Temporary clip mute
 
 API 9 adds transient per-player mute; persistence remains schema 8. It releases only the
 selected clip's voices and suppresses attacks while retaining loop phase, original data,
@@ -278,7 +277,8 @@ Five core scenarios verify live/other-clip isolation, expression/release ownersh
 queued launch phase, output-pressure retry, safety transitions, persistence and Undo.
 Both firmware sizes also mute/unmute a chord leader: its independent follower continues
 I/V, source MIDI goes silent, decoded LEDs turn cyan and return green, and future source
-attacks resume. Desktop keyboard-hold and package checks are still required for this candidate.
+attacks resume. The keyboard-hold desktop path passed [CI 39018873909](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39018873909).
+Release-commit and package gates are rerun before publication.
 
 
 After the mute lifecycle change, the existing three-minute release benchmarks still
