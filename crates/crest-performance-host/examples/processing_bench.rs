@@ -85,6 +85,7 @@ fn session() -> Session {
         harmony_origin: Vec::new(),
         pattern_origin: Vec::new(),
         follow: None,
+        conditions: Vec::new(),
     });
     session
 }

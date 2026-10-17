@@ -1,7 +1,7 @@
 use super::*;
 use crest_performance_core::{ExpressionPolicy, Gesture, HarmonyPlaying, SlotState};
 
-fn runtime(model: u16) -> Runtime {
+pub(super) fn runtime(model: u16) -> Runtime {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let flash = root.join(format!("target/firmware-native/ideal-{model}.bin"));
     let (worker, firmware) = Worker::start(

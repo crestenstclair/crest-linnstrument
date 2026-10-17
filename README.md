@@ -11,10 +11,17 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 5, session schema 5**. Timed strumming, learned chord banks and repeating arpeggios are
+Current development is **0.2.0-dev, API 6, session schema 6**. Timed strumming, learned chord banks, repeating arpeggios and per-note conditions are
 versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
-Schemas 1–4 load losslessly; saving with this checkout writes schema 5, rejected by
+Schemas 1–5 load losslessly; saving with this checkout writes schema 6, rejected by
 older readers. Keep the original session to return to the baseline release.
+
+Conditional playback keeps the original notes and expression. In the note editor, select a
+note with the canvas or Previous/Next, then choose every loop, loop N of a period, Fill or
+Not Fill. Rules decide at attack only; held notes always retain their expression and release.
+Hold the host's **Fill** button with the pointer, or focus it and hold Space/Enter. Focus
+loss releases Fill. Edits require a stopped slot and support Undo; each launch restarts the
+loop count. Fill is temporary and is never saved in a session.
 
 ## Run
 

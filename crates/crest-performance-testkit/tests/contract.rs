@@ -48,6 +48,7 @@ fn edits_preserve_release_time_expression_and_unedited_zero_length_notes() {
         harmony_origin: vec![],
         pattern_origin: vec![],
         follow: None,
+        conditions: Vec::new(),
     };
     original.validate(TrackId(1)).unwrap();
     let id = original.events[0].note;
@@ -328,6 +329,7 @@ fn versions_invalid_sessions_and_clock_boundaries() {
         harmony_origin: Vec::new(),
         pattern_origin: Vec::new(),
         follow: None,
+        conditions: Vec::new(),
     });
     assert!(session.validate().is_err());
     let clock = ClockMapping::new(100, BeatTime(7), 120_000).unwrap();

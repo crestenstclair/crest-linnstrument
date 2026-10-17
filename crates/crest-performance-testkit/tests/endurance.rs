@@ -40,6 +40,7 @@ fn clip(slot: usize) -> Clip {
         harmony_origin: vec![],
         pattern_origin: vec![],
         follow: None,
+        conditions: Vec::new(),
     }
 }
 

@@ -420,6 +420,69 @@ def expression_varies(expressions, dimension):
     return len({expression[dimension] for expression in expressions}) > 1
 
 
+def edit_conditions_and_hold_fill(app):
+    app.switch('host')
+    app.click('#stop')
+    app.click('#grid button:nth-child(2)')
+    app.click('#pattern-panel summary')
+    for field, value in [('steps', '1'), ('pulses', '1'), ('pitch_steps', '1'),
+                         ('tone_min', '0'), ('tone_max', '0')]:
+        app.fill(f'#pattern-form [name="{field}"]', value)
+    app.click('#pattern-form button[type="submit"]')
+    state = app.state(lambda s: s['host']['performance']['slots'][1] == 'recorded',
+                      'short pattern for condition editing')
+    original = state['host']['clips'][1]
+    app.click('#next-note')
+    app.click('#condition-form [name="condition"] option[value="every"]')
+    app.click('#condition-form button[type="submit"]')
+    state = app.state(lambda s: s['host']['clips'][1].get('conditions'), 'every fourth loop edit')
+    assert state['host']['clips'][1]['conditions'][0]['condition'] == {'type': 'every', 'period': 4, 'offset': 3}
+    assert state['host']['clips'][1]['events'] == original['events']
+    app.click('#undo')
+    app.state(lambda s: s['host']['clips'][1] == original, 'condition Undo restores original')
+    app.click('#condition-form [name="condition"] option[value="fill"]')
+    app.click('#condition-form button[type="submit"]')
+    state = app.state(lambda s: s['host']['clips'][1].get('conditions', [{}])[0].get('condition') == {'type': 'fill'},
+                      'Fill attack condition')
+    clip = state['host']['clips'][1]
+    path = ARTIFACTS / 'desktop-conditions-session.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'condition session save')
+    app.click('#open')
+    app.state(lambda s: s['host']['clips'][1] == clip and not s['host']['performance']['fill'],
+              'conditions reopened with Fill released')
+    app.click('#grid button:nth-child(2)')
+    state = app.state(lambda s: s['host']['performance']['slots'][1] == 'playing', 'conditional loop launched')
+    start, count = state['host']['performance']['at'], state['host']['capture_count']
+    state = app.state(lambda s: s['host']['performance']['at'] > start + 960000, 'silent loops before Fill')
+    assert state['host']['capture_count'] == count
+    # A real keyboard hold owns Fill; browser repeat must not retrigger it.
+    app.click('#fill')
+    app.native('keydown', 'space')
+    state = app.state(lambda s: s['host']['performance']['fill'], 'keyboard Fill held')
+    start = state['host']['performance']['at']
+    app.state(lambda s: s['host']['performance']['at'] > start + 960000 and
+              s['host']['capture_count'] > count, 'held Fill admits repeated attacks')
+    app.native('keyup', 'space')
+    state = app.state(lambda s: not s['host']['performance']['fill'], 'Fill release')
+    start = state['host']['performance']['at']
+    state = app.state(lambda s: s['host']['performance']['at'] > start + 480000 and
+                      s['host']['performance']['active_voices'] == 0, 'accepted notes release normally')
+    start, count = state['host']['performance']['at'], state['host']['capture_count']
+    state = app.state(lambda s: s['host']['performance']['at'] > start + 960000, 'released Fill stays silent')
+    assert state['host']['capture_count'] == count
+    app.native('keydown', 'space')
+    app.state(lambda s: s['host']['performance']['fill'], 'second Fill hold')
+    app.switch('instrument')
+    app.state(lambda s: not s['host']['performance']['fill'], 'focus loss releases Fill')
+    app.native('keyup', 'space')
+    app.switch('host')
+    app.click('#stop')
+    app.state(lambda s: s['host']['performance']['active_voices'] == 0, 'conditional playback stopped')
+    app.capture('conditional-notes-and-fill')
+
+
 
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
@@ -440,7 +503,8 @@ def main():
             capture_held_phrase(app)
             learn_played_voicing(app)
             record_repeating_arpeggio(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio')
+            edit_conditions_and_hold_fill(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

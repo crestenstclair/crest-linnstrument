@@ -30,7 +30,7 @@ identity!(NoteId, u64);
 identity!(VoiceId, u64);
 
 /// Input ownership is independent of MIDI channels and pitch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct NoteKey {
     pub source: SourceId,
     pub track: TrackId,
@@ -138,6 +138,10 @@ pub struct Clip {
     pub pattern_origin: Vec<PatternOrigin>,
     #[serde(default)]
     pub follow: Option<HarmonyFollow>,
+    /// Sparse per-note attack rules, strictly ordered by NoteKey for bounded
+    /// binary lookup during playback. Absent notes play on every iteration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conditions: Vec<crate::ConditionalNote>,
 }
 impl Clip {
     pub fn validate(&self, track: TrackId) -> Result<()> {
@@ -172,6 +176,7 @@ impl Clip {
         if !held.is_empty() {
             return Err(Error::Invalid("clip has unreleased notes"));
         }
+        self.validate_conditions()?;
         Ok(())
     }
 }
@@ -216,6 +221,15 @@ impl Default for Session {
 impl Session {
     /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=5).contains(&self.version)
+            && self
+                .slots
+                .iter()
+                .filter_map(|slot| slot.clip.as_ref())
+                .any(|clip| !clip.conditions.is_empty())
+        {
+            return Err(Error::Invalid("older session contains v6 note conditions"));
+        }
         if (1..=4).contains(&self.version)
             && (self.harmony.articulation.is_repeating()
                 || self
@@ -264,7 +278,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if matches!(self.version, 3 | 4) {
+        if matches!(self.version, 3..=5) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;

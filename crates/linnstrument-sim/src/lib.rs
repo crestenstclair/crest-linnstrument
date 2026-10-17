@@ -1,4 +1,6 @@
 //! Typed contact bridge; the native scheduler, never browser frames, advances firmware.
+#[cfg(test)]
+mod condition_tests;
 mod contact_envelope;
 #[cfg(test)]
 mod harmony_tests;
@@ -11,7 +13,8 @@ mod virtual_midi;
 mod worker;
 use crest_linnstrument::*;
 use crest_performance_core::{
-    BeatTime, Command, HarmonySettings, NoteEdit, NoteKey, PatternSettings, Session, SurfaceMode,
+    BeatTime, Command, HarmonySettings, NoteCondition, NoteEdit, NoteKey, PatternSettings, Session,
+    SurfaceMode,
 };
 use crest_performance_host::{HostSnapshot, TestHost};
 pub use scenario::{ContactAction, ContactScenario, ContactStep};
@@ -83,6 +86,14 @@ pub enum BridgeCommand {
         start: u64,
         duration: u64,
         key: u8,
+    },
+    NoteCondition {
+        slot: usize,
+        note: NoteKey,
+        condition: NoteCondition,
+    },
+    Fill {
+        held: bool,
     },
     Undo {},
     FinishRecord {},
@@ -623,6 +634,16 @@ impl Runtime {
                 },
             }),
             BridgeCommand::Undo {} => self.host_command(Command::Undo),
+            BridgeCommand::NoteCondition {
+                slot,
+                note,
+                condition,
+            } => self.host_command(Command::SetNoteCondition {
+                slot,
+                note,
+                condition,
+            }),
+            BridgeCommand::Fill { held } => self.host_command(Command::SetFill(held)),
             BridgeCommand::FinishRecord {} => self.host_command(Command::FinishRecord),
             BridgeCommand::CancelRecord {} => self.host_command(Command::CancelRecord),
             BridgeCommand::Launch { slot } => {

@@ -43,6 +43,13 @@ pub enum Command {
         note: NoteKey,
         edit: NoteEdit,
     },
+    SetNoteCondition {
+        slot: usize,
+        note: NoteKey,
+        condition: NoteCondition,
+    },
+    /// Momentary host control. Affects future attacks only, at engine time.
+    SetFill(bool),
     CaptureRecent {
         slot: usize,
         length: BeatTime,
@@ -101,6 +108,7 @@ pub struct PerformanceSnapshot {
     pub api_version: u32,
     pub at: BeatTime,
     pub mode: SurfaceMode,
+    pub fill: bool,
     pub active_voices: usize,
     pub voice_capacity: usize,
     pub slots: Vec<SlotState>,
@@ -145,7 +153,7 @@ struct Recording {
 enum UndoState {
     Clip {
         slot: usize,
-        clip: Option<Clip>,
+        clip: Option<Box<Clip>>,
     },
     LearnedChord {
         degree: u8,
@@ -181,6 +189,7 @@ impl Recording {
             harmony_origin: self.harmony_origin.clone(),
             pattern_origin: Vec::new(),
             follow: None,
+            conditions: Vec::new(),
         };
         clip.validate(track)?;
         if let Some(previous) = &self.previous {
@@ -199,6 +208,7 @@ pub struct Engine {
     at: BeatTime,
     next_voice: u64,
     mode: SurfaceMode,
+    fill: bool,
     active: Vec<ActiveVoice>,
     players: Vec<Player>,
     output: VecDeque<OutputEvent>,
@@ -228,6 +238,7 @@ impl Engine {
             at: BeatTime(0),
             next_voice: 1,
             mode: SurfaceMode::Play,
+            fill: false,
             active: Vec::with_capacity(limits.voices),
             output: VecDeque::with_capacity(limits.output_events),
             recording: None,
@@ -309,6 +320,7 @@ impl Engine {
             api_version: API_VERSION,
             at: self.at,
             mode: self.mode,
+            fill: self.fill,
             active_voices: self.active.len(),
             voice_capacity: self.limits.voices,
             harmony: self.session.harmony,
@@ -363,15 +375,42 @@ impl Engine {
                 self.at = event.at;
                 continue;
             }
-            let Some((player_index, mut event)) = playback else {
+            let Some((player_index, event)) = playback else {
                 break;
             };
-            let slot = self.players[player_index].slot;
-            let clip = self.session.slots[slot]
-                .clip
-                .as_ref()
-                .ok_or(Error::NotFound)?;
-            if let (
+            self.play_clip_event(player_index, event)?;
+            self.at = event.at;
+            self.players[player_index].cursor += 1;
+            self.wrap_player(player_index)?;
+        }
+        self.at = target;
+        Ok(())
+    }
+    fn play_clip_event(&mut self, player_index: usize, mut event: InputEvent) -> Result<()> {
+        let slot = self.players[player_index].slot;
+        let clip = self.session.slots[slot]
+            .clip
+            .as_ref()
+            .ok_or(Error::NotFound)?;
+        let owner = Owner::Clip(slot, event.note);
+        let condition = clip.note_condition(event.note);
+        let play = match event.gesture {
+            Gesture::On { .. } => {
+                let iteration = (self.players[player_index].loop_start.0
+                    - self.players[player_index].scheduled_start.0)
+                    / clip.length.0;
+                condition.accepts_validated(iteration, self.fill)
+            }
+            // Fill changes cannot suppress a previously accepted release or
+            // introduce expression for a skipped attack. Unconditional clips
+            // retain strict lifecycle errors rather than masking corruption.
+            _ => {
+                condition == (NoteCondition::Always {})
+                    || self.active.iter().any(|voice| voice.owner == owner)
+            }
+        };
+        if play
+            && let (
                 Some(follow),
                 Gesture::On {
                     key,
@@ -379,19 +418,16 @@ impl Engine {
                     expression,
                 },
             ) = (clip.follow, event.gesture)
-            {
-                event.gesture = Gesture::On {
-                    key: follow.pitch(key, self.session.harmony)?,
-                    velocity,
-                    expression,
-                };
-            }
-            self.emit(Owner::Clip(slot, event.note), event)?;
-            self.at = event.at;
-            self.players[player_index].cursor += 1;
-            self.wrap_player(player_index)?;
+        {
+            event.gesture = Gesture::On {
+                key: follow.pitch(key, self.session.harmony)?,
+                velocity,
+                expression,
+            };
         }
-        self.at = target;
+        if play {
+            self.emit(owner, event)?;
+        }
         Ok(())
     }
     fn next_playback_event(&self, target: BeatTime) -> Result<Option<(usize, InputEvent)>> {
@@ -551,6 +587,15 @@ impl Engine {
             Command::BeginOverdub { slot } => self.begin_overdub(slot),
             Command::Duplicate { from, to } => self.duplicate(from, to),
             Command::EditNote { slot, note, edit } => self.edit_note(slot, note, edit),
+            Command::SetNoteCondition {
+                slot,
+                note,
+                condition,
+            } => self.set_note_condition(slot, note, condition),
+            Command::SetFill(fill) => {
+                self.fill = fill;
+                Ok(())
+            }
             Command::CaptureRecent { slot, length } => self.capture_recent(slot, length, self.at),
             Command::CaptureRecentAt {
                 slot,
@@ -573,6 +618,7 @@ impl Engine {
                 }
                 self.release_matching(|owner| matches!(owner, Owner::Live(_) | Owner::Harmony(_)))?;
                 self.mode = mode;
+                self.fill = false;
                 Ok(())
             }
             Command::SetHarmony(settings) => self.set_harmony(settings),
@@ -646,10 +692,7 @@ impl Engine {
         if clip.events.is_empty() {
             return Err(Error::State("no recent notes in requested range"));
         }
-        self.undo = Some(UndoState::Clip {
-            slot,
-            clip: self.session.slots[slot].clip.replace(clip),
-        });
+        self.commit_clip(slot, clip);
         Ok(())
     }
     fn begin_record(&mut self, slot: usize) -> Result<()> {
@@ -702,10 +745,7 @@ impl Engine {
         };
         self.stop_slot(slot)?;
         self.recording = None;
-        self.undo = Some(UndoState::Clip {
-            slot,
-            clip: self.session.slots[slot].clip.replace(clip),
-        });
+        self.commit_clip(slot, clip);
         if let Some(loop_start) = resume {
             self.players.push(Player {
                 slot,
@@ -767,10 +807,10 @@ impl Engine {
         for event in &mut clip.events {
             event.note.track = self.session.slots[to].track;
         }
-        self.undo = Some(UndoState::Clip {
-            slot: to,
-            clip: self.session.slots[to].clip.replace(clip),
-        });
+        for entry in &mut clip.conditions {
+            entry.note.track = self.session.slots[to].track;
+        }
+        self.commit_clip(to, clip);
         Ok(())
     }
     fn edit_note(&mut self, slot: usize, note: NoteKey, edit: NoteEdit) -> Result<()> {
@@ -780,10 +820,29 @@ impl Engine {
             .as_ref()
             .ok_or(Error::NotFound)?
             .edit_note(note, edit)?;
+        self.commit_clip(slot, clip);
+        Ok(())
+    }
+    /// Publish a prepared control-thread edit and its complete Undo snapshot.
+    fn commit_clip(&mut self, slot: usize, clip: Clip) {
         self.undo = Some(UndoState::Clip {
             slot,
-            clip: self.session.slots[slot].clip.replace(clip),
+            clip: self.session.slots[slot].clip.replace(clip).map(Box::new),
         });
+    }
+    fn set_note_condition(
+        &mut self,
+        slot: usize,
+        note: NoteKey,
+        condition: NoteCondition,
+    ) -> Result<()> {
+        self.ensure_editable(slot)?;
+        let clip = self.session.slots[slot]
+            .clip
+            .as_ref()
+            .ok_or(Error::NotFound)?
+            .with_note_condition(note, condition)?;
+        self.commit_clip(slot, clip);
         Ok(())
     }
     fn launch(&mut self, slot: usize, quantum: BeatTime) -> Result<()> {
@@ -863,6 +922,7 @@ impl Engine {
     }
     fn stop(&mut self) -> Result<()> {
         self.release_matching(|_| true)?;
+        self.fill = false;
         self.players.clear();
         // Closing the take is explicit: stop cancels the uncommitted take and
         // leaves the previous committed clip intact.
@@ -880,7 +940,9 @@ impl Engine {
             self.harmony_with_learned_chord(*degree, *chord)?;
         }
         match self.undo.take().ok_or(Error::State("nothing to undo"))? {
-            UndoState::Clip { slot, clip } => self.session.slots[slot].clip = clip,
+            UndoState::Clip { slot, clip } => {
+                self.session.slots[slot].clip = clip.map(|clip| *clip)
+            }
             UndoState::LearnedChord { degree, chord } => {
                 self.session.harmony.learned[usize::from(degree)] = chord
             }
@@ -893,6 +955,7 @@ impl Engine {
         self.release_matching(
             |owner| matches!(owner, Owner::Live(key) | Owner::Harmony(key) if key.source == source),
         )?;
+        self.fill = false;
         self.recording = None;
         Ok(())
     }

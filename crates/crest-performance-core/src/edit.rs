@@ -102,6 +102,7 @@ impl Clip {
             harmony_origin: Vec::new(),
             pattern_origin: Vec::new(),
             follow: None,
+            conditions: Vec::new(),
         };
         if let Some(note) = notes.first() {
             clip.validate(note.id.track)?;
@@ -111,11 +112,19 @@ impl Clip {
     pub(crate) fn overdub(&self, take: &Clip) -> Result<Self> {
         let mut notes = self.notes()?;
         let mut next = notes.iter().map(|n| n.id.note.0).max().unwrap_or(0);
+        let mut conditions = self.conditions.clone();
         for mut note in take.notes()? {
             next = next
                 .checked_add(1)
                 .ok_or(Error::Capacity("clip note identities"))?;
+            let condition = take.note_condition(note.id);
             note.id.note = NoteId(next);
+            if condition != (NoteCondition::Always {}) {
+                conditions.push(ConditionalNote {
+                    note: note.id,
+                    condition,
+                });
+            }
             note.start.0 %= self.length.0;
             note.duration.0 = note.duration.0.min(self.length.0 - note.start.0);
             note.expression.points.retain(|p| p.offset < note.duration);
@@ -125,6 +134,8 @@ impl Clip {
         clip.harmony_origin = self.harmony_origin.clone();
         clip.pattern_origin = self.pattern_origin.clone();
         clip.follow = self.follow;
+        conditions.sort_by_key(|entry| entry.note);
+        clip.conditions = conditions;
         clip.pattern_origin.extend_from_slice(&take.pattern_origin);
         clip.harmony_origin
             .extend(take.harmony_origin.iter().copied().map(|mut g| {
@@ -302,6 +313,7 @@ pub(crate) fn retrospective_clip(
         harmony_origin: Vec::new(),
         pattern_origin: Vec::new(),
         follow: None,
+        conditions: Vec::new(),
     };
     clip.validate(track)?;
     Ok(clip)

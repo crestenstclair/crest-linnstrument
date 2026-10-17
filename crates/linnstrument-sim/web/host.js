@@ -1,4 +1,31 @@
+import {bindHoldControl} from './hold-control.js';
 'use strict';let selected=0;let selectedNote=null;let displayedNotes=[];
+const fillButton=document.querySelector('#fill');
+bindHoldControl(fillButton,window,held=>send({type:'fill',held}));
+const conditionForm=document.querySelector('#condition-form');
+conditionForm.onsubmit=event=>{
+  event.preventDefault();if(!selectedNote||!conditionForm.reportValidity())return;
+  const fields=new FormData(conditionForm),type=fields.get('condition');
+  const condition=type==='every'?{type,period:Number(fields.get('period')),offset:Number(fields.get('iteration'))-1}:{type};
+  send({type:'note_condition',slot:selected,note:selectedNote,condition});
+};
+function selectNote(note){
+  selectedNote=note.id;
+  document.querySelector('#note-key').value=note.key;
+  document.querySelector('#note-start').value=note.start;
+  document.querySelector('#note-duration').value=note.duration;
+  conditionForm.elements.condition.value=note.condition.type;
+  if(note.condition.type==='every'){
+    conditionForm.elements.period.value=note.condition.period;
+    conditionForm.elements.iteration.value=note.condition.offset+1;
+  }
+}
+for(const [id,direction] of [['previous-note',-1],['next-note',1]])
+  document.getElementById(id).onclick=()=>{
+    if(!displayedNotes.length)return;
+    const index=displayedNotes.findIndex(note=>noteKey(note.id)===noteKey(selectedNote));
+    selectNote(displayedNotes[(index<0?0:index+direction+displayedNotes.length)%displayedNotes.length]);
+  };
 const commands={play:{type:'mode',clips:false},clips:{type:'mode',clips:true},chords:{type:'surface',mode:'chords'},finish:{type:'finish_record'},cancel:{type:'cancel_record'},stop:{type:'stop'}};
 for(const [id,command]of Object.entries(commands))document.getElementById(id).onclick=()=>send(command);
 document.querySelector('#stop-slot').onclick=()=>send({type:'stop_slot',slot:selected});
@@ -13,13 +40,18 @@ document.querySelector('#apply-edit').onclick=()=>{if(selectedNote)send({type:'e
 const piano=document.querySelector('#piano'),pencil=piano.getContext('2d');
 function noteKey(note){return JSON.stringify(note);}
 function renderNotes(clip){
-  pencil.clearRect(0,0,800,140);displayedNotes=[];if(!clip)return;
+  pencil.clearRect(0,0,800,140);displayedNotes=[];
+  document.querySelector('#condition-state').textContent='Select a note using the canvas or Previous / Next.';
+  if(!clip)return;
   const active=new Map();for(const event of clip.events){const id=noteKey(event.note);if(event.gesture.type==='on')active.set(id,event);if(event.gesture.type==='off'&&active.has(id)){const on=active.get(id);displayedNotes.push({id:on.note,key:on.gesture.key,start:on.at,duration:event.at-on.at});active.delete(id);}}
+  for(const note of displayedNotes)note.condition=clip.conditions?.find(entry=>noteKey(entry.note)===noteKey(note.id))?.condition??{type:'always'};
+  const current=displayedNotes.find(note=>noteKey(note.id)===noteKey(selectedNote));
+  document.querySelector('#condition-state').textContent=current?`Note ${current.key}: ${current.condition.type==='every'?`loop ${current.condition.offset+1} of ${current.condition.period}`:current.condition.type.replace('_',' ')}`:'Select a note using the canvas or Previous / Next.';
   if(!displayedNotes.length)return;
   const low=Math.min(...displayedNotes.map(n=>n.key))-1,high=Math.max(...displayedNotes.map(n=>n.key))+2;
   for(const note of displayedNotes){note.rect={x:note.start/clip.length*800,y:140-(note.key-low+1)/(high-low)*140,w:Math.max(3,note.duration/clip.length*800),h:Math.min(18,140/(high-low)-2)};const r=note.rect;pencil.fillStyle=noteKey(selectedNote)===noteKey(note.id)?'#f2dec0':'#b5db83';pencil.fillRect(r.x,r.y,r.w,r.h);}
 }
-piano.onclick=event=>{const box=piano.getBoundingClientRect(),x=(event.clientX-box.left)/box.width*800,y=(event.clientY-box.top)/box.height*140;const note=displayedNotes.find(n=>x>=n.rect.x&&x<=n.rect.x+n.rect.w&&y>=n.rect.y&&y<=n.rect.y+n.rect.h);if(!note)return;selectedNote=note.id;document.querySelector('#note-key').value=note.key;document.querySelector('#note-start').value=note.start;document.querySelector('#note-duration').value=note.duration;};
+piano.onclick=event=>{const box=piano.getBoundingClientRect(),x=(event.clientX-box.left)/box.width*800,y=(event.clientY-box.top)/box.height*140;const note=displayedNotes.find(n=>x>=n.rect.x&&x<=n.rect.x+n.rect.w&&y>=n.rect.y&&y<=n.rect.y+n.rect.h);if(note)selectNote(note);};
 const harmonyForm=document.querySelector('#harmony-form');let harmonySettings=null;let renderedHarmony='';let renderedTracks='';
 function sendHarmony(degree){
   harmonyForm.elements.arpeggio_gate.setCustomValidity('');
@@ -101,6 +133,8 @@ function renderClips(states){
 subscribers.push(snapshot=>{
   if(snapshot.external_host){document.querySelector('#transport').textContent='OS MIDI DEVICE MODE · Connect external host to Simulator performance / feedback ports';for(const element of document.querySelectorAll('button,input,select'))element.disabled=true;return;}
   const state=snapshot.host.performance;
+  fillButton.setAttribute('aria-pressed',String(state.fill));
+  fillButton.textContent=state.fill?'Fill held':'Hold Fill';
   document.querySelector('#launch-quantum').value=String(snapshot.host.launch_quantum);
   renderNotes(snapshot.host.clips[selected]);
   renderHarmony(state,snapshot.host.tracks);

@@ -1,5 +1,7 @@
 //! Deterministic musical state. No device, filesystem, GUI, or sound engine dependency.
+mod condition;
 mod edit;
+pub use condition::*;
 mod engine;
 mod harmony;
 mod learned_chord;
@@ -14,8 +16,8 @@ pub use engine::*;
 pub use model::*;
 pub use time::*;
 
-pub const API_VERSION: u32 = 5;
-pub const SESSION_VERSION: u32 = 5;
+pub const API_VERSION: u32 = 6;
+pub const SESSION_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {

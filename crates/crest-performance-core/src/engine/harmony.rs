@@ -82,10 +82,7 @@ impl Engine {
         if clip.events.len() > self.limits.recorded_events {
             return Err(Error::Capacity("generated clip events"));
         }
-        self.undo = Some(UndoState::Clip {
-            slot,
-            clip: self.session.slots[slot].clip.replace(clip),
-        });
+        self.commit_clip(slot, clip);
         Ok(())
     }
     pub(super) fn follow_harmony(&mut self, slot: usize, enabled: bool) -> Result<()> {
@@ -101,10 +98,7 @@ impl Engine {
         } else if !enabled {
             clip.follow = None;
         }
-        self.undo = Some(UndoState::Clip {
-            slot,
-            clip: self.session.slots[slot].clip.replace(clip),
-        });
+        self.commit_clip(slot, clip);
         Ok(())
     }
     pub(super) fn freeze_harmony(&mut self, slot: usize) -> Result<()> {
@@ -123,10 +117,7 @@ impl Engine {
         }
         clip.follow = None;
         clip.validate(self.session.slots[slot].track)?;
-        self.undo = Some(UndoState::Clip {
-            slot,
-            clip: self.session.slots[slot].clip.replace(clip),
-        });
+        self.commit_clip(slot, clip);
         Ok(())
     }
     pub(super) fn set_harmony(&mut self, settings: HarmonySettings) -> Result<()> {

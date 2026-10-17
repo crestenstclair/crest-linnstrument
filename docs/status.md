@@ -74,7 +74,7 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: chord-clip leaders, conditions,
+open: chord-clip leaders,
 parameter locks, momentary transforms and scene morphing remain future work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
@@ -84,7 +84,7 @@ package. M4/M5 can continue here while Tracker remains pinned to its accepted ve
 
 ## Post-baseline timed strum candidate
 
-Development 0.2.0-dev now uses API 5/session 5; Tracker continues to consume its separately
+Development 0.2.0-dev now uses API 6/session 6; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -168,3 +168,20 @@ On this macOS/aarch64 machine, 17,900 measured batches had p50 583 ns, p95 958 n
 p99 1,584 ns and maximum 42,583 ns; none reached 1 ms. All 15,120 attacks had matching
 releases with no MPE channel collisions. Sensing, transport, files, UI and audio are
 excluded; this does not qualify Steam Deck latency. CI publishes the same workload.
+
+
+## Post-baseline conditional playback candidate
+
+API/session 6 adds per-note every-Nth-loop, Fill and Not Fill rules. Stored raw notes and
+expression remain unchanged. Attack decisions own complete note lifetimes; later Fill
+changes cannot create orphan expression or lose releases. Rules survive timing edits,
+track-remapped duplication, overdub, Undo and save/reopen. Schemas 1–5 migrate losslessly;
+false older labels carrying conditions are rejected. Fill is momentary and reopens released.
+
+Core tests cover repeated pitches, independent expression, capacity retries, queued starts,
+relaunch counters, live notes, cleanup and malformed sessions. Both native firmware sizes
+record the stock three-finger scenario, apply rules through the typed bridge, save/reopen,
+launch through an actual sensor pad and check independently specified loop/pitch/timing
+expectations. Decoded LEDs stay green during conditional silence and blue after pad stop.
+The standalone note editor exposes the rules and a pointer/keyboard Fill hold with focus
+recovery. This remains an untagged development candidate; Tracker stays on API 2.

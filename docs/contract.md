@@ -1,4 +1,4 @@
-# Public host contract, API 5
+# Public host contract, API 6
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -182,10 +182,38 @@ changes flush configuration and execute 100 ms of firmware before accepting anot
 The OS CLI suppresses transitional incoming messages for 150 ms after changing modes.
 These control transitions are explicit input gaps, not musical scheduling intervals.
 
+## Conditional note playback
+
+`Clip.conditions` is a sparse list of `ConditionalNote { note, condition }`. It never alters
+raw events or expression curves. Every entry must identify exactly one attack in the clip;
+entries must be strictly ordered by NoteKey (source, track, note) for allocation-free binary
+lookup. Unordered/duplicate rules, missing/reused identities, redundant Always entries and malformed periods
+are rejected. `NoteCondition::Every { period, offset }` uses a nonzero u16 period and a
+zero-based offset smaller than the period. Offset 3 of period 4 means loops 4, 8, 12, …
+`Fill {}` and `NotFill {}` sample the current momentary Fill state. Absent entries mean
+`Always {}`. Empty struct variants make unknown serialized fields fail validation.
+
+The scheduler evaluates a condition only when processing an attack. Skipped notes consume
+no voices and emit no expression or release. Accepted notes keep ownership through their
+complete curves and releases, even when Fill changes. This also holds for repeated pitches,
+other clips and live notes. Loop iteration is derived from that player's accepted launch;
+quantized waiting does not count, and relaunch restarts at iteration zero. Output-capacity
+failure leaves the event pending for retry; a skipped attack is committed immediately.
+Conditions do not change clip Playing status or its LED during a silent iteration.
+
+`SetNoteCondition` edits a stopped slot, preserves all raw events and retains the prior clip
+for Undo. Always removes the rule. Movement, duplication, remapping to another track and
+overdub preserve existing rules; new recorded notes start unconditional. Removing a rule
+recovers the original performance without regeneration. `SetFill(bool)` takes effect at
+engine time for subsequent attacks; hosts must advance to the intended input boundary first.
+It cannot change attacks already prepared by a scheduling host. Fill resets on successful
+Stop, mode change, disconnect and engine construction; it is not persisted. The standalone
+host also releases it on pointer-capture or focus loss. Rules are not an audio-backend feature.
+
 ## Persistence and compatibility
 
-`Session.version == 5`; unknown schema versions are rejected. `Session::migrate` upgrades
-schemas 1–4 without changing tracks, slots, times or expression. Missing articulation
+`Session.version == 6`; unknown schema versions are rejected. `Session::migrate` upgrades
+schemas 1–5 without changing tracks, slots, times or expression. Missing articulation
 means Block; version-2 data containing strum settings or algorithm-2 harmony origins is rejected. Engine construction and the
 host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. Missing learned-bank entries default to seven empty degrees. Schemas 1–3 reject learned
 banks, harmony algorithm 3 and pattern algorithm 2, including nested origins/followers.
@@ -193,13 +221,15 @@ Schemas 1–4 reject repeating arpeggio settings, harmony algorithm 4 and patter
 including nested origins and followers. Earlier rendered material keeps its original
 algorithm labels and exact events. Adding the Arpeggio enum variant requires API 5; hosts
 must handle it deliberately. No automatic regeneration occurs during migration.
-The schema contains tracks,
+Schemas 1–5 reject nonempty note conditions. Missing conditions mean every note plays on
+every loop. Adding `Clip.conditions`, `PerformanceSnapshot.fill` and the condition/Fill
+commands requires API 6. The schema contains tracks,
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 5.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 6.
 
-This development package is `0.2.0-dev`, API 5, schema 5. The accepted `v0.1.0` release
+This development package is `0.2.0-dev`, API 6, schema 6. The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
