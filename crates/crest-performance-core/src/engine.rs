@@ -212,6 +212,20 @@ impl Engine {
     pub fn position(&self) -> BeatTime {
         self.at
     }
+    /// Initial boundary chosen by the latest accepted launch of this slot.
+    /// Remains unchanged across loop iterations; stopped/unlaunched slots return
+    /// None. Hosts may map it to audio time for queued/playing feedback even
+    /// when their scheduling engine has advanced ahead of the audible timeline.
+    pub fn slot_launch_time(&self, slot: usize) -> Result<Option<BeatTime>> {
+        if slot >= self.session.slots.len() {
+            return Err(Error::NotFound);
+        }
+        Ok(self
+            .players
+            .iter()
+            .find(|player| player.slot == slot)
+            .map(|player| player.scheduled_start))
+    }
     pub fn session(&self) -> &Session {
         &self.session
     }

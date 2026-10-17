@@ -22,6 +22,12 @@ Keep the consumer's Cargo.lock and upgrade deliberately using the shared contrac
 
 ## Interrupted-take checkpoints
 
+`Engine::slot_launch_time(slot)` returns the initial boundary chosen by the most recent
+accepted launch, or None when stopped. The value stays fixed across loop iterations and
+is transient, not persisted. Unknown slots reject. This read does not advance time or emit
+events. A host that schedules ahead may map this boundary onto its audio clock to display
+Queued/Playing at the playback boundary instead of exposing the scheduler's future state.
+
 `Engine::checkpoint_session()` is an additive control-thread API after v0.1.0. It returns
 an ordinary schema-2 session containing the captured prefix of an active take, with held
 recorded notes released one tick after the current engine position. It does not advance
