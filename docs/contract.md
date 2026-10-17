@@ -30,7 +30,10 @@ the snapshot starts stopped; the prefix is a committed clip that can be played o
 An empty take keeps the previous committed slot. Clock overflow and invalid snapshots are
 reported without changing the engine. Normal `save_session()` still requires finishing or
 canceling recording first. Hosts own checkpoint cadence, durable writes and recovery UI;
-cloning and validation must stay outside audio callbacks. Snapshot and FinishRecord share
+cloning and validation must stay outside audio callbacks. `checkpoint_session_at(cutoff)`
+uses an explicit host-clock position after the last accepted input, retaining elapsed holds
+even when the device sends no new packets. It never moves the input engine's clock.
+Snapshot and FinishRecord share
 the same clip-finalization rules, including overdub merging.
 
 ## Time and ownership

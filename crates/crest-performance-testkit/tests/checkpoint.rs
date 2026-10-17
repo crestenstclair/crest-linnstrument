@@ -47,6 +47,11 @@ fn interrupted_take_snapshot_closes_only_its_copy_and_recording_continues_lossle
     accept(&mut engine, event(2, 2, Gesture::Off { velocity: 17 }));
     accept(&mut engine, event(3, 2, expression(0, 65535, 333)));
     let checkpoint = engine.checkpoint_session().unwrap();
+    let timed = engine.checkpoint_session_at(BeatTime(12)).unwrap();
+    let timed_clip = timed.slots[0].clip.as_ref().unwrap();
+    assert_eq!(timed_clip.length, BeatTime(12));
+    assert_eq!(timed_clip.events.last().unwrap().at, BeatTime(12));
+    assert!(engine.checkpoint_session_at(BeatTime(2)).is_err());
     assert_eq!(engine.position(), BeatTime(2));
     assert_eq!(engine.snapshot().active_voices, 2);
     assert_eq!(engine.snapshot().slots[0], SlotState::Recording);

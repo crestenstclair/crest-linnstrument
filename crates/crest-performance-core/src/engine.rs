@@ -228,13 +228,30 @@ impl Engine {
     /// this session restores the captured prefix as a stopped, committed clip.
     /// An armed/empty take leaves the previously committed slot intact.
     pub fn checkpoint_session(&self) -> Result<Session> {
+        let cutoff = if self
+            .recording
+            .as_ref()
+            .is_some_and(|take| !take.events.is_empty())
+        {
+            self.at.checked_add(BeatTime(1))?
+        } else {
+            self.at
+        };
+        self.checkpoint_session_at(cutoff)
+    }
+    /// Checkpoint at an explicit host-clock cutoff without advancing input time.
+    /// A nonempty take requires a cutoff after the current engine position, so
+    /// every accepted attack and expression sample precedes the copied release.
+    pub fn checkpoint_session_at(&self, cutoff: BeatTime) -> Result<Session> {
         let mut session = self.session.clone();
         if let Some(recording) = self
             .recording
             .as_ref()
             .filter(|take| !take.events.is_empty())
         {
-            let cutoff = self.at.checked_add(BeatTime(1))?;
+            if cutoff <= self.at {
+                return Err(Error::TimeOrder);
+            }
             let clip = recording.clip_at(cutoff, session.slots[recording.slot].track)?;
             session.slots[recording.slot].clip = Some(clip);
         }
