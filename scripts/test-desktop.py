@@ -83,6 +83,8 @@ class Desktop:
                     if(window.desktopInputTrace.length===128)window.desktopInputTrace.shift();
                     window.desktopInputTrace.push({type:event.type,key:event.key,code:event.code,
                         repeat:event.repeat,target:event.target.id,focus:document.hasFocus()});
+                    if(type==='keyup' && event.key==='a' && latest?.contacts.length===3)
+                        window.desktopHeldSnapshot=latest;
                 },true);''')
 
     def observe(self, script, *args):
@@ -144,21 +146,26 @@ def record_expressive_keyboard_phrase(app):
     app.switch('instrument')
     app.watch_input()
     app.click('#release')  # Stable button focus accepts musical keys.
-    app.keys([{'type': 'keyDown', 'value': key} for key in 'afk'])
-    state = app.state(lambda s: len(s['contacts']) == 3 and
-                      s['host']['performance']['active_voices'] == 3, 'three keyboard voices')
-    before = state['firmware']['sensor_reads']
+    before = app.observe('return latest.firmware.sensor_reads')
+    # WebKit drops held-key state across separate /actions requests. Keep this
+    # complete chord gesture in one native sequence, including all key-ups.
+    actions = [{'type': 'keyDown', 'value': key} for key in 'afk']
+    actions.append({'type': 'pause', 'duration': 300})
     # Independent selected finger: X, Y and explicit pressure, through sensors.
     for key in ['\ue014', '\ue014', '\ue013', '\ue013', ']', ']', ']']:
-        app.press(key)
-    state = app.state(lambda s: s['contacts'][-1]['x'] > 10.15 and
-                      s['contacts'][-1]['y'] > 2.15 and s['contacts'][-1]['z'] > .58,
-                      'selected finger expression')
+        actions.extend([{'type': 'keyDown', 'value': key}, {'type': 'keyUp', 'value': key}])
+    actions.append({'type': 'pause', 'duration': 300})
+    actions.extend({'type': 'keyUp', 'value': key} for key in 'afk')
+    app.keys(actions)
+    state = app.observe('return window.desktopHeldSnapshot')
+    assert state and state['host']['performance']['active_voices'] == 3, state
+    moving = state['contacts'][-1]
+    assert moving['x'] > 10.15 and moving['y'] > 2.15 and moving['z'] > .58, moving
     assert state['firmware']['sensor_reads'] > before
-    app.capture('three-finger-expression', state)
-    app.keys([{'type': 'keyUp', 'value': key} for key in 'afk'])
+    app.observations['three-finger-expression'] = state
     app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
               'keyboard release')
+    app.capture('keyboard-released')
     app.switch('host')
     app.click('#finish')
     state = app.state(lambda s: s['host']['performance']['slots'][0] == 'recorded', 'record finished')

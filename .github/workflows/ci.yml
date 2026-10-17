@@ -71,6 +71,8 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@1.96.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libasound2-dev webkit2gtk-driver xvfb
       - run: scripts/build-native.sh
       - run: cargo build -p linnstrument-sim --features desktop --locked

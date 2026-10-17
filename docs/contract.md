@@ -5,6 +5,21 @@ filesystem, MIDI backend, audio backend, tracker document, or host scene type en
 The application owns one mutable Engine and its clock. The simulator's C++ worker is a
 separate development dependency. No C ABI is introduced before a consumer needs it.
 
+An application outside this workspace can pin the development contract directly:
+
+```toml
+[dependencies]
+crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "9ad6ea12ea56e3ea84f969c308aa64b47896dfd2" }
+crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "9ad6ea12ea56e3ea84f969c308aa64b47896dfd2" }
+```
+
+This revision was built by a fresh external Cargo application using engine creation,
+clock advance, session save, snapshots and destination configuration. Only the two Rust
+libraries and their Rust dependencies compiled; no sibling checkout, GUI or C++ build was
+used. Cargo also fetches the declared firmware submodule when resolving the Git repository.
+The pin is a development integration example, not the accepted M3 release. Replace it
+deliberately when adopting a newer contract or release; keep the consumer's Cargo.lock.
+
 ## Time and ownership
 
 `BeatTime` is unsigned 64-bit musical ticks, 960,000 per quarter note. At 120 BPM a tick
