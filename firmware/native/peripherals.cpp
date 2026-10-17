@@ -1,7 +1,7 @@
 #include "sim.hpp"
 #include "SPI.h"
 #include "DueFlashStorage.h"
-#include <iomanip>
+// Arduino macros belong to the sketch, not native C++ host services.
 #undef min
 #undef max
 #undef constrain
