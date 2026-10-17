@@ -89,6 +89,8 @@ class Desktop:
         self.observe('''window.desktopInputTrace=[];
             for(const type of ['keydown','keyup','blur','focus'])
                 window.addEventListener(type,event=>{
+                    const last=window.desktopInputTrace.at(-1);
+                    if(event.repeat&&last?.repeat&&last?.code===event.code)return;
                     if(window.desktopInputTrace.length===128)window.desktopInputTrace.shift();
                     window.desktopInputTrace.push({type:event.type,key:event.key,code:event.code,
                         repeat:event.repeat,target:event.target.id,focus:document.hasFocus()});
