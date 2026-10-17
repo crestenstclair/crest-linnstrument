@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Linux Tauri acceptance through native WebDriver input, real worker and sensors.
 
-Requires WebKitWebDriver, a display (Xvfb is sufficient),
+Requires WebKitWebDriver, xdotool, a display (Xvfb is sufficient),
 the desktop executable and scripts/build-native.sh. No MIDI or audio hardware.
 JavaScript only observes the rendered application's snapshots/geometry; it never
 dispatches synthetic DOM gestures, invokes bridge commands or generates MIDI.
@@ -71,9 +71,16 @@ class Desktop:
             title = self.command('GET', '/title')
             self.windows['instrument' if 'firmware replica' in title else 'host'] = handle
         assert len(self.windows) == 2, self.windows
+        self.native_windows = {}
+        for name, title in [('instrument', '^LinnStrument'), ('host', '^Crest Performance')]:
+            windows = self.native('search', '--onlyvisible', '--name', title).splitlines()
+            assert len(windows) == 1, (name, windows)
+            self.native_windows[name] = windows[0]
 
     def switch(self, name):
         self.command('POST', '/window', {'handle': self.windows[name]})
+        self.native('windowraise', self.native_windows[name],
+                    'windowfocus', '--sync', self.native_windows[name])
         self.state(lambda s: s['connected'], 'firmware connected')
 
     def watch_input(self):
@@ -83,8 +90,6 @@ class Desktop:
                     if(window.desktopInputTrace.length===128)window.desktopInputTrace.shift();
                     window.desktopInputTrace.push({type:event.type,key:event.key,code:event.code,
                         repeat:event.repeat,target:event.target.id,focus:document.hasFocus()});
-                    if(type==='keyup' && event.key==='a' && latest?.contacts.length===3)
-                        window.desktopHeldSnapshot=latest;
                 },true);''')
 
     def observe(self, script, *args):
@@ -101,13 +106,11 @@ class Desktop:
         self.command('POST', f'/element/{element}/clear', {})
         self.command('POST', f'/element/{element}/value', {'text': value})
 
-    def keys(self, actions):
-        self.command('POST', '/actions', {'actions': [
-            {'type': 'key', 'id': 'keyboard', 'actions': actions}
-        ]})
+    def native(self, *arguments):
+        return subprocess.check_output(['xdotool', *arguments], text=True, timeout=10).strip()
 
     def press(self, key):
-        self.keys([{'type': 'keyDown', 'value': key}, {'type': 'keyUp', 'value': key}])
+        self.native('key', key)
 
     def touch(self, x, y):
         # Read canvas coordinates; WebDriver delivers the actual mouse events.
@@ -147,22 +150,21 @@ def record_expressive_keyboard_phrase(app):
     app.watch_input()
     app.click('#release')  # Stable button focus accepts musical keys.
     before = app.observe('return latest.firmware.sensor_reads')
-    # WebKit drops held-key state across separate /actions requests. Keep this
-    # complete chord gesture in one native sequence, including all key-ups.
-    actions = [{'type': 'keyDown', 'value': key} for key in 'afk']
-    actions.append({'type': 'pause', 'duration': 300})
+    # WebKit's automation drops chord key-ups even within one /actions request.
+    # XTEST sends real OS keyboard events and preserves simultaneous held keys.
+    app.native('keydown', 'a', 'f', 'k')
+    app.state(lambda s: len(s['contacts']) == 3 and s['host']['performance']['active_voices'] == 3,
+              'three held keyboard notes')
     # Independent selected finger: X, Y and explicit pressure, through sensors.
-    for key in ['\ue014', '\ue014', '\ue013', '\ue013', ']', ']', ']']:
-        actions.extend([{'type': 'keyDown', 'value': key}, {'type': 'keyUp', 'value': key}])
-    actions.append({'type': 'pause', 'duration': 300})
-    actions.extend({'type': 'keyUp', 'value': key} for key in 'afk')
-    app.keys(actions)
-    state = app.observe('return window.desktopHeldSnapshot')
-    assert state and state['host']['performance']['active_voices'] == 3, state
+    for key in ['Right', 'Right', 'Up', 'Up', 'bracketright', 'bracketright', 'bracketright']:
+        app.press(key)
+    state = app.state(lambda s: s['contacts'][-1]['z'] > .58, 'selected finger expression')
+    assert state['host']['performance']['active_voices'] == 3, state
     moving = state['contacts'][-1]
     assert moving['x'] > 10.15 and moving['y'] > 2.15 and moving['z'] > .58, moving
     assert state['firmware']['sensor_reads'] > before
     app.observations['three-finger-expression'] = state
+    app.native('keyup', 'a', 'f', 'k')
     app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
               'keyboard release')
     app.capture('keyboard-released')
@@ -214,7 +216,7 @@ def focus_recovery(app):
     app.state(lambda s: s['host']['performance']['mode'] == 'play', 'stock MPE restored')
     app.switch('instrument')
     app.click('#release')
-    app.keys([{'type': 'keyDown', 'value': 'a'}])
+    app.native('keydown', 'a')
     app.state(lambda s: len(s['contacts']) == 1 and s['host']['performance']['active_voices'] == 1,
               'momentary keyboard voice')
     app.switch('host')
@@ -222,7 +224,7 @@ def focus_recovery(app):
     app.switch('instrument')
     app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
               'focus loss releases momentary contact')
-    app.keys([{'type': 'keyUp', 'value': 'a'}])
+    app.native('keyup', 'a')
     app.capture('focus-recovered')
 
 
@@ -234,7 +236,7 @@ def main():
         # capability and environment flag; omitting it also avoids its pooled
         # HTTP connection-reset failure between otherwise valid commands.
         driver = subprocess.Popen(['WebKitWebDriver', '--port=4444'], cwd=ROOT,
-                                  env={**os.environ, 'TAURI_WEBVIEW_AUTOMATION': 'true'},
+                                  env={**os.environ, 'TAURI_WEBVIEW_AUTOMATION': 'true', 'GDK_BACKEND': 'x11'},
                                   stdout=log, stderr=subprocess.STDOUT)
         try:
             app.start()
