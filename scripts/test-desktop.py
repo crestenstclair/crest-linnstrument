@@ -196,6 +196,61 @@ def record_expressive_keyboard_phrase(app):
     app.capture('recorded-phrase')
 
 
+def lifetimes(clip):
+    grouped = {}
+    for event in clip['events']:
+        grouped.setdefault(json.dumps(event['note'], sort_keys=True), []).append(event)
+    return grouped
+
+
+def lifetime_fits(events, length, start):
+    original_start = events[0]['at']
+    return all((start + event['at'] - original_start <= length
+                if event['gesture']['type'] == 'off'
+                else start + event['at'] - original_start < length) for event in events)
+
+
+def expected_quantized_lifetime(events, length, grid):
+    # Independently enumerate feasible points; no library rounding implementation.
+    candidates = [start for start in range(0, length, grid) if lifetime_fits(events, length, start)]
+    target = min(candidates, key=lambda start: (abs(start - events[0]['at']), -start))
+    return [event | {'at': target + event['at'] - events[0]['at']} for event in events]
+
+
+def quantize_recorded_phrase(app):
+    original = app.observe('return latest.host.clips[0]')
+    expected = {key: expected_quantized_lifetime(events, original['length'], 240000)
+                for key, events in lifetimes(original).items()}
+    assert expected != lifetimes(original), 'fixture must start off grid'
+    app.click('#next-note')
+    selected_key = int(app.observe("return document.querySelector('#note-key').value"))
+    selected = next(key for key, events in expected.items() if events[0]['gesture']['key'] == selected_key)
+    app.click('#quantize-form select option[value="240000"]')
+    app.click('#quantize-form button[type="submit"]')
+    state = app.state(lambda s: lifetimes(s['host']['clips'][0]) == expected,
+                      'explicit attack quantization preserves complete per-note event streams')
+    assert int(app.observe("return document.querySelector('#note-start').value")) == expected[selected][0]['at']
+    changed = state['host']['clips'][0]
+    app.fill('#note-start', '17')
+    at = state['host']['performance']['at']
+    app.state(lambda s: s['host']['performance']['at'] > at + 300000, 'later host snapshots')
+    assert app.observe("return document.querySelector('#note-start').value") == '17', 'snapshots preserve edit drafts'
+    app.click('#undo')
+    app.state(lambda s: s['host']['clips'][0] == original, 'quantization Undo restores exact performance')
+    assert int(app.observe("return document.querySelector('#note-start').value")) == lifetimes(original)[selected][0]['at']
+    app.click('#quantize-form button[type="submit"]')
+    app.state(lambda s: s['host']['clips'][0] == changed, 'repeat quantization is deterministic')
+    path = ARTIFACTS / 'desktop-quantized.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'quantized session saved')
+    assert json.loads(path.read_text())['session']['slots'][0]['clip'] == changed
+    app.click('#open')
+    state = app.state(lambda s: s['host']['clips'][0] == changed and
+                      s['host']['performance']['active_voices'] == 0, 'quantized phrase reopens stopped')
+    app.capture('quantized-phrase', state)
+
+
 def launch_with_firmware_pad(app):
     app.click('#clips')
     app.state(lambda s: s['host']['performance']['mode'] == 'clips', 'user mode')
@@ -702,6 +757,7 @@ def main():
         try:
             app.start()
             record_expressive_keyboard_phrase(app)
+            quantize_recorded_phrase(app)
             launch_with_firmware_pad(app)
             focus_recovery(app)
             record_timed_strum(app)

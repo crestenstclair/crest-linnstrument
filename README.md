@@ -6,7 +6,7 @@ The workspace is named `crest-performance`; it currently lives in the existing
 physical controller, MIDI device, or sound card is needed for the development path.
 
 **Standalone release: `0.2.0`, public API 9, session schema 8.**
-Development on this branch is `0.3.0-dev.1`; the release tag remains unchanged.
+Development on this branch is `0.3.0-dev.1`, API 10/session 8; the release tag remains unchanged.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
 defines this contract; an untagged checkout remains a candidate. See
@@ -157,6 +157,14 @@ reject unsupported pitch/timbre or deliberately keep only per-key pressure. Mono
 last-held-note priority. Host sessions retain profiles; plain library sessions remain
 readable with lower-MPE defaults. Independent expressive playback requires MPE. These are initial M4/M5 slices, not completion
 of the full harmony/generator backlog.
+
+The development note editor offers **Quantize clip attacks** as an explicit stopped-clip
+edit. It chooses the nearest feasible beat-grid position for each attack, with halfway
+ties moving later. The whole note moves: duration, velocity and all X/Y/Z samples stay
+exact. Near a loop boundary, a note moves earlier if necessary to fit its complete curve.
+Undo restores the exact original performance, and recording remains unquantized. The
+library exposes the same operation through `Command::QuantizeClip` in API 10. Session
+schema 8 is unchanged, so stable v0.2 readers can replay the edited raw performance.
 
 **Play scripted phrase** drives three independently expressive contacts through the native
 scheduler. Start host recording first to capture it, then finish and launch the clip. The

@@ -21,8 +21,11 @@ conditionForm.onsubmit=event=>{
   const condition=type==='every'?{type,period:Number(fields.get('period')),offset:Number(fields.get('iteration'))-1}:{type};
   send({type:'note_condition',slot:selected,note:selectedNote,condition});
 };
+let renderedNoteValue=null;
+function noteEditorKey(note){return JSON.stringify([selected,note.id,note.key,note.start,note.duration,note.condition]);}
 function selectNote(note){
   selectedNote=note.id;
+  renderedNoteValue=noteEditorKey(note);
   document.querySelector('#note-key').value=note.key;
   document.querySelector('#note-start').value=note.start;
   document.querySelector('#note-duration').value=note.duration;
@@ -49,6 +52,8 @@ document.querySelector('#retro').onclick=()=>send({type:'capture_recent',slot:se
 document.querySelector('#undo').onclick=()=>send({type:'undo'});
 document.querySelector('#duplicate').onclick=()=>send({type:'duplicate',from:selected,to:(selected+1)%8});
 document.querySelector('#apply-edit').onclick=()=>{if(selectedNote)send({type:'edit_note',slot:selected,note:selectedNote,start:Number(document.querySelector('#note-start').value),duration:Number(document.querySelector('#note-duration').value),key:Number(document.querySelector('#note-key').value)});};
+const quantizeForm=document.querySelector('#quantize-form');
+quantizeForm.onsubmit=event=>{event.preventDefault();send({type:'quantize_clip',slot:selected,ticks:Number(quantizeForm.elements.grid.value)});};
 const piano=document.querySelector('#piano'),pencil=piano.getContext('2d');
 function noteKey(note){return JSON.stringify(note);}
 function renderNotes(clip){
@@ -58,6 +63,8 @@ function renderNotes(clip){
   const active=new Map();for(const event of clip.events){const id=noteKey(event.note);if(event.gesture.type==='on')active.set(id,event);if(event.gesture.type==='off'&&active.has(id)){const on=active.get(id);displayedNotes.push({id:on.note,key:on.gesture.key,start:on.at,duration:event.at-on.at});active.delete(id);}}
   for(const note of displayedNotes)note.condition=clip.conditions?.find(entry=>noteKey(entry.note)===noteKey(note.id))?.condition??{type:'always'};
   const current=displayedNotes.find(note=>noteKey(note.id)===noteKey(selectedNote));
+  if(current&&noteEditorKey(current)!==renderedNoteValue)selectNote(current);
+  if(!current)renderedNoteValue=null;
   document.querySelector('#condition-state').textContent=current?`Note ${current.key}: ${current.condition.type==='every'?`loop ${current.condition.offset+1} of ${current.condition.period}`:current.condition.type.replace('_',' ')}`:'Select a note using the canvas or Previous / Next.';
   if(!displayedNotes.length)return;
   const low=Math.min(...displayedNotes.map(n=>n.key))-1,high=Math.max(...displayedNotes.map(n=>n.key))+2;

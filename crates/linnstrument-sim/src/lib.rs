@@ -10,6 +10,8 @@ mod harmony_source_tests;
 mod harmony_tests;
 #[cfg(test)]
 mod humanized_tests;
+#[cfg(test)]
+mod quantize_tests;
 pub use contact_envelope::ContactProfile;
 use contact_envelope::PressureRamp;
 mod scenario;
@@ -97,6 +99,10 @@ pub enum BridgeCommand {
         slot: usize,
         note: NoteKey,
         condition: NoteCondition,
+    },
+    QuantizeClip {
+        slot: usize,
+        ticks: u64,
     },
     Fill {
         held: bool,
@@ -657,6 +663,12 @@ impl Runtime {
                 condition,
             }),
             BridgeCommand::Fill { held } => self.host_command(Command::SetFill(held)),
+            BridgeCommand::QuantizeClip { slot, ticks } => {
+                self.host_command(Command::QuantizeClip {
+                    slot,
+                    quantum: BeatTime(ticks),
+                })
+            }
             BridgeCommand::ClipMuted { slot, muted } => {
                 self.host_command(Command::SetClipMuted { slot, muted })
             }

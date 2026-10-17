@@ -1,4 +1,8 @@
-# Public host contract, API 9
+# Public host contract, API 10 (development)
+
+Stable v0.2.0 exposes API 9. This checkout adds explicit quantization in API 10; the
+stable release and Crest Tracker's separate API-2 pin are unchanged. Persistence stays
+at schema 8. Use a tested development commit to consume API 10.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -133,8 +137,28 @@ the original event sequence intact. Shortening explicitly trims points at or bey
 new end; unedited notes retain every sample, including zero-duration notes. All
 edits validate bounds before replacing a clip and retain the previous clip for Undo.
 The small host piano roll performs selection, pitch, start, and duration edits in ticks.
-There is no implicit tracker quantization. Arrangement, destructive quantization commands,
-and a production tracker adapter are not yet implemented.
+There is no implicit tracker quantization. Arrangement and production tracker-view
+interoperability remain later integration work.
+
+API 10 adds `QuantizeClip { slot, quantum }` and the control-thread method
+`Clip::quantize_attacks(quantum)`. This is an explicit destructive attack edit, available
+only on a stopped slot with no recorder owning that slot. A nonzero tick grid starts at
+clip zero; each attack moves to its nearest feasible multiple, with halfway ties later.
+The duration, velocities, pitches and complete curve offsets/values remain unchanged.
+The nearest point must fit the entire note: releases may equal the loop end, but attacks
+and expression must precede it. Closing expression therefore may require an earlier grid
+point than a note ending with only its release. A grid longer than the clip chooses zero.
+There is no duration quantization, interpolation, trimming or note merging.
+
+Raw events are shifted directly. Closing expression precedes its own release; already
+held voices release before newly arriving zero-duration lifetimes, which retain their
+original On/expression/Off order. Other new attacks follow those releases. Note identities,
+conditions, follower references, and historical generating intent/settings do not change.
+Reused note identities reject explicitly because the editing projection requires one
+lifetime per identity. Invalid grids, malformed clips or unavailable slots reject before
+replacement. Changed edits preserve the entire old clip for Undo; no-op quantization
+preserves existing Undo. No schema change is needed: readers already understand the
+resulting raw notes and expression, including stable v0.2.0 readers.
 
 Changing Play/Chords/Clips mode releases live ownership and preserves running clips. It requires
 finishing/cancelling any recording first. Device disconnect releases that source's live
@@ -280,7 +304,7 @@ integer times and expression; save/reopen preserves them exactly. The host limit
 Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 8.
 
 The stable release package is `0.2.0`, API 9, schema 8. Development package
-`0.3.0-dev.1` retains API 9/schema 8 while adding standalone controller mappings.
+`0.3.0-dev.1` introduces API 10 for explicit quantization and retains schema 8.
 The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or

@@ -43,6 +43,11 @@ pub enum Command {
         note: NoteKey,
         edit: NoteEdit,
     },
+    /// Explicit stopped-clip edit; whole lifetimes move to the nearest grid.
+    QuantizeClip {
+        slot: usize,
+        quantum: BeatTime,
+    },
     SetNoteCondition {
         slot: usize,
         note: NoteKey,
@@ -608,6 +613,7 @@ impl Engine {
             Command::BeginOverdub { slot } => self.begin_overdub(slot),
             Command::Duplicate { from, to } => self.duplicate(from, to),
             Command::EditNote { slot, note, edit } => self.edit_note(slot, note, edit),
+            Command::QuantizeClip { slot, quantum } => self.quantize_clip(slot, quantum),
             Command::SetNoteCondition {
                 slot,
                 note,
@@ -847,6 +853,18 @@ impl Engine {
             .ok_or(Error::NotFound)?
             .edit_note(note, edit)?;
         self.commit_clip(slot, clip);
+        Ok(())
+    }
+    fn quantize_clip(&mut self, slot: usize, quantum: BeatTime) -> Result<()> {
+        self.ensure_editable(slot)?;
+        let original = self.session.slots[slot]
+            .clip
+            .as_ref()
+            .ok_or(Error::NotFound)?;
+        let clip = original.quantize_attacks(quantum)?;
+        if &clip != original {
+            self.commit_clip(slot, clip);
+        }
         Ok(())
     }
     /// Publish a prepared control-thread edit and its complete Undo snapshot.

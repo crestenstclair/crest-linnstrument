@@ -1,7 +1,7 @@
 # Delivery status — October 17, 2026, Pacific
 
 Stable version `0.2.0` carries API 9, session schema 8 and host document envelope 1.
-Development version `0.3.0-dev.1` retains those versions; its additions are not yet tagged.
+Development version `0.3.0-dev.1` uses API 10 and retains schema 8/envelope 1; its additions are not yet tagged.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
 the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
@@ -312,4 +312,24 @@ holds, player replacement, safety cleanup, persistence and output-pressure retry
 native scenario on both geometries holds Fill and mute with separate sensor contacts,
 checks exact conditional notes and decoded LEDs, releases each independently and tests
 focus recovery without altering the saved bank. The desktop suite adds simultaneous
-real keyboard contacts and cross-window focus cleanup; its updated CI is pending.
+real keyboard contacts and cross-window focus cleanup.
+[Full CI 39020986962](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39020986962)
+passed those desktop actions, Rust, both native firmware platforms and the ARM baseline.
+
+## Explicit attack quantization (development)
+
+API 10 adds a stopped-clip edit and standalone note-editor control that snap attacks
+to a chosen grid while moving whole lifetimes. Durations, all expression samples,
+conditions and historical intent survive unchanged; exact Undo remains available.
+Core fixtures cover independently specified rounding/bounds, zero-duration release
+ordering under a one-voice budget, u64 extremes, atomic rejection, no-op Undo preservation
+and save/replay beside a live note of the same pitch. Both firmware sizes record an
+off-grid three-finger phrase, quantize through the typed bridge, compare every curve,
+Undo, save/reopen, launch through a sensor pad and check exact output times and LEDs.
+The updated desktop suite checks explicit editing, field refresh without overwriting
+drafts, Undo, save/reopen and firmware-pad playback; its CI is pending. Schema 8 is unchanged.
+
+A separate Cargo consumer pinned to the unchanged v0.2.0 tag (API 9) read both newly
+quantized firmware sessions and replayed two loops with six balanced attacks/releases
+and retained expression. This proves the edited schema-8 files remain readable by the
+stable release despite the new development command requiring API 10.
