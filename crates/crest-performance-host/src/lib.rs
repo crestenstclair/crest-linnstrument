@@ -23,6 +23,9 @@ pub struct HostSnapshot {
     pub tracks: Vec<Track>,
     pub capture_count: u64,
     pub recent_midi: Vec<CapturedMidi>,
+    pub scene_morph: Option<SceneMorph>,
+    pub parameter_capture_count: u64,
+    pub recent_parameters: Vec<ParameterEvent>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct OutputRoute {
@@ -42,8 +45,13 @@ pub struct TestHost {
     last_micros: u64,
     pub capture: Vec<CapturedMidi>,
     capture_count: u64,
+    /// Development sink only; these are not silently converted to MIDI or DSP.
+    pub parameter_capture: Vec<ParameterEvent>,
+    parameter_capture_count: u64,
     pub device_commands: Vec<MidiMessage>,
     leds: LedRenderer,
+    scene_row: UserRowX,
+    geometry: Geometry,
     mode: SurfaceMode,
     holds: Holds,
     clip_controls: clip_surface::Controls,
@@ -63,7 +71,7 @@ impl TestHost {
                 Ok((id, MidiOutput::new(id, OutputProfile::default())?))
             })
             .collect::<Result<BTreeMap<_, _>>>()?;
-        Ok(Self {
+        let mut host = Self {
             holds: Holds::new(session.slots.len()),
             clip_controls: clip_surface::Controls::default(),
             engine: Engine::new(
@@ -82,10 +90,34 @@ impl TestHost {
             last_micros: 0,
             capture: Vec::with_capacity(65536),
             capture_count: 0,
+            parameter_capture: Vec::with_capacity(65536),
+            parameter_capture_count: 0,
             device_commands: Vec::new(),
             leds: LedRenderer::new(geometry),
+            scene_row: UserRowX::new(2, geometry)?,
+            geometry,
             mode: SurfaceMode::Play,
-        })
+        };
+        host.advertise_capture_parameters()?;
+        Ok(host)
+    }
+    /// Configure A/B endpoints for the explicit parameter capture sink. No MIDI
+    /// controller mapping or production instrument capability is implied.
+    pub fn set_scene_morph(&mut self, scene: Option<SceneMorph>) -> Result<()> {
+        self.engine.set_scene_morph(scene)?;
+        self.advertise_capture_parameters()?;
+        self.configure_scene_row();
+        self.paint()
+    }
+    fn advertise_capture_parameters(&mut self) -> Result<()> {
+        let addresses: Vec<_> = self
+            .engine
+            .session()
+            .scene_morph
+            .as_ref()
+            .map(|scene| scene.parameters().iter().map(|p| p.address).collect())
+            .unwrap_or_default();
+        self.engine.set_parameter_capabilities(&addresses)
     }
     pub fn from_document(document: storage::HostDocument, geometry: Geometry) -> Result<Self> {
         document.validate()?;
@@ -175,6 +207,11 @@ impl TestHost {
             return Ok(());
         };
         if self.mode == SurfaceMode::Clips {
+            if self.engine.session().scene_morph.is_some()
+                && let Some(position) = self.scene_row.accept(message)?
+            {
+                self.engine.command(Command::SetMorphPosition(position))?;
+            }
             if let Some(pad) = user_pad(message, geometry)? {
                 self.accept_clip_pad(pad)?;
             }
@@ -225,6 +262,7 @@ impl TestHost {
         self.holds.reconcile(&self.engine.snapshot());
         if matches!(command, Command::Stop) {
             self.input.reset();
+            self.scene_row.reset();
             self.clip_controls = clip_surface::Controls::default();
         }
         if let Command::SetMode(mode) = command {
@@ -235,20 +273,51 @@ impl TestHost {
             self.device_commands
                 .extend(user_mode(mode == SurfaceMode::Clips));
             self.leds.invalidate();
+            self.configure_scene_row();
         }
         self.capture_output()?;
         self.paint()
+    }
+    fn configure_scene_row(&mut self) {
+        self.scene_row.reset();
+        if self.mode == SurfaceMode::Clips {
+            self.device_commands.extend(
+                self.scene_row
+                    .configuration(self.engine.session().scene_morph.is_some()),
+            );
+        }
     }
     pub fn paint(&mut self) -> Result<()> {
         if self.mode != SurfaceMode::Clips {
             return Ok(());
         }
-        let frame = clip_surface::frame(&self.engine.snapshot());
+        let snapshot = self.engine.snapshot();
+        let mut frame = clip_surface::frame(&snapshot);
+        if self.engine.session().scene_morph.is_some() {
+            let span = u32::from(self.geometry.columns() - 2);
+            let selected = snapshot
+                .morph_position
+                .map(|position| 1 + (u32::from(position) * span + 32_767) / 65_535);
+            for column in 1..self.geometry.columns() {
+                frame[usize::from(column)][2] = if selected == Some(u32::from(column)) {
+                    3
+                } else {
+                    5
+                };
+            }
+        }
         // Firmware owns the global-settings control-column indicator.
         self.device_commands.extend(self.leds.diff(&frame, 16)?);
         Ok(())
     }
     fn capture_output(&mut self) -> Result<()> {
+        for event in self.engine.drain_parameter_output() {
+            append_capture(
+                &mut self.parameter_capture,
+                &mut self.parameter_capture_count,
+                event,
+            );
+        }
         for event in self.engine.drain_output() {
             let batch = self
                 .outputs
@@ -284,6 +353,16 @@ impl TestHost {
                 .map(|s| s.clip.clone())
                 .collect(),
             capture_count: self.capture_count,
+            scene_morph: self.engine.session().scene_morph.clone(),
+            parameter_capture_count: self.parameter_capture_count,
+            recent_parameters: self
+                .parameter_capture
+                .iter()
+                .rev()
+                .take(24)
+                .rev()
+                .copied()
+                .collect(),
             recent_midi: self.capture.iter().rev().take(24).rev().cloned().collect(),
         }
     }
@@ -320,10 +399,12 @@ impl TestHost {
         // allocated at each sink. Unallocated rejected attacks must not stop
         // cleanup of unrelated sounding voices with UnknownNote errors.
         self.engine.drain_output().for_each(drop);
+        self.engine.drain_parameter_output().for_each(drop);
         self.engine.command(Command::Stop)?;
         self.holds.reconcile(&self.engine.snapshot());
         self.engine.drain_output().for_each(drop);
         self.input.reset();
+        self.scene_row.reset();
         self.clip_controls = clip_surface::Controls::default();
         self.parser = MidiParser::default();
         let at = self.engine.snapshot().at;
@@ -344,7 +425,7 @@ impl TestHost {
     }
 }
 
-fn append_capture(capture: &mut Vec<CapturedMidi>, count: &mut u64, message: CapturedMidi) {
+fn append_capture<T>(capture: &mut Vec<T>, count: &mut u64, message: T) {
     *count += 1;
     if capture.len() == 65536 {
         capture.drain(..32768);

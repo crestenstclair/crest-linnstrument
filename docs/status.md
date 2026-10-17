@@ -1,7 +1,7 @@
 # Delivery status — October 17, 2026, Pacific
 
 Stable version `0.2.0` carries API 9, session schema 8 and host document envelope 1.
-Development version `0.3.0-dev.1` uses API 10, schema 8 and host envelope 2; its additions are not yet tagged.
+Development version `0.3.0-dev.2` uses API 11, schema 9 and host envelope 2; its additions are not yet tagged.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
 the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
@@ -76,7 +76,7 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: parameter locks, momentary transforms and scene morphing remain future work.
+open: parameter locks and additional momentary transforms remain future work. A/B morphing now has a parameter-capture implementation; production parameter mappings remain host integration work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
 is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
@@ -462,3 +462,26 @@ pitch, timbre and pressure and a release. The schema-8 project reopened, both cl
 and voicing controls produced `[76, 84, 91]` without changing already-running clip snapshots.
 The test app was left stopped, saved and in stock firmware Play. This is macOS virtual
 workflow evidence, not Linux/Deck or physical-device qualification.
+
+## A/B parameter morph development (API 11)
+
+The standalone library now stores validated A/B endpoint pairs and emits bounded timestamped
+parameter batches only for addresses advertised by the active backend. The explicit capture
+sink and test-host panel expose values without claiming MIDI/DSP support. A continuous control
+row uses actual stock firmware 14-bit X and slide ownership; it does not convert UI positions
+straight into musical output. Headless firmware tests pass for both geometries, including
+within-cell motion, cross-cell slides, competing fingers, actual green LED output, return to
+stock MPE and exact repeated parameter traces. Focused tests cover endpoints, interpolation,
+capability rejection, saturation without losing note releases and schema-8 migration.
+
+Development version is now 0.3.0-dev.2/API 11/session 9/host envelope 2. Tracker remains pinned
+to API 10 and stable release tags are unchanged. Workspace tests, source and desktop-feature
+Clippy, and all 25 native simulator tests passed locally. A real macOS webview session applied
+two inverse endpoints, verified exact A/B values, and used mouse and keyboard movement on
+the firmware row to capture 22 parameter events. Decoded green LEDs followed the position.
+Reopening retained both endpoints with zero captured events and no emitted position. The
+saved `target/dev/firmware-scene-morph.json` has SHA-256
+`40ccf36fab977c6edcf3c6ba4c21598d536fd8a1f6e770a6a32df9a9485ecdd2`.
+The actual API-10 Git consumer rejects the schema-9 file without changing its input.
+Linux desktop, extracted-package and full CI acceptance remain pending. Per-note parameter locks,
+automation recording and production sound-engine parameter mappings remain separate work.

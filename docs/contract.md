@@ -1,10 +1,8 @@
-# Public host contract, API 10 (development)
+# Public host contract, API 11 (development)
 
-Stable v0.2.0 exposes API 9. This checkout adds explicit quantization in API 10; the
-stable release is unchanged. Persistence stays at schema 8. Crest Tracker's independent
-integration branch now pins tested development commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`
-(API 10), with explicit schema-2 migration and preserved original project files for rollback.
-Use a tested development commit to consume API 10.
+Stable v0.2.0 exposes API 9/session 8. Development `0.3.0-dev.2` adds A/B parameter
+morphing in API 11/session 9. Tracker remains independently pinned to tested API-10
+commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`; upgrading is a separate decision.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -313,10 +311,11 @@ The source command and effective/source snapshot fields require API 8. The schem
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 8.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with this development checkout writes schema 9.
 
 The stable release package is `0.2.0`, API 9, schema 8. Development package
-`0.3.0-dev.1` introduces API 10 for explicit quantization and retains schema 8.
+`0.3.0-dev.1` introduced API 10 for explicit quantization with schema 8.
+`0.3.0-dev.2` adds API 11/session 9 for scene morphing; the host envelope stays at 2.
 The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
@@ -568,3 +567,49 @@ capture operation directly. This additive method is also available on the API-2 
 baseline without adding an enum variant or changing its persistence version. It never
 advances input time, emits releases, or changes live ownership. The requested range must
 remain inside retained history; failure leaves the old clip and Undo state unchanged.
+
+## A/B parameter morphing (API 11, schema 9)
+
+`SceneMorph` contains 1–16 `MorphParameter` entries in strictly increasing unique
+`ParameterAddress { destination, parameter }` order. Addresses are stable backend references,
+not MIDI controllers or GUI indices. A and B values span normalized u16. `render(at, position)`
+is allocation-free linear interpolation, rounded to the nearest integer with exact endpoints;
+the backend owns physical units and taper. Descending and unchanged lanes are supported.
+
+`Session.scene_morph` persists the endpoint pair. `Engine::set_scene_morph` is a control-thread
+edit that checks destination references and emits nothing. `set_parameter_capabilities` takes
+up to 16 unique sorted addresses advertised by the active backend; capabilities are transient
+and initially empty. A missing capability rejects the complete morph, without output or a
+position change. `Command::SetMorphPosition` emits the complete supported batch at current
+engine time. It never changes notes, per-note expression, clips or harmony. The current
+position is transient and initially None, including after reopen or endpoint replacement.
+
+`drain_parameter_output` is a separate preallocated bounded stream of `ParameterEvent`.
+Its capacity equals `Limits.output_events` and does not consume note release reserves.
+A full queue rejects the entire new batch; no endpoint is partially changed. Drain both
+streams; hosts merging them schedule by timestamp, parameter updates before note events at
+equal times. Snapshot/file/endpoint/capability operations remain outside audio callbacks.
+Pending parameter events must be drained before replacing endpoints or capabilities. Stop
+releases notes and does not reset parameter values; disconnect drops unsent parameter work.
+Parameter automation and per-note parameter locks are not provided by this API addition.
+
+The standalone test host explicitly advertises its parameter capture sink for the configured
+addresses. It retains a bounded diagnostic history and exposes it separately from MIDI bytes.
+It does not convert arbitrary references into MIDI or claim audible DSP support. The normal
+OS-MIDI replica disables its embedded host; an external host owns scene routing there.
+
+In stock User Firmware Mode, standalone Clip pads row 3 (zero-based row 2) controls morph
+position. The adapter enables CC9 slide mode and CC10 X reporting on that row. It consumes
+firmware LSB-then-MSB pairs (CC32+column, then CC column), normalizing documented global
+ranges 0–4265 (200 pads) or 0–2730 (128 pads), rounded to nearest u16 and clamped only for
+sensor endpoint overshoot. The first fresh Note On owns the row. CC119 and the next Note On
+transfer ownership across a firmware slide; unrelated held contacts never take over.
+Release retains the last parameter value. Mode/endpoint changes reset touch ownership;
+release and retouch before controlling the new state. LED intent passes through firmware
+and the simulator renders decoded LED writes, including the green current position.
+
+Schema 9 adds the optional endpoint field. Schemas 1–8 migrate with no endpoint pair;
+placing a scene under an older version label rejects. Original data is never rewritten on
+read. Saving writes schema 9, which API-10 and older readers reject. Keep the original file
+for rollback; relabeling or discarding the scene is not a migration path. The public Session
+field, command variant and snapshot fields make this an explicit pre-1.0 API change.

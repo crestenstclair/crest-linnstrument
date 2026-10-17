@@ -6,7 +6,7 @@ The workspace is named `crest-performance`; it currently lives in the existing
 physical controller, MIDI device, or sound card is needed for the development path.
 
 **Standalone release: `0.2.0`, public API 9, session schema 8.**
-Development on this branch is `0.3.0-dev.1`, API 10/session 8/host envelope 2;
+Development on this branch is `0.3.0-dev.2`, API 11/session 9/host envelope 2;
 the release tag remains unchanged.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
@@ -16,10 +16,25 @@ defines this contract; an untagged checkout remains a candidate. See
 Version 0.2 adds timed strumming, humanized chords, learned chord banks, repeating arpeggios,
 per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
 [v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
-API 2/session 2. Crest Tracker retains its deliberate API-2 patch pin while this library
-advances independently.
-Schemas 1–7 load losslessly; saving with this checkout writes schema 8, rejected by
-older readers. Keep the original session to return to the baseline release.
+API 2/session 2. Crest Tracker's independent integration branch pins tested API-10 commit
+`6c37aa5`; this API-11 development work does not change that dependency.
+Schemas 1–8 load losslessly; saving with this checkout writes schema 9, rejected by
+older readers. Keep the original session to return to its previous library version.
+
+The test host's **A/B MORPH** panel configures up to 16 parameter endpoints. Add parameters,
+choose destination/reference and normalized A/B values (0–65535), then Apply. Buttons select
+exact endpoints; the slider interpolates all values together. The explicit parameter capture
+sink displays the resulting timestamped events. These references are not MIDI CC numbers;
+there is no implied DSP mapping or audible effect. A production host must advertise and map
+its own supported parameters.
+
+With a scene configured, **Clip pads** reserves the third row from the bottom for continuous
+morphing. Touch and drag across that row: pinned stock firmware generates 14-bit X data and
+slide handovers through the normal sensor path. The first finger owns the row until release;
+other held fingers cannot steal it. Blue marks the row, and decoded firmware green shows the
+current position. A/B endpoints persist; the current gesture position and backend capabilities
+do not. Reopening emits no parameter values. Notes, expression and clips remain unchanged.
+Parameter automation recording and per-note parameter locks remain further work.
 
 Conditional playback keeps the original notes and expression. In the note editor, select a
 note with the canvas or Previous/Next, then choose every loop, loop N of a period, Fill or

@@ -1,5 +1,6 @@
 mod articulation;
 mod harmony;
+mod scene;
 use crate::*;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -55,6 +56,9 @@ pub enum Command {
     },
     /// Momentary host control. Affects future attacks only, at engine time.
     SetFill(bool),
+    /// Emit every configured scene parameter at current engine time. This does
+    /// not transform note expression, retune voices or launch a clip scene.
+    SetMorphPosition(u16),
     CaptureRecent {
         slot: usize,
         length: BeatTime,
@@ -119,6 +123,8 @@ pub struct PerformanceSnapshot {
     pub at: BeatTime,
     pub mode: SurfaceMode,
     pub fill: bool,
+    pub morph_position: Option<u16>,
+    pub parameter_capabilities: Vec<ParameterAddress>,
     pub active_voices: usize,
     pub voice_capacity: usize,
     pub slots: Vec<SlotState>,
@@ -227,6 +233,9 @@ pub struct Engine {
     active: Vec<ActiveVoice>,
     players: Vec<Player>,
     output: VecDeque<OutputEvent>,
+    parameter_output: VecDeque<ParameterEvent>,
+    parameter_capabilities: Vec<ParameterAddress>,
+    morph_position: Option<u16>,
     recording: Option<Recording>,
     undo: Option<UndoState>,
     recent: VecDeque<InputEvent>,
@@ -261,6 +270,9 @@ impl Engine {
             fill: false,
             active: Vec::with_capacity(limits.voices),
             output: VecDeque::with_capacity(limits.output_events),
+            parameter_output: VecDeque::with_capacity(limits.output_events),
+            parameter_capabilities: Vec::new(),
+            morph_position: None,
             recording: None,
             undo: None,
             recent: VecDeque::with_capacity(limits.recorded_events),
@@ -341,6 +353,8 @@ impl Engine {
             at: self.at,
             mode: self.mode,
             fill: self.fill,
+            morph_position: self.morph_position,
+            parameter_capabilities: self.parameter_capabilities.clone(),
             active_voices: self.active.len(),
             voice_capacity: self.limits.voices,
             harmony: self.session.harmony,
@@ -650,6 +664,7 @@ impl Engine {
                 self.unmute_clips();
                 Ok(())
             }
+            Command::SetMorphPosition(position) => self.morph_scene(position),
             Command::SetHarmony(settings) => self.set_harmony(settings),
             Command::SetHarmonySource(source) => self.set_harmony_source(source),
             Command::LearnChord {

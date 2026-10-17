@@ -15,6 +15,8 @@ mod modifier_tests;
 #[cfg(test)]
 mod quantize_tests;
 #[cfg(test)]
+mod scene_tests;
+#[cfg(test)]
 mod tempo_tests;
 #[cfg(test)]
 mod voicing_tests;
@@ -138,6 +140,12 @@ pub enum BridgeCommand {
     },
     Harmony {
         settings: HarmonySettings,
+    },
+    SceneMorph {
+        scene: Option<crest_performance_core::SceneMorph>,
+    },
+    MorphPosition {
+        position: u16,
     },
     HarmonySource {
         source: HarmonySource,
@@ -711,6 +719,15 @@ impl Runtime {
                 SurfaceMode::Play
             }),
             BridgeCommand::Surface { mode } => self.set_surface(mode),
+            BridgeCommand::SceneMorph { scene } => {
+                if self.external() {
+                    return Err("OS MIDI mode: configure scenes in the external host".into());
+                }
+                self.host.set_scene_morph(scene).map_err(|e| e.to_string())
+            }
+            BridgeCommand::MorphPosition { position } => {
+                self.host_command(Command::SetMorphPosition(position))
+            }
             BridgeCommand::Harmony { settings } => self.host_command(Command::SetHarmony(settings)),
             BridgeCommand::HarmonySource { source } => {
                 self.host_command(Command::SetHarmonySource(source))

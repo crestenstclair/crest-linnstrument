@@ -1,3 +1,4 @@
+import {renderScene} from './scene.js';
 import {bindHoldControl} from './hold-control.js';
 'use strict';let selected=0;let selectedNote=null;let displayedNotes=[];
 const fillButton=document.querySelector('#fill');
@@ -179,6 +180,7 @@ subscribers.push(snapshot=>{
   renderHarmony(state,snapshot.host.tracks);
   renderHarmonySource(state);
   renderOutputs(snapshot.host);
+  renderScene(snapshot.host);
   const selectedClip=snapshot.host.clips[selected],origin=selectedClip?.pattern_origin?.at(-1);
   document.querySelector('#pattern-state').textContent=selectedClip?`${selectedClip.follow?'FOLLOWING SELECTED/LIVE CHORD':'FIXED PITCHES'}${origin?` · seed ${origin.settings.seed} · ${origin.settings.pulses}/${origin.settings.steps} pulses · algorithm ${origin.algorithm_version}`:''}`:'Select an empty or stopped clip slot.';
   renderClips(state.slots,state.muted_slots);

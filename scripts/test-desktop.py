@@ -116,12 +116,15 @@ class Desktop:
     def press(self, key):
         self.native('key', key)
 
-    def touch(self, x, y):
+    def point(self, x, y):
         # Read canvas coordinates; WebDriver delivers the actual mouse events.
-        point = self.observe('''const r=document.querySelector('#surface').getBoundingClientRect();
+        return self.observe('''const r=document.querySelector('#surface').getBoundingClientRect();
             const columns=latest.firmware.model===128?17:26;
             return [Math.round(r.left+(arguments[0]+.5)*r.width/columns),
                     Math.round(r.top+(7.5-arguments[1])*r.height/8)];''', x, y)
+
+    def touch(self, x, y):
+        point = self.point(x, y)
         self.command('POST', '/actions', {'actions': [{
             'type': 'pointer', 'id': 'mouse', 'parameters': {'pointerType': 'mouse'}, 'actions': [
                 {'type': 'pointerMove', 'duration': 0, 'origin': 'viewport', 'x': point[0], 'y': point[1]},
@@ -882,6 +885,60 @@ def record_controller_modifiers(app):
               s['host']['performance']['mode'] == 'play', 'stock playing restored after modifiers')
 
 
+def morph_parameter_capture(app):
+    app.switch('host')
+    app.click('#scene-panel > summary')
+    app.click('#scene-add')
+    app.click('#scene-add')
+    app.fill('#scene-parameters > div:nth-child(2) [name=a]', '65535')
+    app.fill('#scene-parameters > div:nth-child(2) [name=b]', '0')
+    app.click('#scene-form button[type=submit]')
+    before = app.state(lambda s: s['host']['scene_morph'] and len(s['host']['scene_morph']) == 2,
+                       'parameter endpoints configured')
+    app.click('#scene-a')
+    state = app.state(lambda s: s['host']['performance']['morph_position'] == 0,
+                      'exact scene A')
+    assert [event['value'] for event in state['host']['recent_parameters'][-2:]] == [0, 65535]
+    app.click('#scene-b')
+    state = app.state(lambda s: s['host']['performance']['morph_position'] == 65535,
+                      'exact scene B')
+    assert [event['value'] for event in state['host']['recent_parameters'][-2:]] == [65535, 0]
+    app.click('#clips')
+    app.switch('instrument')
+    app.touch(2, 2)
+    start = app.state(lambda s: 0 < s['host']['performance']['morph_position'] < 10000,
+                      'firmware X controls morph row')
+    first, last = app.point(2, 2), app.point(8, 2)
+    app.command('POST', '/actions', {'actions': [{
+        'type': 'pointer', 'id': 'mouse', 'parameters': {'pointerType': 'mouse'}, 'actions': [
+            {'type': 'pointerMove', 'duration': 0, 'origin': 'viewport', 'x': first[0], 'y': first[1]},
+            {'type': 'pointerDown', 'button': 0}, {'type': 'pause', 'duration': 100},
+            {'type': 'pointerMove', 'duration': 1200, 'origin': 'viewport', 'x': last[0], 'y': last[1]},
+            {'type': 'pause', 'duration': 100}, {'type': 'pointerUp', 'button': 0}]}]})
+    state = app.state(lambda s: s['host']['performance']['morph_position'] > start['host']['performance']['morph_position'] + 10000
+                      and s['host']['parameter_capture_count'] > start['host']['parameter_capture_count'] + 4,
+                      'continuous mouse slide produces firmware-derived parameter samples')
+    assert state['host']['clips'] == before['host']['clips']
+    selected = 1 + (state['host']['performance']['morph_position'] * 24 + 32767) // 65535
+    state = app.state(lambda s: s['firmware']['leds'][selected * 8 + 2][1] > 200
+                      and s['firmware']['leds'][selected * 8 + 2][2] < 50, 'decoded morph position LED')
+    app.capture('scene-morph-firmware-row', state)
+    app.switch('host')
+    app.click('#play')
+    path = ARTIFACTS / 'desktop-scene-morph.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'scene endpoints saved')
+    document = json.loads(path.read_text())
+    assert document['session']['version'] == 9
+    assert document['session']['scene_morph'] == state['host']['scene_morph']
+    app.click('#open')
+    reopened = app.state(lambda s: s['host']['scene_morph'] == state['host']['scene_morph']
+                        and s['host']['parameter_capture_count'] == 0
+                        and s['host']['performance']['morph_position'] is None, 'reopen retains endpoints without emitting parameters')
+    app.capture('scene-morph-reopened', reopened)
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -907,7 +964,8 @@ def main():
             play_showcase_bank(app)
             change_showcase_tempo(app)
             record_controller_modifiers(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase')
+            morph_parameter_capture(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase, firmware-row A/B parameter morph')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

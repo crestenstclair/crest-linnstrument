@@ -196,6 +196,8 @@ pub struct Session {
     pub harmony: HarmonySettings,
     #[serde(default)]
     pub harmony_source: HarmonySource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scene_morph: Option<crate::SceneMorph>,
 }
 impl Default for Session {
     fn default() -> Self {
@@ -203,6 +205,7 @@ impl Default for Session {
             version: SESSION_VERSION,
             harmony: HarmonySettings::default(),
             harmony_source: HarmonySource::default(),
+            scene_morph: None,
             tracks: vec![Track {
                 id: TrackId(1),
                 name: "LinnStrument".into(),
@@ -224,6 +227,9 @@ impl Default for Session {
 impl Session {
     /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=8).contains(&self.version) && self.scene_morph.is_some() {
+            return Err(Error::Invalid("older session contains v9 scene morph"));
+        }
         if (1..=7).contains(&self.version) && self.harmony_source != HarmonySource::default() {
             return Err(Error::Invalid("older session contains v8 harmony source"));
         }
@@ -296,7 +302,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if matches!(self.version, 3..=7) {
+        if matches!(self.version, 3..=8) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;
@@ -307,6 +313,9 @@ impl Session {
             return Err(Error::Version(self.version));
         }
         self.harmony.validate()?;
+        if let Some(scene) = &self.scene_morph {
+            self.validate_scene(scene)?;
+        }
         if let HarmonySource::Clip { slot } = self.harmony_source
             && slot >= self.slots.len()
         {
@@ -327,6 +336,18 @@ impl Session {
         }
         for slot in &self.slots {
             self.validate_slot(slot)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn validate_scene(&self, scene: &crate::SceneMorph) -> Result<()> {
+        for parameter in scene.parameters() {
+            if !self
+                .tracks
+                .iter()
+                .any(|track| track.instrument.destination == parameter.address.destination)
+            {
+                return Err(Error::NotFound);
+            }
         }
         Ok(())
     }
