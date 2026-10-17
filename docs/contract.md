@@ -36,6 +36,25 @@ even when the device sends no new packets. It never moves the input engine's clo
 Snapshot and FinishRecord share
 the same clip-finalization rules, including overdub merging.
 
+## Retrospective capture at a host cutoff
+
+`CaptureRecentAt { slot, length, cutoff }` renders accepted history into a stopped clip
+covering `[cutoff - length, cutoff]`, without moving the engine clock, stopping live notes
+or emitting output. The cutoff must be later than the current engine position. This admits
+an attack or expression at the latest input timestamp and lets hosts retain elapsed holds
+while their input clock stays at the most recently accepted packet. Notes held across the
+window start receive their then-current expression; notes still held receive copied releases
+at the window end. Later packets cannot change the captured clip, even if their source time
+precedes the chosen cutoff: the command captures only input already accepted. Hosts own the
+choice of cutoff and their input-drain policy. No pending strum tone is synthesized early.
+
+Invalid ranges, expired history, an uneditable slot and an empty window fail without replacing
+the clip or its prior Undo. Source-gesture and rendered-event rings share a monotonically
+advancing history floor. `CaptureRecent` retains its original engine-position boundary;
+callers must advance past their final attack/expression before using that older command.
+The simulator's Capture button uses one tick after its native clock position so the latest
+accepted expression always falls inside the clip. Capture and Undo are control-thread work.
+
 ## Time and ownership
 
 `BeatTime` is unsigned 64-bit musical ticks, 960,000 per quarter note. At 120 BPM a tick

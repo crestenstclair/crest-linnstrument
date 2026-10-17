@@ -47,6 +47,11 @@ pub enum Command {
         slot: usize,
         length: BeatTime,
     },
+    CaptureRecentAt {
+        slot: usize,
+        length: BeatTime,
+        cutoff: BeatTime,
+    },
     FinishRecord,
     CancelRecord,
     Launch {
@@ -508,7 +513,17 @@ impl Engine {
             Command::BeginOverdub { slot } => self.begin_overdub(slot),
             Command::Duplicate { from, to } => self.duplicate(from, to),
             Command::EditNote { slot, note, edit } => self.edit_note(slot, note, edit),
-            Command::CaptureRecent { slot, length } => self.capture_recent(slot, length),
+            Command::CaptureRecent { slot, length } => self.capture_recent(slot, length, self.at),
+            Command::CaptureRecentAt {
+                slot,
+                length,
+                cutoff,
+            } => {
+                if cutoff <= self.at {
+                    return Err(Error::TimeOrder);
+                }
+                self.capture_recent(slot, length, cutoff)
+            }
             Command::FinishRecord => self.finish_record(),
             Command::CancelRecord => {
                 self.recording = None;
@@ -538,17 +553,19 @@ impl Engine {
         if self.recent.len() == self.limits.recorded_events
             && let Some(evicted) = self.recent.pop_front()
         {
-            self.history_floor = BeatTime(evicted.at.0.saturating_add(1));
+            self.history_floor = self
+                .history_floor
+                .max(BeatTime(evicted.at.0.saturating_add(1)));
         }
         self.recent.push_back(event);
     }
-    fn capture_recent(&mut self, slot: usize, length: BeatTime) -> Result<()> {
+    fn capture_recent(&mut self, slot: usize, length: BeatTime, cutoff: BeatTime) -> Result<()> {
         self.ensure_editable(slot)?;
         if length.0 == 0 {
             return Err(Error::Invalid("retrospective length"));
         }
         let start = BeatTime(
-            self.at
+            cutoff
                 .0
                 .checked_sub(length.0)
                 .ok_or(Error::Invalid("retrospective range before clock origin"))?,
@@ -560,12 +577,12 @@ impl Engine {
             self.recent.iter().copied(),
             self.session.slots[slot].track,
             start,
-            self.at,
+            cutoff,
         )?;
         clip.harmony_origin = self
             .recent_harmony
             .iter()
-            .filter(|g| g.input.at >= start && g.input.at <= self.at)
+            .filter(|g| g.input.at >= start && g.input.at <= cutoff)
             .copied()
             .map(|mut g| {
                 g.input.at.0 -= start.0;

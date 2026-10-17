@@ -106,3 +106,9 @@ p95 667 ns, p99 1,334 ns and maximum 12,208 ns; none exceeded 1 ms. All 2,160 at
 matching releases. The timed work includes clock advancement, input, MPE allocation and
 capture validation; sensing, UI, files, OS MIDI and audio are excluded. This is local
 software-cost evidence, not total instrument latency or Steam Deck qualification.
+
+Retrospective capture now also accepts an explicit host-clock cutoff without advancing live
+input time. A firmware test captures three held contacts with independent pitch, timbre and
+pressure, verifies no output/clock/ownership changes, then continues and releases the original
+contacts. The standalone Capture button uses this boundary. Expired source-gesture history
+cannot become available again when the rendered-event ring later evicts an older event.

@@ -272,6 +272,39 @@ def record_timed_strum(app):
     app.capture('timed-strum')
 
 
+def capture_held_phrase(app):
+    app.click('#play')
+    state = app.state(lambda s: s['host']['performance']['mode'] == 'play', 'ordinary playing')
+    previous = state['host']['clips'][0]
+    app.switch('instrument')
+    app.click('#latch')
+    app.touch(2, 0)
+    state = app.state(lambda s: s['host']['performance']['active_voices'] == 1, 'held capture source')
+    start = state['host']['performance']['at']
+    app.press('bracketright')
+    app.state(lambda s: s['host']['performance']['at'] > start + 3840000,
+              'held source covers four-beat history window')
+    app.switch('host')
+    app.click('#retro')
+    state = app.state(lambda s: s['host']['clips'][0] != previous, 'retrospective clip captured')
+    clip = state['host']['clips'][0]
+    assert state['host']['performance']['active_voices'] == 1
+    attacks = [event for event in clip['events'] if event['gesture']['type'] == 'on']
+    assert len(attacks) == 1 and attacks[0]['gesture']['key'] == 31 and attacks[0]['at'] == 0
+    assert clip['length'] == 3840000
+    assert clip['events'][-1]['gesture']['type'] == 'off'
+    assert clip['events'][-1]['at'] == clip['length']
+    app.capture('retrospective-held-note', state)
+    app.click('#undo')
+    app.state(lambda s: s['host']['clips'][0] == previous and
+              s['host']['performance']['active_voices'] == 1, 'undo preserves original held input')
+    app.switch('instrument')
+    app.click('#release')
+    app.click('#latch')
+    app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
+              'original captured input releases normally')
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -288,7 +321,8 @@ def main():
             launch_with_firmware_pad(app)
             focus_recovery(app)
             record_timed_strum(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum')
+            capture_held_phrase(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

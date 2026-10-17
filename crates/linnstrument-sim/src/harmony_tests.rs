@@ -601,3 +601,71 @@ fn verify_timed_strum(model: u16) {
     );
     r.host.disconnect().unwrap();
 }
+
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn firmware_retrospective_capture_keeps_three_held_inputs_live() {
+    let mut r = runtime(200);
+    for (id, x, y) in [(1, 1.0, 0.0), (2, 4.0, 1.0), (3, 7.0, 2.0)] {
+        r.set_contact(Contact {
+            id,
+            x,
+            y,
+            z: 0.5,
+            latched: true,
+        })
+        .unwrap();
+    }
+    r.advance(500_000).unwrap();
+    for contact in [
+        Contact {
+            id: 1,
+            x: 1.3,
+            y: 0.0,
+            z: 0.5,
+            latched: true,
+        },
+        Contact {
+            id: 2,
+            x: 4.0,
+            y: 1.3,
+            z: 0.5,
+            latched: true,
+        },
+        Contact {
+            id: 3,
+            x: 7.0,
+            y: 2.0,
+            z: 0.8,
+            latched: true,
+        },
+    ] {
+        r.set_contact(contact).unwrap();
+    }
+    r.advance(600_000).unwrap();
+    let at = r.host.engine.position();
+    let captured_messages = r.host.output_count();
+    r.command(BridgeCommand::CaptureRecent {
+        slot: 0,
+        ticks: 4 * crest_performance_core::TICKS_PER_BEAT,
+    })
+    .unwrap();
+    assert_eq!(r.host.engine.position(), at);
+    assert_eq!(r.host.output_count(), captured_messages);
+    assert_eq!(r.host.engine.snapshot().active_voices, 3);
+    let clip = r.host.engine.session().slots[0].clip.clone().unwrap();
+    let notes = clip.notes().unwrap();
+    assert_eq!(notes.len(), 3);
+    let bend = notes.iter().find(|note| note.key == 30).unwrap();
+    let timbre = notes.iter().find(|note| note.key == 38).unwrap();
+    let pressure = notes.iter().find(|note| note.key == 46).unwrap();
+    assert!(bend.expression.points.last().unwrap().value.pitch > 200_000);
+    assert!(timbre.expression.points.last().unwrap().value.timbre > 40_000);
+    assert!(pressure.expression.points.last().unwrap().value.pressure > 40_000);
+    r.advance(200_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 3);
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    r.advance(100_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+    assert_eq!(r.host.engine.session().slots[0].clip.as_ref(), Some(&clip));
+}

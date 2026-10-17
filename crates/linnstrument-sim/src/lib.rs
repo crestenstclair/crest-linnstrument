@@ -584,9 +584,16 @@ impl Runtime {
                 self.host_command(Command::BeginOverdub { slot })
             }
             BridgeCommand::CaptureRecent { slot, ticks } => {
-                self.host_command(Command::CaptureRecent {
+                let cutoff = self
+                    .host
+                    .engine
+                    .position()
+                    .checked_add(BeatTime(1))
+                    .map_err(|error| error.to_string())?;
+                self.host_command(Command::CaptureRecentAt {
                     slot,
                     length: BeatTime(ticks),
+                    cutoff,
                 })
             }
             BridgeCommand::Duplicate { from, to } => {
