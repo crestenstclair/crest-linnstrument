@@ -124,6 +124,43 @@ struct Recording {
     harmony_origin: Vec<HarmonyGesture>,
 }
 
+impl Recording {
+    fn clip_at(&self, cutoff: BeatTime, track: TrackId) -> Result<Clip> {
+        let length = BeatTime(cutoff.0 - self.start.0);
+        if length.0 == 0
+            || self
+                .events
+                .last()
+                .is_some_and(|e| e.at == length && !matches!(e.gesture, Gesture::Off { .. }))
+        {
+            return Err(Error::State("advance past final gesture before finishing"));
+        }
+        let mut events = self.events.clone();
+        for note in &self.held {
+            events.push(InputEvent {
+                at: length,
+                note: *note,
+                gesture: Gesture::Off { velocity: 0 },
+            });
+        }
+        if events.is_empty() {
+            return Err(Error::State("take has no notes; cancel recording"));
+        }
+        let mut clip = Clip {
+            length,
+            events,
+            harmony_origin: self.harmony_origin.clone(),
+            pattern_origin: Vec::new(),
+            follow: None,
+        };
+        clip.validate(track)?;
+        if let Some(previous) = &self.previous {
+            clip = previous.overdub(&clip)?;
+        }
+        Ok(clip)
+    }
+}
+
 /// Single-owner engine, driven exclusively by host time. Musical methods use
 /// bounded preallocated queues. Session edits/record setup/snapshots are control
 /// work and must run outside an audio callback. No locks or I/O are performed.
@@ -184,6 +221,25 @@ impl Engine {
             return Err(Error::State("finish recording before saving"));
         }
         Ok(self.session.clone())
+    }
+    /// Control-thread recovery snapshot. Closes held recorded notes one tick
+    /// after the current engine position in the returned session only. Playback,
+    /// MIDI output, live ownership and the active take are unchanged. Reopening
+    /// this session restores the captured prefix as a stopped, committed clip.
+    /// An armed/empty take leaves the previously committed slot intact.
+    pub fn checkpoint_session(&self) -> Result<Session> {
+        let mut session = self.session.clone();
+        if let Some(recording) = self
+            .recording
+            .as_ref()
+            .filter(|take| !take.events.is_empty())
+        {
+            let cutoff = self.at.checked_add(BeatTime(1))?;
+            let clip = recording.clip_at(cutoff, session.slots[recording.slot].track)?;
+            session.slots[recording.slot].clip = Some(clip);
+        }
+        session.validate()?;
+        Ok(session)
     }
     pub fn drain_output(&mut self) -> impl Iterator<Item = OutputEvent> + '_ {
         self.output.drain(..)
@@ -508,36 +564,7 @@ impl Engine {
             .as_ref()
             .ok_or(Error::State("not recording"))?;
         let length = BeatTime(self.at.0 - recording.start.0);
-        if length.0 == 0
-            || recording
-                .events
-                .last()
-                .is_some_and(|e| e.at == length && !matches!(e.gesture, Gesture::Off { .. }))
-        {
-            return Err(Error::State("advance past final gesture before finishing"));
-        }
-        let mut events = recording.events.clone();
-        for note in &recording.held {
-            events.push(InputEvent {
-                at: length,
-                note: *note,
-                gesture: Gesture::Off { velocity: 0 },
-            });
-        }
-        if events.is_empty() {
-            return Err(Error::State("take has no notes; cancel recording"));
-        }
-        let mut clip = Clip {
-            length,
-            events,
-            harmony_origin: recording.harmony_origin.clone(),
-            pattern_origin: Vec::new(),
-            follow: None,
-        };
-        clip.validate(self.session.slots[recording.slot].track)?;
-        if let Some(previous) = &recording.previous {
-            clip = previous.overdub(&clip)?;
-        }
+        let clip = recording.clip_at(self.at, self.session.slots[recording.slot].track)?;
         let slot = recording.slot;
         let resume = if recording.previous.is_some() {
             let phase = length.0 % clip.length.0;

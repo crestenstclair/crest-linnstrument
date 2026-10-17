@@ -20,6 +20,19 @@ compiled; no sibling checkout, GUI or C++ build was used. Cargo fetches the decl
 submodule when resolving the Git repository but does not compile it for these crates.
 Keep the consumer's Cargo.lock and upgrade deliberately using the shared contract fixtures.
 
+## Interrupted-take checkpoints
+
+`Engine::checkpoint_session()` is an additive control-thread API after v0.1.0. It returns
+an ordinary schema-2 session containing the captured prefix of an active take, with held
+recorded notes released one tick after the current engine position. It does not advance
+the engine, stop recording, emit or drain output, or change live voice ownership. Reopening
+the snapshot starts stopped; the prefix is a committed clip that can be played or edited.
+An empty take keeps the previous committed slot. Clock overflow and invalid snapshots are
+reported without changing the engine. Normal `save_session()` still requires finishing or
+canceling recording first. Hosts own checkpoint cadence, durable writes and recovery UI;
+cloning and validation must stay outside audio callbacks. Snapshot and FinishRecord share
+the same clip-finalization rules, including overdub merging.
+
 ## Time and ownership
 
 `BeatTime` is unsigned 64-bit musical ticks, 960,000 per quarter note. At 120 BPM a tick
