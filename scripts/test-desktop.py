@@ -27,6 +27,8 @@ def wait_for(query, predicate, label, timeout=15):
         if predicate(value):
             return value
         time.sleep(.05)
+    if isinstance(value, dict) and 'host' in value:
+        value = {key: value[key] for key in ['connected', 'error', 'contacts', 'paused']}
     raise AssertionError(f'{label}: timed out; last value: {value}')
 
 
@@ -72,6 +74,15 @@ class Desktop:
     def switch(self, name):
         self.command('POST', '/window', {'handle': self.windows[name]})
         self.state(lambda s: s['connected'], 'firmware connected')
+
+    def watch_input(self):
+        self.observe('''window.desktopInputTrace=[];
+            for(const type of ['keydown','keyup','blur','focus'])
+                window.addEventListener(type,event=>{
+                    if(window.desktopInputTrace.length===128)window.desktopInputTrace.shift();
+                    window.desktopInputTrace.push({type:event.type,key:event.key,code:event.code,
+                        repeat:event.repeat,target:event.target.id,focus:document.hasFocus()});
+                },true);''')
 
     def observe(self, script, *args):
         return self.command('POST', '/execute/sync', {'script': script, 'args': list(args)})
@@ -130,6 +141,7 @@ def record_expressive_keyboard_phrase(app):
     app.click('#record')
     app.state(lambda s: s['host']['performance']['slots'][0] == 'recording', 'record armed')
     app.switch('instrument')
+    app.watch_input()
     app.click('#release')  # Stable button focus accepts musical keys.
     app.keys([{'type': 'keyDown', 'value': key} for key in 'afk'])
     state = app.state(lambda s: len(s['contacts']) == 3 and
@@ -219,6 +231,9 @@ def main():
             print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, rendered firmware LEDs, focus recovery')
         except Exception:
             if app.session:
+                events = app.observe('return window.desktopInputTrace || []')
+                app.observations['input-events'] = events
+                print('Native input events:', json.dumps(events), flush=True)
                 app.capture('failure')
             raise
         finally:
