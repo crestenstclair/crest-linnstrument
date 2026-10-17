@@ -20,6 +20,7 @@ use std::{
     path::Path,
     sync::{
         Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, SyncSender},
     },
     time::{Duration, Instant},
@@ -154,6 +155,7 @@ pub struct DisplaySnapshot {
 pub struct Bridge {
     sender: SyncSender<TimedCommand>,
     snapshot: Arc<Mutex<String>>,
+    overflow: Arc<AtomicBool>,
 }
 impl Bridge {
     pub fn start(executable: &Path, flash: &Path, model: u16) -> Result<Self, String> {
@@ -186,6 +188,8 @@ impl Bridge {
         let (sender, receiver) = mpsc::sync_channel(256);
         let snapshot = Arc::new(Mutex::new(String::new()));
         let shared = Arc::clone(&snapshot);
+        let overflow = Arc::new(AtomicBool::new(false));
+        let scheduler_overflow = Arc::clone(&overflow);
         let executable = executable.to_owned();
         let flash = flash.to_owned();
         std::thread::spawn(move || {
@@ -206,9 +210,21 @@ impl Bridge {
                 #[cfg(feature = "midi")]
                 midi,
             };
-            run_scheduler(runtime, receiver, shared, &executable, &flash, model);
+            run_scheduler(
+                runtime,
+                receiver,
+                shared,
+                scheduler_overflow,
+                &executable,
+                &flash,
+                model,
+            );
         });
-        Ok(Self { sender, snapshot })
+        Ok(Self {
+            sender,
+            snapshot,
+            overflow,
+        })
     }
     pub fn send(&self, command: BridgeCommand) -> Result<(), String> {
         self.sender
@@ -216,7 +232,14 @@ impl Bridge {
                 received: Instant::now(),
                 command,
             })
-            .map_err(|e| format!("simulator command queue: {e}"))
+            .map_err(|e| {
+                if matches!(e, mpsc::TrySendError::Full(_)) {
+                    // This out-of-band latch cannot itself be lost in the full
+                    // queue. The scheduler silences before accepting more work.
+                    self.overflow.store(true, Ordering::Release);
+                }
+                format!("simulator command queue: {e}")
+            })
     }
     pub fn snapshot(&self) -> Result<String, String> {
         self.snapshot
@@ -233,6 +256,7 @@ fn run_scheduler(
     mut runtime: Runtime,
     receiver: Receiver<TimedCommand>,
     shared: Arc<Mutex<String>>,
+    overflow: Arc<AtomicBool>,
     executable: &Path,
     flash: &Path,
     model: u16,
@@ -243,8 +267,20 @@ fn run_scheduler(
     loop {
         let message = receiver.recv_timeout(Duration::from_millis(5));
         if matches!(message, Err(mpsc::RecvTimeoutError::Disconnected)) {
-            let _ = runtime.host.disconnect();
+            runtime.fail_closed();
             break;
+        }
+        if overflow.swap(false, Ordering::AcqRel) {
+            // Drop stale gestures, including the message already received.
+            receiver.try_iter().take(256).for_each(drop);
+            runtime.fail_closed();
+            error = Some(
+                "simulator command queue overflow: output silenced; reset device to reconnect"
+                    .into(),
+            );
+            runtime.publish(&shared, error.clone(), false);
+            last = Instant::now();
+            continue;
         }
         let received = message
             .as_ref()
@@ -259,10 +295,7 @@ fn run_scheduler(
             && elapsed > 0
             && let Err(problem) = runtime.advance(elapsed)
         {
-            let _ = runtime.host.disconnect();
-            runtime.connected = false;
-            runtime.paused = true;
-            runtime.contacts.clear();
+            runtime.fail_closed();
             error = Some(problem.clone());
             runtime.publish(&shared, Some(problem), false);
         }
@@ -275,9 +308,7 @@ fn run_scheduler(
             };
             error = result.err();
             if !runtime.connected {
-                let _ = runtime.host.disconnect();
-                runtime.paused = true;
-                runtime.contacts.clear();
+                runtime.fail_closed();
             }
         }
         if changed || last_display.elapsed() >= Duration::from_millis(33) {
@@ -304,6 +335,18 @@ struct Runtime {
     connected: bool,
 }
 impl Runtime {
+    fn fail_closed(&mut self) {
+        self.connected = false;
+        self.paused = true;
+        self.scenario = None;
+        self.contacts.clear();
+        self.ramps.clear();
+        let _ = self.host.disconnect();
+        #[cfg(feature = "midi")]
+        if let Some(midi) = &mut self.midi {
+            midi.reset();
+        }
+    }
     fn external(&self) -> bool {
         #[cfg(feature = "midi")]
         {

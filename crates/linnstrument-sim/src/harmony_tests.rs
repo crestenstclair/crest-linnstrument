@@ -37,6 +37,86 @@ fn runtime(model: u16) -> Runtime {
 }
 #[test]
 #[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn queue_overflow_cannot_lose_a_release_or_replay_stale_gestures_after_reset() {
+    let mut r = runtime(200);
+    r.set_contact(Contact {
+        id: 1,
+        x: 4.0,
+        y: 2.0,
+        z: 0.5,
+        latched: false,
+    })
+    .unwrap();
+    r.advance(200_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 1);
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let snapshot = Arc::new(Mutex::new(String::new()));
+    let overflow = Arc::new(AtomicBool::new(false));
+    let bridge = Bridge {
+        sender,
+        snapshot: snapshot.clone(),
+        overflow: overflow.clone(),
+    };
+    bridge
+        .send(BridgeCommand::Contact(Contact {
+            id: 2,
+            x: 9.0,
+            y: 3.0,
+            z: 0.5,
+            latched: false,
+        }))
+        .unwrap();
+    assert!(bridge.send(BridgeCommand::Release { id: 1 }).is_err());
+    let scheduler = std::thread::spawn(move || {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        run_scheduler(
+            r,
+            receiver,
+            snapshot,
+            overflow,
+            &root.join("target/firmware-native/linnstrument-worker"),
+            &root.join("target/firmware-native/ideal-200.bin"),
+            200,
+        );
+    });
+    let failed = wait_bridge(&bridge, |s| s["connected"] == false);
+    assert!(failed["error"].as_str().unwrap().contains("queue overflow"));
+    assert_eq!(failed["contacts"], serde_json::json!([]));
+    assert_eq!(failed["host"]["performance"]["active_voices"], 0);
+    assert!(
+        failed["host"]["recent_midi"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|event| {
+                let message = &event["message"]["bytes"];
+                message[0].as_u64().unwrap() & 0xf0 == 0x80 && message[1] == 43
+            })
+    );
+    bridge.send(BridgeCommand::Reset {}).unwrap();
+    let restored = wait_bridge(&bridge, |s| s["connected"] == true);
+    assert_eq!(restored["contacts"], serde_json::json!([]));
+    assert_eq!(restored["host"]["performance"]["active_voices"], 0);
+    drop(bridge);
+    scheduler.join().unwrap();
+}
+fn wait_bridge(
+    bridge: &Bridge,
+    predicate: impl Fn(&serde_json::Value) -> bool,
+) -> serde_json::Value {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&bridge.snapshot().unwrap())
+            && predicate(&value)
+        {
+            return value;
+        }
+        assert!(Instant::now() < deadline, "bridge snapshot timeout");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
 fn native_pressure_profiles_reach_sensors_and_safety_release_bypasses_tails() {
     let mut r = runtime(200);
     r.command(BridgeCommand::ContactProfile {

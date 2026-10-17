@@ -4,7 +4,7 @@ const canvas=document.querySelector('#surface'), ctx=canvas.getContext('2d');
 const pressure=document.querySelector('#pressure'), latch=document.querySelector('#latch');
 const contacts=new Map(), pointers=new Map(), keys=new Map();
 let nextId=1, selected=null, columns=26;
-const labels=['PER SPLIT','PRESET','VOLUME','OCTAVE / TRANSPOSE','SPLIT','SWITCH 1','SWITCH 2','GLOBAL SETTINGS'];
+const labels=['PER SPLIT','PRESET','VOLUME','OCTAVE / TRANSPOSE','SWITCH 1','SWITCH 2','SPLIT','GLOBAL SETTINGS'];
 document.querySelector('#controls').replaceChildren(...labels.map(label=>{const div=document.createElement('div');div.textContent=label;return div;}));
 function position(event){const box=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(columns-1,(event.clientX-box.left)/box.width*columns-.5)),y:Math.max(0,Math.min(7,7.5-(event.clientY-box.top)/box.height*8))};}
 function active(){return latest?.connected===true&&!latest?.scenario_running;}

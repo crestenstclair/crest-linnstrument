@@ -169,10 +169,65 @@ def right_edge_expression(model):
     device.close()
     print(f'{model}: right-edge calibrated timbre and independent X/Z PASS')
 
+def control_column_octave(model):
+    device=Device(model)
+    # Short control tap latches the firmware's own octave settings screen.
+    device.send('contact 1 0 4 0.5');frame,_=device.send('advance 200000')
+    assert frame['leds'][4][2]>200
+    device.send('release 1');device.send('advance 100000')
+    device.send('contact 2 9 4 0.5');device.send('advance 150000')  # +12
+    device.send('release 2');device.send('advance 100000')
+    assert not device.notes,device.notes
+    device.send('contact 3 0 4 0.5');device.send('advance 200000')
+    device.send('release 3');frame,_=device.send('advance 100000')
+    assert frame['leds'][4]==[0,0,0]
+    device.send('contact 4 4 2 0.5');device.send('advance 200000')
+    assert set(device.notes.values())=={55},device.notes
+    device.send('release 4');device.send('advance 100000')
+    # Holding the control for >500 ms instead returns to Play on release.
+    device.send('contact 5 0 4 0.5');device.send('advance 600000')
+    device.send('contact 6 8 4 0.5');device.send('advance 150000')  # octave zero
+    device.send('release_all');device.send('advance 200000')
+    frame,_=device.send('advance 50000')  # fresh multiplexed frame after release
+    assert frame['leds'][4]==[0,0,0]
+    device.send('contact 7 4 2 0.5');device.send('advance 200000')
+    assert set(device.notes.values())=={43},device.notes
+    device.send('release_all');device.send('advance 200000');assert not device.notes
+    device.close()
+    print(f'{model}: control-column short tap, octave selection and timed hold PASS')
+
+def split_mpe_profile(model):
+    device=Device(model)
+    # Standard RPN: lower seven members, upper seven members, +/-24 semitones.
+    for channel,parameter,value in [(0,6,7),(15,6,7),(0,0,24)]:
+        status=176+channel
+        data=[status,101,parameter>>7,status,100,parameter&127,status,6,value,
+              status,38,0,status,101,127,status,100,127]
+        device.send('midi '+' '.join(map(str,data)));device.send('advance 100000')
+    nrpn(device,202,9);nrpn(device,200,1)
+    device.send('contact 1 4 2 0.5');device.send('contact 2 14 4 0.5')
+    device.send('advance 300000')
+    assert set(device.notes.values())=={43,63},device.notes
+    channels={note:channel for channel,note in device.notes.items()}
+    left,right=channels[43],channels[63]
+    assert 1<=left<=7 and 8<=right<=14,channels
+    before=dict(device.states)
+    device.send('contact 1 4.25 2 0.5');device.send('contact 2 14 4.3 0.5')
+    device.send('advance 300000')
+    assert abs(device.states[left,'x']-(8192+.25*8192/24))<5
+    assert device.states[right,'y']-before[right,'y']>=30
+    for channel,axis in [(left,'y'),(left,'z'),(right,'x'),(right,'z')]:
+        assert abs(device.states[channel,axis]-before[channel,axis])<=1
+    device.send('release_all');device.send('advance 200000');assert not device.notes
+    device.close()
+    print(f'{model}: lower/upper MPE splits, main/member separation and +/-24 bend PASS')
+
 if __name__=='__main__':
     slide_and_wrap()
     for model in [128,200]:
         right_edge_expression(model)
+        control_column_octave(model)
+        split_mpe_profile(model)
         capacity_pedals_and_persistence(model)
         concurrent_expression(model)
         first=independent_expression(model); second=independent_expression(model)

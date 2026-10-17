@@ -133,6 +133,13 @@ At capacity the pinned firmware rotates onto channel 2 without first releasing
 the old note; the library explicitly rejects that ambiguous ownership. Contact placements
 for capacity tests avoid the stock phantom-rectangle rejection rule.
 
+Both geometries also exercise short-tap and >500 ms hold behavior on the actual octave
+control column, select an octave through sensor contacts and verify return to ordinary
+playing. Split acceptance configures seven lower and seven upper members through standard
+RPN, enables a physical split through NRPN, and checks independent notes/expression with
+a negotiated ±24-semitone range. This validates firmware split generation; the development
+host still defaults to one lower input zone.
+
 Manual gesture runs include the fixture manifest, initial snapshot, ordered worker commands,
 MIDI bytes, LED changes and each complete snapshot hash. Replay boots the same worker and
 fixture and checks every boundary. Runs are bounded to 50,000 commands and a conservative
@@ -170,3 +177,9 @@ manual contact edits/releases are rejected while it runs, and window focus does 
 it. Due envelope samples execute before a same-time script command; firmware scan overshoot
 remains authoritative. Release All cancels future script steps. Reset and
 mode changes cancel scripts and release contacts. Browser frames only render snapshots.
+
+The bridge's 256-command queue has an independent overflow latch. If a release cannot be
+queued, the scheduler discards stale gestures, silences allocated host/OS MIDI output,
+clears contact/script/envelope ownership and reports disconnected. Reset is required before
+accepting performance again. Worker failures use the same cleanup, including virtual-port
+All Sound Off; no queued contact is replayed during reset.
