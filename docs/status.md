@@ -548,7 +548,22 @@ This release does not claim production parameter DSP, Linux MIDI/audio clock cor
 Steam Deck or physical-device qualification. Tracker now deliberately consumes this released baseline as described above.
 
 
-## Temporary clip octaves development (API 13)
+## Controller development (API 13)
+
+Clips-mode row 5 columns 6–11 selects Block, ascending/descending strum,
+ascending/descending arpeggio and Humanized. Selection reuses the public harmony command,
+takes over the effective chord and works with learned voicings. Direction changes retain
+custom timing; entering another family uses the documented host presets. Duplicate presses
+cannot take ownership again until release. Existing voices, expression, recorded clips and
+loop phase remain unchanged. API and persistence versions are unchanged.
+
+Protocol tests cover exact presets, custom timing/seed retention, ownership, learned chords,
+persistence and unchanged sounding MIDI. All 28 native simulator tests pass, including both
+geometries selecting every articulation through sensors, decoded blue/green LEDs, exact
+descending strum timing and save/reopen/pad launch. The workspace suite and desktop lint pass.
+The native test advances several host turns for the bounded 16-cell LED repaint, then a
+complete firmware multiplexing interval before observing brightness. Linux desktop and
+extracted-package acceptance for this new control slice are pending.
 
 Development v0.4.0-dev.1 adds per-clip transient semitone offsets and independent host/pad
 octave holds. Future attacks resolve harmony then transpose; held X/Y/Z and releases retain

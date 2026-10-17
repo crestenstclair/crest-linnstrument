@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Default)]
 pub(super) struct Controls {
-    pressed_harmony: u16,
+    pressed_harmony: u32,
 }
 impl Controls {
     /// Only a fresh press changes harmony. Releases and duplicate MIDI attacks
@@ -42,8 +42,9 @@ enum HarmonyControl {
     Extension(ChordExtension),
     Suspension(Suspension),
     Borrowed,
+    Articulation(Articulation),
 }
-const HARMONY_CONTROLS: [(u8, u8, HarmonyControl); 11] = [
+const HARMONY_CONTROLS: [(u8, u8, HarmonyControl); 17] = [
     (6, 2, HarmonyControl::InvertDown),
     (6, 3, HarmonyControl::InvertUp),
     (6, 4, HarmonyControl::RegisterDown),
@@ -55,7 +56,52 @@ const HARMONY_CONTROLS: [(u8, u8, HarmonyControl); 11] = [
     (5, 3, HarmonyControl::Suspension(Suspension::Second)),
     (5, 4, HarmonyControl::Suspension(Suspension::Fourth)),
     (5, 5, HarmonyControl::Borrowed),
+    (5, 6, HarmonyControl::Articulation(Articulation::Block)),
+    (
+        5,
+        7,
+        HarmonyControl::Articulation(Articulation::Strum {
+            direction: StrumDirection::Ascending,
+            interval: BeatTime(TICKS_PER_BEAT / 16),
+        }),
+    ),
+    (
+        5,
+        8,
+        HarmonyControl::Articulation(Articulation::Strum {
+            direction: StrumDirection::Descending,
+            interval: BeatTime(TICKS_PER_BEAT / 16),
+        }),
+    ),
+    (
+        5,
+        9,
+        HarmonyControl::Articulation(Articulation::Arpeggio {
+            direction: StrumDirection::Ascending,
+            interval: BeatTime(TICKS_PER_BEAT / 16),
+            gate: BeatTime(TICKS_PER_BEAT / 32),
+        }),
+    ),
+    (
+        5,
+        10,
+        HarmonyControl::Articulation(Articulation::Arpeggio {
+            direction: StrumDirection::Descending,
+            interval: BeatTime(TICKS_PER_BEAT / 16),
+            gate: BeatTime(TICKS_PER_BEAT / 32),
+        }),
+    ),
+    (
+        5,
+        11,
+        HarmonyControl::Articulation(Articulation::Humanized {
+            max_delay: BeatTime(TICKS_PER_BEAT / 16),
+            velocity_variation: 8,
+            seed: 42,
+        }),
+    ),
 ];
+const _: () = assert!(HARMONY_CONTROLS.len() <= u32::BITS as usize);
 impl HarmonyControl {
     fn change(self, mut settings: HarmonySettings) -> Result<HarmonySettings> {
         // Learned entries are fixed pitch sets; diatonic modifiers would be
@@ -89,6 +135,9 @@ impl HarmonyControl {
                 };
             }
             Self::Borrowed => settings.borrowed = !settings.borrowed,
+            Self::Articulation(choice) => {
+                settings.articulation = select_articulation(choice, settings.articulation);
+            }
         }
         settings.validate()?;
         Ok(settings)
@@ -103,8 +152,37 @@ impl HarmonyControl {
             Self::Extension(extension) if settings.extension == extension => 3,
             Self::Suspension(suspension) if settings.suspension == suspension => 3,
             Self::Borrowed if settings.borrowed => 3,
+            Self::Articulation(choice)
+                if select_articulation(choice, settings.articulation) == settings.articulation =>
+            {
+                3
+            }
             _ => 5, // blue step/toggle; enabled toggles are green
         }
+    }
+}
+
+/// Keep custom timing within an articulation family, including direction
+/// changes. Entering another family selects the documented controller preset.
+/// Selecting Humanized again retains its seed and variation settings.
+fn select_articulation(choice: Articulation, current: Articulation) -> Articulation {
+    match (choice, current) {
+        (Articulation::Strum { direction, .. }, Articulation::Strum { interval, .. }) => {
+            Articulation::Strum {
+                direction,
+                interval,
+            }
+        }
+        (
+            Articulation::Arpeggio { direction, .. },
+            Articulation::Arpeggio { interval, gate, .. },
+        ) => Articulation::Arpeggio {
+            direction,
+            interval,
+            gate,
+        },
+        (Articulation::Humanized { .. }, Articulation::Humanized { .. }) => current,
+        _ => choice,
     }
 }
 

@@ -935,6 +935,15 @@ def record_controller_modifiers(app):
                       s['firmware']['leds'][45][1] > 200 and s['firmware']['leds'][13][2] > 200,
                       'ninth and borrowing enabled, seventh disabled in firmware LEDs')
     app.assert_green_firmware_pixel(2, 5)
+    for column, kind, direction in [(7, 'strum', 'ascending'), (8, 'strum', 'descending'),
+                                    (9, 'arpeggio', 'ascending'), (10, 'arpeggio', 'descending'),
+                                    (11, 'humanized', None), (6, 'block', None),
+                                    (8, 'strum', 'descending')]:
+        app.touch(column, 5)
+        state = app.state(lambda s: s['host']['performance']['harmony']['articulation']['type'] == kind and
+                  (direction is None or s['host']['performance']['harmony']['articulation']['direction'] == direction),
+                  f'articulation pad selects {kind} {direction or ""}')
+        app.assert_green_firmware_pixel(column, 5)
     app.capture('controller-modifier-leds', state)
     app.switch('host')
     assert app.observe("return document.querySelector('#harmony-form [name=extension]').value") == 'ninth'
@@ -951,7 +960,9 @@ def record_controller_modifiers(app):
     app.click('#finish')
     state = app.state(lambda s: s['host']['performance']['slots'][3] == 'recorded', 'modifier take finished')
     clip = state['host']['clips'][3]
-    assert [e['gesture']['key'] for e in clip['events'] if e['gesture']['type'] == 'on'] == [60, 63, 67, 70, 74]
+    attacks = [e for e in clip['events'] if e['gesture']['type'] == 'on']
+    assert [e['gesture']['key'] for e in attacks] == [74, 70, 67, 63, 60]
+    assert [e['at'] - attacks[0]['at'] for e in attacks] == [0, 60000, 120000, 180000, 240000]
     assert len([e for e in clip['events'] if e['gesture']['type'] == 'off']) == 5
     path = ARTIFACTS / 'desktop-modifiers.json'
     app.fill('#path', str(path))

@@ -1,5 +1,7 @@
 //! Typed contact bridge; the native scheduler, never browser frames, advances firmware.
 #[cfg(test)]
+mod articulation_pad_tests;
+#[cfg(test)]
 mod condition_tests;
 mod contact_envelope;
 #[cfg(test)]

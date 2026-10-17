@@ -42,9 +42,9 @@ fn extension_and_suspension_pads_select_exclusively_toggle_off_and_combine_with_
         reopened.engine.snapshot().harmony,
         h.engine.snapshot().harmony
     );
-    // Columns 6+ on this row and column 0 never change harmony.
+    // Unassigned columns and the firmware control column never change harmony.
     let saved = h.document().unwrap();
-    for column in [0, 6, 7, 8, 16] {
+    for column in [0, 12, 13, 14, 16] {
         pad(&mut h, column, true);
         pad(&mut h, column, false);
     }
@@ -124,7 +124,7 @@ fn modifiers_preserve_sounding_expression_and_releases_in_running_clips() {
     h.advance_micros(0).unwrap();
     let count = h.output_count();
     let clips = h.engine.session().slots.clone();
-    for column in [1, 3, 5] {
+    for column in [1, 3, 5, 7, 8, 9, 10, 11, 6] {
         pad(&mut h, column, true);
         pad(&mut h, column, false);
     }

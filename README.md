@@ -141,6 +141,14 @@ takeover, release-before-repeat and blue/green/dark feedback as voicing controls
 chord entries retain fixed pitches, so their diatonic modifiers are dark and inert.
 Return to **Chord pads** to play the selected settings through stock MPE.
 
+Row 5 columns 6–11 selects Block, ascending/descending strum, ascending/descending
+arpeggio and Humanized. The selected articulation is green; alternatives are blue.
+Direction changes retain custom spacing and gate. Entering another family uses 1/16-beat
+steps, a 1/32-beat arpeggio gate, or Humanized with a 1/16-beat maximum delay, velocity
+variation 8 and seed 42. Reselecting the current family retains custom values. These
+controls work with learned chords and take over selected harmony. Held voices, existing
+clips and loop phase keep their original timing. Return to Chord pads to play the selection.
+
 Hold the pad directly above a running/queued clip to mute it; both pads turn cyan.
 Release resumes future attacks at the existing loop phase. Dark mute pads are inactive.
 The pad directly below degree I holds **Fill**, yellow when ready and magenta while held.
