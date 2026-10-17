@@ -15,7 +15,7 @@ class Device:
     def send(self, command):
         self.process.stdin.write(command+'\n'); self.process.stdin.flush()
         line=self.process.stdout.readline()
-        assert line, f'worker exited on {command}'
+        assert line, f'worker exited ({self.process.wait(timeout=5)}) on {command}; previous command: {self.trace[-1].get("command", "boot")}'
         snapshot=json.loads(line); self.trace.append({'command':command,'snapshot':snapshot})
         messages=self.parse(snapshot['midi'])
         return snapshot,messages
@@ -151,9 +151,28 @@ def concurrent_expression(model):
     device.close()
     print(f'{model}: all three contacts moving X/Y/Z concurrently PASS')
 
+def right_edge_expression(model):
+    device=Device(model)
+    column=16 if model==128 else 25
+    # The last calibration sector has no right neighbor. Its interpolation
+    # weight is zero, so Y must still span its left sector without division UB.
+    device.send(f'contact 1 {column} 3 0.5');device.send('advance 300000')
+    assert set(device.notes.values())=={30+column-1+3*5},device.notes
+    channel=next(iter(device.notes))
+    before=dict(device.states)
+    assert abs(before[channel,'y']-64)<=2,before
+    device.send(f'contact 1 {column} 3.25 0.5');device.send('advance 200000')
+    assert abs(device.states[channel,'y']-95)<=3,device.states
+    for axis in ['x','z']:
+        assert abs(device.states[channel,axis]-before[channel,axis])<=1
+    device.send('release_all');device.send('advance 200000');assert not device.notes
+    device.close()
+    print(f'{model}: right-edge calibrated timbre and independent X/Z PASS')
+
 if __name__=='__main__':
     slide_and_wrap()
     for model in [128,200]:
+        right_edge_expression(model)
         capacity_pedals_and_persistence(model)
         concurrent_expression(model)
         first=independent_expression(model); second=independent_expression(model)

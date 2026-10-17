@@ -1,0 +1,37 @@
+--- a/ls_handleTouches.ino
++++ b/ls_handleTouches.ino
+@@ -66,7 +66,7 @@
+ 
+ boolean potentialSlideTransferCandidate(byte col) {
+   if (controlModeActive) return false;
+-  if (col < 1) return false;
++  if (col < 1 || col >= NUMCOLS) return false;
+   if (userFirmwareActive) {
+     if (!userFirmwareSlideMode[sensorRow]) return false;
+   }
+@@ -1326,10 +1326,10 @@
+ 
+   // handle pressure transition between adjacent cells if they are not playing their own note
+   unsigned short adjacentZ = 0;
+-  if (cell(sensorCol-1, sensorRow).currentRawZ && !cell(sensorCol-1, sensorRow).hasNote()) {
++  if (sensorCol > 0 && cell(sensorCol-1, sensorRow).currentRawZ && !cell(sensorCol-1, sensorRow).hasNote()) {
+     adjacentZ = cell(sensorCol-1, sensorRow).currentRawZ;
+   }
+-  else if (cell(sensorCol+1, sensorRow).currentRawZ && !cell(sensorCol+1, sensorRow).hasNote()) {
++  else if (sensorCol + 1 < NUMCOLS && cell(sensorCol+1, sensorRow).currentRawZ && !cell(sensorCol+1, sensorRow).hasNote()) {
+     adjacentZ = cell(sensorCol+1, sensorRow).currentRawZ;
+   }
+   // the adjacent Z value is added the active cell's pressure to make
+@@ -1371,10 +1371,10 @@
+ 
+   // determine if a slide transfer is in progress and which column it is with
+   short transferCol = 0;
+-  if (cell(sensorCol-1, sensorRow).touched == transferCell) {
++  if (sensorCol > 0 && cell(sensorCol-1, sensorRow).touched == transferCell) {
+     transferCol = sensorCol-1;
+   }
+-  else if (cell(sensorCol+1, sensorRow).touched == transferCell) {
++  else if (sensorCol + 1 < NUMCOLS && cell(sensorCol+1, sensorRow).touched == transferCell) {
+     transferCol = sensorCol+1;
+   }
+ 

@@ -37,6 +37,8 @@ jobs:
         run: cargo test -p crest-performance-host --features midi --locked --lib -- --include-ignored
       - if: runner.os == 'macOS'
         run: cargo test -p linnstrument-sim --features midi --locked --lib -- --include-ignored
+      - run: scripts/build-native.sh --sanitize
+      - run: python3 scripts/test-firmware.py
       - uses: actions/upload-artifact@v4
         with:
           name: firmware-traces-${{ matrix.os }}

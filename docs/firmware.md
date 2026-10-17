@@ -2,8 +2,20 @@
 
 Upstream: https://github.com/rogerlinndesign/linnstrument-firmware
 Pinned commit: `54bb1c9d355b1075b474ade0a0246b80ff7f3524` (firmware 2.3.4 build .074).
-The submodule stays unmodified. `firmware/patches/0001-const-font-lookup.patch` makes two
-local lookup pointers const for a conforming desktop C++ library. It changes no musical logic.
+The submodule stays unmodified. The native build applies three reviewable portability patches:
+
+- `0001-const-font-lookup.patch` makes two lookup pointers const for desktop C++.
+- `0002-calibration-neighbor-bound.patch` bounds the Y interpolation neighbor by the
+  active geometry. Upstream hardcodes nine calibration columns; the 128 fixture initializes
+  six. At physical column 16 the absent right neighbor has zero interpolation weight, but
+  upstream still evaluates its zero denominator. The pinned ARM ELF uses `sdiv` here;
+  native x86 division faults, while Apple ARM64 silently returns zero. Skipping the unused
+  neighbor preserves the intended interpolation and avoids C++ undefined behavior.
+- `0003-touch-neighbor-bounds.patch` prevents slide/expression probes beyond the active
+  surface. UBSan found an out-of-bounds `touchInfo[26]` read at the 200's right edge.
+  Missing neighbors now contribute no slide or pressure; valid neighboring cells use the
+  original firmware path. This replaces undefined memory reads, not measured hardware
+  behavior. Physical edge behavior and full ARM/native trace equivalence remain unqualified.
 
 ## Reproduce builds
 
@@ -11,6 +23,9 @@ local lookup pointers const for a conforming desktop C++ library. It changes no 
 git submodule update --init
 python3 scripts/build-arm.py
 scripts/build-native.sh
+python3 scripts/test-firmware.py
+# Optional diagnostic build; CI runs this as well as the normal worker.
+scripts/build-native.sh --sanitize
 python3 scripts/test-firmware.py
 ```
 
@@ -37,7 +52,8 @@ x86_64 are the current native targets. Unsupported architectures are not qualifi
 
 The worker calls upstream `setup()` and `loop()`. Contacts become raw ADC values returned
 through SPI sensor-selection decoding. Upstream calibration, scanning, touch ownership,
-MPE channel allocation and serial MIDI generation execute unchanged. No normal contact
+MPE channel allocation and serial MIDI generation execute in upstream code, with the
+documented boundary guards above. No normal contact
 command can inject a note or write upstream touch objects. MIDI input goes through the
 board Serial FIFO and upstream parser. LED frames integrate LED SPI writes and output enable,
 including column multiplexing and firmware pulse/brightness patterns.
@@ -103,7 +119,9 @@ observations, not self-approved golden truth. Rust firmware integration separate
 record/reopen/virtual-pad launch, independent live-plus-clip channels and the playing LED
 decoded from hardware writes. Additional cases cover concurrent three-contact X/Y/Z, all
 15 members plus the 16th touch, foot-switch sustain, persisted octave settings and erased
-flash boot. At capacity the pinned firmware rotates onto channel 2 without first releasing
+flash boot. Right-edge tests independently assert calibrated CC74 values and X/Z isolation
+on both geometries. CI repeats the firmware suite with undefined-behavior checks enabled.
+At capacity the pinned firmware rotates onto channel 2 without first releasing
 the old note; the library explicitly rejects that ambiguous ownership. Contact placements
 for capacity tests avoid the stock phantom-rectangle rejection rule.
 
