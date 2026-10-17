@@ -30,7 +30,8 @@ def wait_for(query, predicate, label, timeout=15):
             return value
         time.sleep(.05)
     if isinstance(value, dict) and 'host' in value:
-        value = {key: value[key] for key in ['connected', 'error', 'contacts', 'paused']}
+        value = {key: value[key] for key in ['connected', 'error', 'contacts', 'paused']} | {
+            'performance': value['host']['performance']}
     raise AssertionError(f'{label}: timed out; last value: {value}')
 
 
@@ -549,8 +550,10 @@ def play_showcase_bank(app):
     assert not any(m['destination'] == 3 for m in state['host']['recent_midi'])
     app.capture('showcase-three-clips', state)
     app.switch('host')
+    app.watch_input()
     app.click('#fill')
     app.native('keydown', 'space')
+    app.state(lambda s: s['host']['performance']['fill'], 'showcase keyboard Fill held')
     app.state(lambda s: s['host']['performance']['fill'] and any(
         m['destination'] == 3 and m['message']['bytes'][0] & 0xf0 == 0x90
         for m in s['host']['recent_midi']), 'showcase Fill reaches independent destination')
