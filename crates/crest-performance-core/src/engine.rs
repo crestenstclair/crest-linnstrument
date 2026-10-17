@@ -1,0 +1,730 @@
+mod harmony;
+use crate::*;
+use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    pub voices: usize,
+    pub output_events: usize,
+    pub recorded_events: usize,
+}
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            voices: 256,
+            output_events: 4096,
+            recorded_events: 65_536,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceMode {
+    Play,
+    Chords,
+    Clips,
+}
+#[derive(Debug, Clone, Copy)]
+pub enum Command {
+    BeginRecord {
+        slot: usize,
+    },
+    BeginOverdub {
+        slot: usize,
+    },
+    Duplicate {
+        from: usize,
+        to: usize,
+    },
+    EditNote {
+        slot: usize,
+        note: NoteKey,
+        edit: NoteEdit,
+    },
+    CaptureRecent {
+        slot: usize,
+        length: BeatTime,
+    },
+    FinishRecord,
+    CancelRecord,
+    Launch {
+        slot: usize,
+        quantum: BeatTime,
+    },
+    StopSlot {
+        slot: usize,
+    },
+    Stop,
+    SetMode(SurfaceMode),
+    SetHarmony(HarmonySettings),
+    Generate {
+        slot: usize,
+        settings: PatternSettings,
+    },
+    FollowHarmony {
+        slot: usize,
+        enabled: bool,
+    },
+    FreezeHarmony {
+        slot: usize,
+    },
+    Undo,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SlotState {
+    Empty,
+    Recorded,
+    Queued,
+    Recording,
+    Overdubbing,
+    Playing,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct PerformanceSnapshot {
+    pub api_version: u32,
+    pub at: BeatTime,
+    pub mode: SurfaceMode,
+    pub active_voices: usize,
+    pub voice_capacity: usize,
+    pub slots: Vec<SlotState>,
+    pub harmony: HarmonySettings,
+    pub last_voicing: Option<Voicing>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Owner {
+    Live(NoteKey),
+    Harmony(NoteKey),
+    Clip(usize, NoteKey),
+}
+#[derive(Debug, Clone, Copy)]
+struct ActiveVoice {
+    owner: Owner,
+    id: VoiceId,
+    track: TrackId,
+    destination: DestinationId,
+    rendered_note: NoteKey,
+    expressive: bool,
+}
+#[derive(Debug)]
+struct Player {
+    slot: usize,
+    loop_start: BeatTime,
+    scheduled_start: BeatTime,
+    cursor: usize,
+}
+#[derive(Debug)]
+struct Recording {
+    previous: Option<Clip>,
+    slot: usize,
+    start: BeatTime,
+    events: Vec<InputEvent>,
+    held: Vec<NoteKey>,
+    harmony_origin: Vec<HarmonyGesture>,
+}
+
+/// Single-owner engine, driven exclusively by host time. Musical methods use
+/// bounded preallocated queues. Session edits/record setup/snapshots are control
+/// work and must run outside an audio callback. No locks or I/O are performed.
+pub struct Engine {
+    session: Session,
+    limits: Limits,
+    at: BeatTime,
+    next_voice: u64,
+    mode: SurfaceMode,
+    active: Vec<ActiveVoice>,
+    players: Vec<Player>,
+    output: VecDeque<OutputEvent>,
+    recording: Option<Recording>,
+    undo: Option<(usize, Option<Clip>)>,
+    recent: VecDeque<InputEvent>,
+    history_floor: BeatTime,
+    recent_harmony: VecDeque<HarmonyGesture>,
+    last_voicing: Option<Voicing>,
+}
+impl Engine {
+    pub fn new(api_version: u32, session: Session, limits: Limits) -> Result<Self> {
+        if api_version != API_VERSION {
+            return Err(Error::Version(api_version));
+        }
+        let session = session.migrate()?;
+        if limits.voices == 0
+            || limits.output_events < limits.voices
+            || limits.recorded_events < limits.voices
+        {
+            return Err(Error::Invalid("limits must reserve room for all releases"));
+        }
+        Ok(Self {
+            players: Vec::with_capacity(session.slots.len()),
+            session,
+            limits,
+            at: BeatTime(0),
+            next_voice: 1,
+            mode: SurfaceMode::Play,
+            active: Vec::with_capacity(limits.voices),
+            output: VecDeque::with_capacity(limits.output_events),
+            recording: None,
+            undo: None,
+            recent: VecDeque::with_capacity(limits.recorded_events),
+            history_floor: BeatTime(0),
+            recent_harmony: VecDeque::with_capacity(limits.recorded_events),
+            last_voicing: None,
+        })
+    }
+    pub fn position(&self) -> BeatTime {
+        self.at
+    }
+    pub fn session(&self) -> &Session {
+        &self.session
+    }
+    /// Returns committed state only. Finish or cancel the active take first.
+    pub fn save_session(&self) -> Result<Session> {
+        if self.recording.is_some() {
+            return Err(Error::State("finish recording before saving"));
+        }
+        Ok(self.session.clone())
+    }
+    pub fn drain_output(&mut self) -> impl Iterator<Item = OutputEvent> + '_ {
+        self.output.drain(..)
+    }
+    pub fn snapshot(&self) -> PerformanceSnapshot {
+        PerformanceSnapshot {
+            api_version: API_VERSION,
+            at: self.at,
+            mode: self.mode,
+            active_voices: self.active.len(),
+            voice_capacity: self.limits.voices,
+            harmony: self.session.harmony,
+            last_voicing: self.last_voicing,
+            slots: (0..self.session.slots.len())
+                .map(|slot| self.slot_state(slot))
+                .collect(),
+        }
+    }
+    fn slot_state(&self, slot: usize) -> SlotState {
+        if self.recording.as_ref().is_some_and(|r| r.slot == slot) {
+            return if self
+                .recording
+                .as_ref()
+                .is_some_and(|r| r.previous.is_some())
+            {
+                SlotState::Overdubbing
+            } else {
+                SlotState::Recording
+            };
+        }
+        if let Some(player) = self.players.iter().find(|p| p.slot == slot) {
+            return if player.scheduled_start > self.at {
+                SlotState::Queued
+            } else {
+                SlotState::Playing
+            };
+        }
+        if self.session.slots[slot].clip.is_some() {
+            SlotState::Recorded
+        } else {
+            SlotState::Empty
+        }
+    }
+    /// Processes events through `target`, inclusively. On output/voice pressure,
+    /// earlier events remain committed; time stops at the last completed event.
+    /// Drain output and retry the same target. No event or release is discarded.
+    pub fn advance(&mut self, target: BeatTime) -> Result<()> {
+        if target < self.at {
+            return Err(Error::TimeOrder);
+        }
+        while let Some((player_index, mut event)) = self.next_playback_event(target)? {
+            let slot = self.players[player_index].slot;
+            let clip = self.session.slots[slot]
+                .clip
+                .as_ref()
+                .ok_or(Error::NotFound)?;
+            if let (
+                Some(follow),
+                Gesture::On {
+                    key,
+                    velocity,
+                    expression,
+                },
+            ) = (clip.follow, event.gesture)
+            {
+                event.gesture = Gesture::On {
+                    key: follow.pitch(key, self.session.harmony)?,
+                    velocity,
+                    expression,
+                };
+            }
+            self.emit(Owner::Clip(slot, event.note), event)?;
+            self.at = event.at;
+            self.players[player_index].cursor += 1;
+            self.wrap_player(player_index)?;
+        }
+        self.at = target;
+        Ok(())
+    }
+    fn next_playback_event(&self, target: BeatTime) -> Result<Option<(usize, InputEvent)>> {
+        let mut next: Option<(usize, InputEvent)> = None;
+        for (index, player) in self.players.iter().enumerate() {
+            let clip = self.session.slots[player.slot]
+                .clip
+                .as_ref()
+                .ok_or(Error::NotFound)?;
+            let mut event = clip.events[player.cursor];
+            event.at = player.loop_start.checked_add(event.at)?;
+            if event.at > target {
+                continue;
+            }
+            if next.is_none_or(|(_, old)| {
+                (event.at, release_order(event.gesture)) < (old.at, release_order(old.gesture))
+            }) {
+                next = Some((index, event));
+            }
+        }
+        Ok(next)
+    }
+    fn wrap_player(&mut self, index: usize) -> Result<()> {
+        let player = &mut self.players[index];
+        let clip = self.session.slots[player.slot]
+            .clip
+            .as_ref()
+            .ok_or(Error::NotFound)?;
+        if player.cursor == clip.events.len() {
+            if let Ok(next) = player.loop_start.checked_add(clip.length) {
+                player.loop_start = next;
+                player.cursor = 0;
+            } else {
+                self.players.remove(index);
+            }
+        }
+        Ok(())
+    }
+    /// Call advance(event.at) before accepting input. Equal-time live events
+    /// preserve caller order, following already scheduled playback at that time.
+    pub fn input(&mut self, event: InputEvent) -> Result<()> {
+        if event.at != self.at {
+            return Err(Error::TimeOrder);
+        }
+        event.gesture.validate()?;
+        if event.note.source == GENERATED_SOURCE {
+            return Err(Error::Invalid("reserved generated source"));
+        }
+        if self.mode == SurfaceMode::Chords {
+            return self.harmony_input(event);
+        }
+        self.check_record_capacity(event)?;
+        self.emit(Owner::Live(event.note), event)?;
+        self.capture(event);
+        self.remember(event);
+        Ok(())
+    }
+    fn emit(&mut self, owner: Owner, event: InputEvent) -> Result<()> {
+        if self.output.len() == self.limits.output_events {
+            return Err(Error::Capacity("output; drain and retry"));
+        }
+        let position = self.active.iter().position(|voice| voice.owner == owner);
+        let voice = match (event.gesture, position) {
+            (Gesture::On { .. }, Some(_)) => return Err(Error::DuplicateNote),
+            (Gesture::On { .. }, None) => self.allocate_voice(owner, event.note.track)?,
+            (Gesture::Off { .. }, Some(index)) => self.active.remove(index),
+            (Gesture::Expression { .. }, Some(index)) => self.active[index],
+            (_, None) => return Err(Error::UnknownNote),
+        };
+        self.output.push_back(OutputEvent {
+            at: event.at,
+            destination: voice.destination,
+            track: voice.track,
+            voice: voice.id,
+            gesture: event.gesture,
+        });
+        Ok(())
+    }
+    fn allocate_voice(&mut self, owner: Owner, track: TrackId) -> Result<ActiveVoice> {
+        if self.active.len() == self.limits.voices {
+            return Err(Error::Capacity("voices; new notes rejected"));
+        }
+        let destination = self
+            .session
+            .tracks
+            .iter()
+            .find(|t| t.id == track)
+            .ok_or(Error::NotFound)?
+            .instrument
+            .destination;
+        let next = self
+            .next_voice
+            .checked_add(1)
+            .ok_or(Error::Capacity("voice identities"))?;
+        let voice = ActiveVoice {
+            owner,
+            id: VoiceId(self.next_voice),
+            track,
+            destination,
+            rendered_note: match owner {
+                Owner::Live(note) | Owner::Clip(_, note) | Owner::Harmony(note) => note,
+            },
+            expressive: true,
+        };
+        self.next_voice = next;
+        self.active.push(voice);
+        Ok(voice)
+    }
+    fn check_record_capacity(&self, event: InputEvent) -> Result<()> {
+        let Some(recording) = &self.recording else {
+            return Ok(());
+        };
+        if event.note.track != self.session.slots[recording.slot].track {
+            return Ok(());
+        }
+        if !matches!(event.gesture, Gesture::On { .. }) && !recording.held.contains(&event.note) {
+            return Ok(());
+        }
+        let held = recording.held.len();
+        let reserved = match event.gesture {
+            Gesture::On { .. } => held + 1,
+            Gesture::Off { .. } if recording.held.contains(&event.note) => held - 1,
+            _ => held,
+        };
+        if recording.events.len() + 1 + reserved > self.limits.recorded_events {
+            return Err(Error::Capacity("recording; finish or cancel take"));
+        }
+        Ok(())
+    }
+    fn capture(&mut self, mut event: InputEvent) -> bool {
+        let Some(recording) = &mut self.recording else {
+            return false;
+        };
+        if event.note.track != self.session.slots[recording.slot].track {
+            return false;
+        }
+        if matches!(event.gesture, Gesture::On { .. }) {
+            recording.held.push(event.note);
+        } else if !recording.held.contains(&event.note) {
+            return false;
+        }
+        if matches!(event.gesture, Gesture::Off { .. }) {
+            recording.held.retain(|key| *key != event.note);
+        }
+        event.at.0 -= recording.start.0;
+        recording.events.push(event);
+        true
+    }
+    pub fn command(&mut self, command: Command) -> Result<()> {
+        match command {
+            Command::BeginRecord { slot } => self.begin_record(slot),
+            Command::BeginOverdub { slot } => self.begin_overdub(slot),
+            Command::Duplicate { from, to } => self.duplicate(from, to),
+            Command::EditNote { slot, note, edit } => self.edit_note(slot, note, edit),
+            Command::CaptureRecent { slot, length } => self.capture_recent(slot, length),
+            Command::FinishRecord => self.finish_record(),
+            Command::CancelRecord => {
+                self.recording = None;
+                Ok(())
+            }
+            Command::Launch { slot, quantum } => self.launch(slot, quantum),
+            Command::StopSlot { slot } => self.stop_slot(slot),
+            Command::Stop => self.stop(),
+            Command::SetMode(mode) => {
+                if self.recording.is_some() {
+                    return Err(Error::State(
+                        "finish or cancel recording before changing mode",
+                    ));
+                }
+                self.release_matching(|owner| matches!(owner, Owner::Live(_) | Owner::Harmony(_)))?;
+                self.mode = mode;
+                Ok(())
+            }
+            Command::SetHarmony(settings) => self.set_harmony(settings),
+            Command::Generate { slot, settings } => self.generate(slot, settings),
+            Command::FollowHarmony { slot, enabled } => self.follow_harmony(slot, enabled),
+            Command::FreezeHarmony { slot } => self.freeze_harmony(slot),
+            Command::Undo => self.undo(),
+        }
+    }
+    fn remember(&mut self, event: InputEvent) {
+        if self.recent.len() == self.limits.recorded_events
+            && let Some(evicted) = self.recent.pop_front()
+        {
+            self.history_floor = BeatTime(evicted.at.0.saturating_add(1));
+        }
+        self.recent.push_back(event);
+    }
+    fn capture_recent(&mut self, slot: usize, length: BeatTime) -> Result<()> {
+        self.ensure_editable(slot)?;
+        if length.0 == 0 {
+            return Err(Error::Invalid("retrospective length"));
+        }
+        let start = BeatTime(
+            self.at
+                .0
+                .checked_sub(length.0)
+                .ok_or(Error::Invalid("retrospective range before clock origin"))?,
+        );
+        if start < self.history_floor {
+            return Err(Error::Capacity("retrospective history expired"));
+        }
+        let mut clip = crate::edit::retrospective_clip(
+            self.recent.iter().copied(),
+            self.session.slots[slot].track,
+            start,
+            self.at,
+        )?;
+        clip.harmony_origin = self
+            .recent_harmony
+            .iter()
+            .filter(|g| g.input.at >= start && g.input.at <= self.at)
+            .copied()
+            .map(|mut g| {
+                g.input.at.0 -= start.0;
+                g
+            })
+            .collect();
+        if clip.events.is_empty() {
+            return Err(Error::State("no recent notes in requested range"));
+        }
+        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        Ok(())
+    }
+    fn begin_record(&mut self, slot: usize) -> Result<()> {
+        if slot >= self.session.slots.len() {
+            return Err(Error::NotFound);
+        }
+        if self.recording.is_some() || self.players.iter().any(|p| p.slot == slot) {
+            return Err(Error::State("slot must be stopped and recorder idle"));
+        }
+        self.recording = Some(Recording {
+            previous: None,
+            slot,
+            start: self.at,
+            events: Vec::with_capacity(self.limits.recorded_events),
+            held: Vec::with_capacity(self.limits.voices),
+            harmony_origin: Vec::with_capacity(self.limits.recorded_events),
+        });
+        Ok(())
+    }
+    fn finish_record(&mut self) -> Result<()> {
+        let recording = self
+            .recording
+            .as_ref()
+            .ok_or(Error::State("not recording"))?;
+        let length = BeatTime(self.at.0 - recording.start.0);
+        if length.0 == 0
+            || recording
+                .events
+                .last()
+                .is_some_and(|e| e.at == length && !matches!(e.gesture, Gesture::Off { .. }))
+        {
+            return Err(Error::State("advance past final gesture before finishing"));
+        }
+        let mut events = recording.events.clone();
+        for note in &recording.held {
+            events.push(InputEvent {
+                at: length,
+                note: *note,
+                gesture: Gesture::Off { velocity: 0 },
+            });
+        }
+        if events.is_empty() {
+            return Err(Error::State("take has no notes; cancel recording"));
+        }
+        let mut clip = Clip {
+            length,
+            events,
+            harmony_origin: recording.harmony_origin.clone(),
+            pattern_origin: Vec::new(),
+            follow: None,
+        };
+        clip.validate(self.session.slots[recording.slot].track)?;
+        if let Some(previous) = &recording.previous {
+            clip = previous.overdub(&clip)?;
+        }
+        let slot = recording.slot;
+        let resume = if recording.previous.is_some() {
+            let phase = length.0 % clip.length.0;
+            Some(
+                self.at
+                    .checked_add(BeatTime((clip.length.0 - phase) % clip.length.0))?,
+            )
+        } else {
+            None
+        };
+        self.stop_slot(slot)?;
+        self.recording = None;
+        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        if let Some(loop_start) = resume {
+            self.players.push(Player {
+                slot,
+                loop_start,
+                scheduled_start: loop_start,
+                cursor: 0,
+            });
+        }
+        Ok(())
+    }
+    fn begin_overdub(&mut self, slot: usize) -> Result<()> {
+        if self.recording.is_some() {
+            return Err(Error::State("recorder must be idle"));
+        }
+        let previous = self
+            .session
+            .slots
+            .get(slot)
+            .and_then(|s| s.clip.clone())
+            .ok_or(Error::NotFound)?;
+        if previous.follow.is_some() {
+            return Err(Error::State("freeze harmonic following before overdub"));
+        }
+        if previous.events.is_empty() {
+            return Err(Error::State("overdub requires a recorded clip"));
+        }
+        self.stop_slot(slot)?;
+        self.begin_record(slot)?;
+        if let Some(recording) = &mut self.recording {
+            recording.previous = Some(previous);
+        }
+        self.players.push(Player {
+            slot,
+            loop_start: self.at,
+            scheduled_start: self.at,
+            cursor: 0,
+        });
+        Ok(())
+    }
+    fn ensure_editable(&self, slot: usize) -> Result<()> {
+        if slot >= self.session.slots.len() {
+            return Err(Error::NotFound);
+        }
+        if self.players.iter().any(|p| p.slot == slot)
+            || self.recording.as_ref().is_some_and(|r| r.slot == slot)
+        {
+            return Err(Error::State("stop slot before editing"));
+        }
+        Ok(())
+    }
+    fn duplicate(&mut self, from: usize, to: usize) -> Result<()> {
+        self.ensure_editable(to)?;
+        let mut clip = self
+            .session
+            .slots
+            .get(from)
+            .and_then(|s| s.clip.clone())
+            .ok_or(Error::NotFound)?;
+        for event in &mut clip.events {
+            event.note.track = self.session.slots[to].track;
+        }
+        self.undo = Some((to, self.session.slots[to].clip.replace(clip)));
+        Ok(())
+    }
+    fn edit_note(&mut self, slot: usize, note: NoteKey, edit: NoteEdit) -> Result<()> {
+        self.ensure_editable(slot)?;
+        let clip = self.session.slots[slot]
+            .clip
+            .as_ref()
+            .ok_or(Error::NotFound)?
+            .edit_note(note, edit)?;
+        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        Ok(())
+    }
+    fn launch(&mut self, slot: usize, quantum: BeatTime) -> Result<()> {
+        let clip = self
+            .session
+            .slots
+            .get(slot)
+            .and_then(|s| s.clip.as_ref())
+            .ok_or(Error::NotFound)?;
+        if clip.events.is_empty() {
+            return Err(Error::State("clip has no notes"));
+        }
+        if self.recording.as_ref().is_some_and(|r| r.slot == slot) {
+            return Err(Error::State("slot is recording"));
+        }
+        let delay = if quantum.0 == 0 {
+            0
+        } else {
+            (quantum.0 - self.at.0 % quantum.0) % quantum.0
+        };
+        let loop_start = self.at.checked_add(BeatTime(delay))?;
+        // Reject schedules whose first iteration could overflow before mutation.
+        loop_start.checked_add(clip.length)?;
+        self.stop_slot(slot)?;
+        self.players.push(Player {
+            slot,
+            loop_start,
+            scheduled_start: loop_start,
+            cursor: 0,
+        });
+        Ok(())
+    }
+    fn stop_slot(&mut self, slot: usize) -> Result<()> {
+        if slot >= self.session.slots.len() {
+            return Err(Error::NotFound);
+        }
+        self.release_matching(|owner| matches!(owner, Owner::Clip(s, _) if s == slot))?;
+        self.players.retain(|p| p.slot != slot);
+        Ok(())
+    }
+    fn release_matching(&mut self, matches: impl Fn(Owner) -> bool) -> Result<()> {
+        let count = self.active.iter().filter(|v| matches(v.owner)).count();
+        if self.output.len() + count > self.limits.output_events {
+            return Err(Error::Capacity("output; drain before stop"));
+        }
+        let mut index = 0;
+        while index < self.active.len() {
+            if matches(self.active[index].owner) {
+                let voice = self.active.remove(index);
+                if matches!(voice.owner, Owner::Live(_) | Owner::Harmony(_)) {
+                    let note = voice.rendered_note;
+                    self.remember(InputEvent {
+                        at: self.at,
+                        note,
+                        gesture: Gesture::Off { velocity: 0 },
+                    });
+                }
+                self.output.push_back(OutputEvent {
+                    at: self.at,
+                    destination: voice.destination,
+                    track: voice.track,
+                    voice: voice.id,
+                    gesture: Gesture::Off { velocity: 0 },
+                });
+            } else {
+                index += 1;
+            }
+        }
+        Ok(())
+    }
+    fn stop(&mut self) -> Result<()> {
+        self.release_matching(|_| true)?;
+        self.players.clear();
+        // Closing the take is explicit: stop cancels the uncommitted take and
+        // leaves the previous committed clip intact.
+        self.recording = None;
+        Ok(())
+    }
+    fn undo(&mut self) -> Result<()> {
+        if self.recording.is_some() {
+            return Err(Error::State("recorder must be idle"));
+        }
+        let slot = self.undo.as_ref().ok_or(Error::State("nothing to undo"))?.0;
+        self.stop_slot(slot)?;
+        let (_, clip) = self.undo.take().ok_or(Error::State("nothing to undo"))?;
+        self.session.slots[slot].clip = clip;
+        Ok(())
+    }
+    /// Device disconnect releases only this source's live voices; clip playback
+    /// remains independent. Any in-progress take is cancelled for safe recovery.
+    pub fn disconnect(&mut self, source: SourceId) -> Result<()> {
+        self.release_matching(
+            |owner| matches!(owner, Owner::Live(key) | Owner::Harmony(key) if key.source == source),
+        )?;
+        self.recording = None;
+        Ok(())
+    }
+}
+fn release_order(gesture: Gesture) -> u8 {
+    if matches!(gesture, Gesture::Off { .. }) {
+        0
+    } else {
+        1
+    }
+}

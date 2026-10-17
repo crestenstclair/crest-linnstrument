@@ -1,0 +1,24 @@
+[package]
+name = "crest-performance-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+midi = ["dep:midir", "dep:ctrlc"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+crest-performance-core.workspace = true
+crest-linnstrument.workspace = true
+crest-performance-testkit.workspace = true
+midir = { version = "=0.11.1", optional = true }
+ctrlc = { version = "=3.5.2", features = ["termination"], optional = true }

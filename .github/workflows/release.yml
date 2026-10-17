@@ -1,0 +1,22 @@
+name: candidate-artifacts
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libasound2-dev
+      - run: scripts/build-native.sh && python3 scripts/test-firmware.py
+      - run: cargo test --workspace --locked && cargo test -p linnstrument-sim --locked --lib -- --ignored
+      - run: cargo build -p crest-performance-host --features midi --release --locked && cargo build -p linnstrument-sim --features desktop --release --locked
+      - run: scripts/package-candidate.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: development-candidate-linux-x86_64
+          path: target/candidate/

@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "model": 200,
+  "steps": [
+    {
+      "at_us": 0,
+      "action": {
+        "type": "contact",
+        "id": 101,
+        "x": 4.0,
+        "y": 2.0,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 0,
+      "action": {
+        "type": "contact",
+        "id": 102,
+        "x": 9.0,
+        "y": 3.0,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 0,
+      "action": {
+        "type": "contact",
+        "id": 103,
+        "x": 14.0,
+        "y": 4.0,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 300000,
+      "action": {
+        "type": "contact",
+        "id": 101,
+        "x": 4.1,
+        "y": 2,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 300000,
+      "action": {
+        "type": "contact",
+        "id": 102,
+        "x": 9,
+        "y": 3.1,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 300000,
+      "action": {
+        "type": "contact",
+        "id": 103,
+        "x": 14,
+        "y": 4,
+        "z": 0.6,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 400000,
+      "action": {
+        "type": "contact",
+        "id": 101,
+        "x": 4.2,
+        "y": 2,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 400000,
+      "action": {
+        "type": "contact",
+        "id": 102,
+        "x": 9,
+        "y": 3.2,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 400000,
+      "action": {
+        "type": "contact",
+        "id": 103,
+        "x": 14,
+        "y": 4,
+        "z": 0.7,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 500000,
+      "action": {
+        "type": "contact",
+        "id": 101,
+        "x": 4.3,
+        "y": 2,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 500000,
+      "action": {
+        "type": "contact",
+        "id": 102,
+        "x": 9,
+        "y": 3.3,
+        "z": 0.5,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 500000,
+      "action": {
+        "type": "contact",
+        "id": 103,
+        "x": 14,
+        "y": 4,
+        "z": 0.8,
+        "latched": true
+      }
+    },
+    {
+      "at_us": 700000,
+      "action": {
+        "type": "release",
+        "id": 102
+      }
+    },
+    {
+      "at_us": 750000,
+      "action": {
+        "type": "release",
+        "id": 101
+      }
+    },
+    {
+      "at_us": 800000,
+      "action": {
+        "type": "release",
+        "id": 103
+      }
+    }
+  ]
+}

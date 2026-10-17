@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Crest Performance test host</title><link rel="stylesheet" href="style.css"></head><body>
+<header><div><span class="eyebrow">CREST / PERFORMANCE LAB</span><h1>Capture. Loop. Launch.</h1></div><span id="connection">Connecting…</span></header>
+<main><div class="host-toolbar"><button id="play">Play mode</button><button id="clips">Clip pads</button><button id="chords">Chord pads</button><button id="record">Record selected</button><button id="overdub">Overdub</button><button id="retro">Capture last 4 beats</button><button id="undo">Undo</button><button id="duplicate">Duplicate to next</button><button id="finish">Finish take</button><button id="cancel">Cancel take</button><button id="stop-slot">Stop selected</button><button id="stop">Stop all</button></div><div id="grid" class="clip-grid"></div>
+<p class="note">Select slot. Record, then play the virtual LinnStrument. Finish take; click slot again to launch. In Clip pads mode, bottom-row pads 1–8 launch recorded slots or stop playing slots. Click the selected playing slot to stop it.</p>
+<details id="harmony-panel" open><summary>HARMONY · chord pads and strumplate</summary>
+<form id="harmony-form" class="harmony-fields">
+<label>Tonic MIDI <input name="tonic" type="number" min="0" max="127" value="60" required></label>
+<label>Scale <select name="scale"><option value="major">Major</option><option value="natural_minor">Natural minor</option><option value="dorian">Dorian</option><option value="mixolydian">Mixolydian</option></select></label>
+<label>Playing <select name="playing"><option value="chord_pads">Diatonic chord pads</option><option value="strumplate">Strumplate</option></select></label>
+<label>Chord <select name="extension"><option value="triad">Triad</option><option value="seventh">Seventh</option><option value="ninth">Ninth</option></select></label>
+<label>Suspension <select name="suspension"><option value="none">None</option><option value="second">Sus2</option><option value="fourth">Sus4</option></select></label>
+<label>Inversion <input name="inversion" type="number" min="-4" max="4" value="0" required></label>
+<label>Register <input name="register" type="number" min="-3" max="3" value="0" required></label>
+<label>Input anchor <input name="input_anchor" type="number" min="0" max="127" value="30" required></label>
+<label>Expression <select name="expression"><option value="all_voices">All chord voices</option><option value="top_voice">Top voice only</option></select></label>
+<label>Bass track <select name="bass_track"><option value="">Off</option></select></label>
+<label><input name="borrowed" type="checkbox">Borrow parallel minor/major</label>
+<label><input name="spread" type="checkbox">Open spread</label>
+<label><input name="voice_leading" type="checkbox">Voice leading</label>
+<button type="submit">Apply harmony</button>
+</form><div id="degrees" class="degree-strip" aria-label="Selected chord degree"></div>
+<p id="voicing" class="note" aria-live="polite"></p>
+<p class="note">Chord pads: seven adjacent input pitches select I–VII, repeating. Strumplate: select a degree here, then pick successive pads for chord tones across octaves. Input anchor 30 matches stock bottom-left pad. Held voices keep their pitch; changes affect new attacks. Both use stock firmware MPE. Play mode returns to ordinary notes.</p></details>
+<details id="pattern-panel"><summary>ACCOMPANIMENT · Euclidean rhythm and seeded pitch lane</summary>
+<form id="pattern-form" class="harmony-fields">
+<label>Steps <input name="steps" type="number" min="1" max="128" value="16" required></label>
+<label>Pulses <input name="pulses" type="number" min="0" max="128" value="5" required></label>
+<label>Rotation <input name="rotation" type="number" min="0" max="127" value="0" required></label>
+<label>Step ticks <input name="step" type="number" min="1" max="3840000" value="240000" required></label>
+<label>Gate ticks <input name="gate" type="number" min="1" max="3840000" value="120000" required></label>
+<label>Pitch cycle <input name="pitch_steps" type="number" min="1" max="128" value="8" required></label>
+<label>Lowest tone <input name="tone_min" type="number" min="-16" max="16" value="0" required></label>
+<label>Highest tone <input name="tone_max" type="number" min="-16" max="16" value="5" required></label>
+<label>Seed <input name="seed" type="number" min="0" max="4294967295" value="1" required></label>
+<label>Velocity <input name="velocity" type="number" min="1" max="127" value="90" required></label>
+<label>Velocity variation <input name="velocity_variation" type="number" min="0" max="63" value="0" required></label>
+<label>Timing variation ticks <input name="timing_variation" type="number" min="0" max="3840000" value="0" required></label>
+<label><input name="follow_harmony" type="checkbox">Follow selected/live chord</label>
+<button type="submit">Generate selected slot</button></form>
+<div class="degree-strip"><button id="follow-on">Follow harmony</button><button id="follow-off">Use original notes</button><button id="freeze">Freeze current harmony</button></div>
+<p id="pattern-state" class="note"></p><p class="note">Stop selected slot before generating, changing follow mode, or freezing. Changes support Undo. Different slots loop independently. Timing variation delays attacks within each step. Following changes future attacks only; freeze stores the currently selected harmony as fixed pitches.</p>
+</details>
+<details id="output-panel"><summary>OUTPUT · explicit MIDI destination profiles</summary>
+<form id="output-form" class="harmony-fields">
+<label>Destination <select name="destination"></select></label>
+<label>Profile <select name="profile"><option value="mpe">MPE · independent expression</option><option value="polyphonic">Ordinary polyphony · key pressure</option><option value="monophonic">Monophonic · last held note</option></select></label>
+<label>Channel / MPE main <input name="channel" type="number" min="1" max="16" value="1" required></label>
+<label>MPE first member <input name="first" type="number" min="1" max="16" value="2" required></label>
+<label>MPE last member <input name="last" type="number" min="1" max="16" value="16" required></label>
+<label>Bend semitones <input name="bend" type="number" min="1" max="96" value="48" required></label>
+<label>Poly voices <input name="voices" type="number" min="1" max="128" value="15" required></label>
+<label>Poly expression <select name="expression"><option value="reject_unsupported">Reject unsupported pitch/timbre</option><option value="pressure_only">Discard pitch/timbre explicitly</option></select></label>
+<button type="submit">Apply output profile</button></form>
+<p id="output-state" class="note"></p><p class="note">Stop transport before changing profiles. MPE is required for independent X/Y/Z. Ordinary MIDI rejects overlapping identical pitches. Monophonic reduction sounds the last held note and reattacks the preceding note on release. Profiles save with host sessions; plain library sessions open with lower MPE defaults.</p></details>
+<section class="editor"><h2>NOTE EDITOR · select note, stop slot before editing · curves move with note</h2><canvas id="piano" width="800" height="140" aria-label="Recorded notes. Select a note to edit its pitch, timing and duration." tabindex="0"></canvas><div class="edit-fields"><label>Note <input id="note-key" type="number" min="0" max="127" value="60"></label><label>Start ticks <input id="note-start" type="number" min="0" value="0"></label><label>Duration ticks <input id="note-duration" type="number" min="1" value="960000"></label><button id="apply-edit">Apply edit</button></div></section><div class="session"><input id="path" aria-label="Session file path" value="/tmp/crest-performance-session.json"><button id="save">Save session</button><button id="open">Reopen</button></div><p id="transport" class="note"></p><pre id="capture"></pre><p id="error" role="alert"></p></main><footer>Standalone public API host · deterministic MIDI capture · optional audio not connected</footer><script src="bridge.js"></script><script src="host.js"></script></body></html>

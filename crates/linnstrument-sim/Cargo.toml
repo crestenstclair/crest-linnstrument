@@ -1,0 +1,36 @@
+[package]
+name = "linnstrument-sim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+default-run = "linnstrument-sim"
+
+[[bin]]
+name = "linnstrument-replay"
+path = "src/replay.rs"
+
+[features]
+default = []
+desktop = ["dep:tauri", "dep:tauri-build", "midi"]
+midi = ["crest-performance-host/midi"]
+
+[dependencies]
+crest-performance-core.workspace = true
+crest-linnstrument.workspace = true
+crest-performance-host = { path = "../crest-performance-host" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tauri = { version = "=2.12.4", optional = true }
+
+[build-dependencies]
+tauri-build = { version = "=2.7.3", optional = true }
+
+[lints]
+workspace = true
+
+[dependencies.sha2]
+version = "0.10"

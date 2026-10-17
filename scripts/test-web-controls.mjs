@@ -1,0 +1,10 @@
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const source=readFileSync(new URL('../crates/linnstrument-sim/web/keyboard.js',import.meta.url),'utf8');
+const {parseBindings,defaultBindings}=await import(`data:text/javascript,${encodeURIComponent(source)}`);
+assert.deepEqual(parseBindings(JSON.stringify(defaultBindings()),17),defaultBindings());
+const custom={pads:{q:{x:1,y:0},w:{x:16,y:7}},pressure_down:'-',pressure_up:'='};
+assert.deepEqual(parseBindings(JSON.stringify(custom),17),custom);
+for(const invalid of [null,[],{...custom,unexpected:1},{...custom,pressure_up:'-'},{...custom,pressure_down:'q'},{...custom,pads:{Q:{x:1,y:0}}},{...custom,pads:{a:{x:17,y:0}}},{...custom,pads:{a:{x:1,y:-1}}},{...custom,pads:{a:{x:1,y:0,z:.5}}}])assert.throws(()=>parseBindings(JSON.stringify(invalid),17));
+assert.throws(()=>parseBindings(' '.repeat(4097),26));
+console.log('Keyboard binding validation passed for both geometries and invalid input.');
