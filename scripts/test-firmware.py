@@ -222,12 +222,39 @@ def split_mpe_profile(model):
     device.close()
     print(f'{model}: lower/upper MPE splits, main/member separation and +/-24 bend PASS')
 
+def repeated_pitch_and_vibrato(model):
+    device=Device(model)
+    # Row-fourths layout: these separate pads both play MIDI 43.
+    device.send('contact 1 4 2 0.5');device.send('advance 200000')
+    first=next(iter(device.notes))
+    device.send('contact 2 9 1 0.5');device.send('advance 200000')
+    assert list(device.notes.values())==[43,43],device.notes
+    second=next(channel for channel in device.notes if channel!=first)
+    before=dict(device.states);bends=[]
+    for offset in [-.05,0,.05,0]*3:
+        device.send(f'contact 1 {4+offset} 2 0.5')
+        _,messages=device.send('advance 100000')
+        assert not any(m[0]&0xf0 in [0x80,0x90] for m in messages)
+        bends.append(device.states[first,'x'])
+        for axis in ['x','y','z']:
+            assert abs(device.states[second,axis]-before[second,axis])<=1
+    assert max(bends)-min(bends)>=10,bends
+    device.send('release 1');_,messages=device.send('advance 200000')
+    assert device.notes=={second:43},device.notes
+    assert any(m[0]==0x80+first and m[1]==43 for m in messages),messages
+    device.send('contact 2 9 1 0.75');device.send('advance 200000')
+    assert device.states[second,'z']>before[second,'z']+5
+    device.send('release 2');device.send('advance 200000');assert not device.notes
+    device.close()
+    print(f'{model}: repeated-pitch ownership, small vibrato and independent release PASS')
+
 if __name__=='__main__':
     slide_and_wrap()
     for model in [128,200]:
         right_edge_expression(model)
         control_column_octave(model)
         split_mpe_profile(model)
+        repeated_pitch_and_vibrato(model)
         capacity_pedals_and_persistence(model)
         concurrent_expression(model)
         first=independent_expression(model); second=independent_expression(model)

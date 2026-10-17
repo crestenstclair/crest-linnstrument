@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Linux Tauri acceptance through native WebDriver input, real worker and sensors.
 
-Requires tauri-driver 2.1.0, WebKitWebDriver, a display (Xvfb is sufficient),
+Requires WebKitWebDriver, a display (Xvfb is sufficient),
 the desktop executable and scripts/build-native.sh. No MIDI or audio hardware.
 JavaScript only observes the rendered application's snapshots/geometry; it never
 dispatches synthetic DOM gestures, invokes bridge commands or generates MIDI.
 """
 import base64
 import json
+import os
 import pathlib
 import subprocess
 import time
@@ -58,7 +59,7 @@ class Desktop:
                 return None
         wait_for(ready, lambda status: status and status.get('ready'), 'WebDriver startup')
         result = self.request('POST', '/session', {'capabilities': {'alwaysMatch': {
-            'tauri:options': {'application': str(ROOT / 'target/debug/linnstrument-sim')}
+            'webkitgtk:browserOptions': {'binary': str(ROOT / 'target/debug/linnstrument-sim')}
         }}})
         self.session = result['sessionId']
         self.command('POST', '/timeouts', {'implicit': 5000, 'script': 5000, 'pageLoad': 15000})
@@ -222,7 +223,12 @@ def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
     with (ARTIFACTS / 'webdriver.log').open('w') as log:
-        driver = subprocess.Popen(['tauri-driver'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+        # Linux's native driver owns the protocol. Tauri's proxy only maps this
+        # capability and environment flag; omitting it also avoids its pooled
+        # HTTP connection-reset failure between otherwise valid commands.
+        driver = subprocess.Popen(['WebKitWebDriver', '--port=4444'], cwd=ROOT,
+                                  env={**os.environ, 'TAURI_WEBVIEW_AUTOMATION': 'true'},
+                                  stdout=log, stderr=subprocess.STDOUT)
         try:
             app.start()
             record_expressive_keyboard_phrase(app)
