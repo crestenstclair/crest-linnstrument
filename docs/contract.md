@@ -70,8 +70,18 @@ accepted expression always falls inside the clip. Capture and Undo are control-t
 `BeatTime` is unsigned 64-bit musical ticks, 960,000 per quarter note. At 120 BPM a tick
 is approximately 0.521 microseconds. No event is implicitly quantized. `ClockMapping`
 converts host microseconds with integer arithmetic, an origin, and tempo in milli-BPM.
-The host establishes a new mapping for tempo changes. Audio/sample conversion belongs
-to the consuming host; neither browser frames nor this library sample a wall clock.
+Tempo is 1,000–999,000 milli-BPM. `ClockMapping::with_tempo(micros, milli_bpm)` reanchors
+at the old mapping's exact position and carries fractional ticks, preventing cumulative
+rounding drift across repeated changes. Public beat positions round down to whole ticks.
+`TestHost::set_tempo` validates the candidate, advances scheduled work under the old
+mapping through the native timestamp inclusively, then installs the new mapping. Backward
+native timestamps reject even within one rounded tick. Held ownership, expression, clip
+phase and queued beat boundaries survive; future wall-clock times adapt. Recording stores
+beat positions under the active mapping, without tempo-map automation. Invalid tempo or
+timestamp input leaves the mapping, performance and output untouched. The simulator uses
+its native worker timestamp; the OS MIDI host uses its monotonic native clock. External
+MIDI clock authority, position and loss handling remain separate work. Audio/sample
+conversion belongs to the consuming host; browser frames never determine musical time.
 
 `NoteKey` contains source, track, and note identity. A source assigns a fresh ID on each
 attack, including repeated pitches. `NoteInput` allocates monotonic IDs independent
@@ -490,11 +500,18 @@ work; musical event batches and ownership remain bounded. The test host exposes 
 total engine voice budget (15), which can be lower than a backend's physical capacity.
 
 `TestHost::configure_output` requires idle live voices, players and recorder. The host UI's
-Output panel and CLI `profile JSON` apply these profiles. Host document version 1 wraps the
-versioned library `session` plus per-destination `outputs`. Host save/open/reset preserve this
-configuration. Every session destination needs exactly one validated profile; duplicate,
+Output panel and CLI `profile JSON` apply these profiles. Host document version 2 wraps the
+versioned library `session`, per-destination `outputs` and required `tempo_milli_bpm`.
+Host save/open/reset preserve this configuration. Version 1 migrates in memory with
+120,000 milli-BPM; it must not carry a tempo value. New-version files with missing/invalid
+tempo, unknown versions or unknown fields reject. Reading never rewrites the source;
+explicit Save writes version 2. Stable v0.2 host readers reject version 2, so retain the
+original files to roll back. The embedded schema-8 session remains independently readable
+by v0.2; its host tempo is not part of the core session. Reopening starts stopped with the
+saved current tempo, not a history of tempo changes. Every session destination needs
+exactly one validated profile; duplicate,
 missing and unknown destinations fail before replacement. Legacy plain library sessions
-remain readable and explicitly receive lower-MPE defaults. The independent core session
+remain readable and explicitly receive lower-MPE defaults and 120 BPM. The independent core session
 contains no MIDI backend types. Core `storage::save_session` remains available for fixtures;
 the standalone application's Save uses `save_document`. Both retain atomic 8 MB-bounded I/O.
 

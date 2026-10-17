@@ -1,5 +1,5 @@
 {
-  "host_version": 1,
+  "host_version": 2,
   "session": {
     "version": 8,
     "tracks": [
@@ -1983,5 +1983,6 @@
         "bend_semitones": 48
       }
     }
-  ]
+  ],
+  "tempo_milli_bpm": 120000
 }

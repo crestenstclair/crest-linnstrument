@@ -12,6 +12,8 @@ mod harmony_tests;
 mod humanized_tests;
 #[cfg(test)]
 mod quantize_tests;
+#[cfg(test)]
+mod tempo_tests;
 pub use contact_envelope::ContactProfile;
 use contact_envelope::PressureRamp;
 mod scenario;
@@ -119,6 +121,9 @@ pub enum BridgeCommand {
     },
     LaunchQuantum {
         ticks: u64,
+    },
+    Tempo {
+        milli_bpm: u32,
     },
     Stop {},
     Mode {
@@ -688,6 +693,14 @@ impl Runtime {
                 Ok(())
             }
             BridgeCommand::Stop {} => self.host_command(Command::Stop),
+            BridgeCommand::Tempo { milli_bpm } => {
+                if self.external() {
+                    return Err("OS MIDI mode: set tempo in the connected external host".into());
+                }
+                self.host
+                    .set_tempo(self.firmware.at_us, milli_bpm)
+                    .map_err(|e| e.to_string())
+            }
             BridgeCommand::Mode { clips } => self.set_surface(if clips {
                 SurfaceMode::Clips
             } else {

@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 #[derive(Serialize)]
 pub struct HostSnapshot {
     pub launch_quantum: BeatTime,
+    pub tempo_milli_bpm: u32,
     pub outputs: Vec<OutputRoute>,
     pub performance: PerformanceSnapshot,
     pub clips: Vec<Option<Clip>>,
@@ -38,6 +39,7 @@ pub struct TestHost {
     parser: MidiParser,
     outputs: BTreeMap<DestinationId, MidiOutput>,
     clock: ClockMapping,
+    last_micros: u64,
     pub capture: Vec<CapturedMidi>,
     capture_count: u64,
     pub device_commands: Vec<MidiMessage>,
@@ -74,7 +76,8 @@ impl TestHost {
             launch_quantum: BeatTime(0),
             parser: MidiParser::default(),
             outputs,
-            clock: ClockMapping::new(0, BeatTime(0), 120_000)?,
+            clock: ClockMapping::new(0, BeatTime(0), storage::DEFAULT_TEMPO_MILLI_BPM)?,
+            last_micros: 0,
             capture: Vec::with_capacity(65536),
             capture_count: 0,
             device_commands: Vec::new(),
@@ -85,6 +88,7 @@ impl TestHost {
     pub fn from_document(document: storage::HostDocument, geometry: Geometry) -> Result<Self> {
         document.validate()?;
         let mut host = Self::new(document.session, geometry)?;
+        host.clock = ClockMapping::new(0, BeatTime(0), document.tempo_milli_bpm)?;
         for route in document.outputs {
             host.outputs.insert(
                 route.destination,
@@ -95,7 +99,8 @@ impl TestHost {
     }
     pub fn document(&self) -> Result<storage::HostDocument> {
         Ok(storage::HostDocument {
-            host_version: 1,
+            host_version: storage::HOST_VERSION,
+            tempo_milli_bpm: self.clock.milli_bpm(),
             session: self.engine.save_session()?,
             outputs: self
                 .outputs
@@ -162,8 +167,8 @@ impl TestHost {
             .collect()
     }
     pub fn accept_bytes(&mut self, micros: u64, byte: u8, geometry: Geometry) -> Result<()> {
-        let at = self.clock.at_micros(micros)?;
-        self.advance(at)?;
+        self.advance_micros(micros)?;
+        let at = self.engine.position();
         let Some(message) = self.parser.feed(byte) else {
             return Ok(());
         };
@@ -180,7 +185,22 @@ impl TestHost {
         Ok(())
     }
     pub fn advance_micros(&mut self, micros: u64) -> Result<()> {
-        self.advance(self.clock.at_micros(micros)?)
+        // Reject native time reversal even when both timestamps round to one tick.
+        if micros < self.last_micros {
+            return Err(Error::TimeOrder);
+        }
+        self.advance(self.clock.at_micros(micros)?)?;
+        self.last_micros = micros;
+        Ok(())
+    }
+    /// Re-anchor the host clock at a native timestamp. Finish scheduled work
+    /// under the old tempo first; beat position, held ownership and clip phase
+    /// do not jump. Validation precedes any advancement or output changes.
+    pub fn set_tempo(&mut self, micros: u64, milli_bpm: u32) -> Result<()> {
+        let next = self.clock.with_tempo(micros, milli_bpm)?;
+        self.advance_micros(micros)?;
+        self.clock = next;
+        Ok(())
     }
     pub fn launch(&mut self, slot: usize) -> Result<()> {
         self.command(Command::Launch {
@@ -248,6 +268,7 @@ impl TestHost {
     pub fn snapshot(&self) -> HostSnapshot {
         HostSnapshot {
             launch_quantum: self.launch_quantum,
+            tempo_milli_bpm: self.clock.milli_bpm(),
             outputs: self.output_routes(),
             performance: self.engine.snapshot(),
             tracks: self.engine.session().tracks.clone(),

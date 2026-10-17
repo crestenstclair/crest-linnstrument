@@ -744,6 +744,52 @@ def play_showcase_bank(app):
 
 
 
+def apply_host_tempo(app, milli_bpm):
+    app.fill('#tempo-form input[name="bpm"]', str(milli_bpm / 1000))
+    app.click('#tempo-form button[type="submit"]')
+    return app.state(lambda s: s['host']['tempo_milli_bpm'] == milli_bpm, 'tempo applied')
+
+
+def change_showcase_tempo(app):
+    app.switch('host')
+    first = '#grid > button:first-child'
+    if app.observe("return document.querySelector(arguments[0]).getAttribute('aria-pressed')", first) != 'true':
+        app.click(first)
+    app.click(first)
+    initial = app.state(lambda s: s['host']['performance']['slots'][0] == 'playing', 'clip plays before tempo edit')
+    before = apply_host_tempo(app, 90500)
+    after = app.state(lambda s: s['firmware']['at_us'] > before['firmware']['at_us'] + 200000,
+                      'native clock advances at new tempo')
+    elapsed = after['firmware']['at_us'] - before['firmware']['at_us']
+    ticks = after['host']['performance']['at'] - before['host']['performance']['at']
+    assert abs(ticks * 60_000_000_000 - elapsed * 90500 * 960000) < 60_000_000_000
+    assert after['host']['clips'] == initial['host']['clips']
+    assert after['host']['performance']['slots'][0] == 'playing'
+    path = ARTIFACTS / 'desktop-tempo.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'tempo session saved')
+    saved = json.loads(path.read_text())
+    assert saved['host_version'] == 2 and saved['tempo_milli_bpm'] == 90500
+    assert [slot['clip'] for slot in saved['session']['slots']] == initial['host']['clips']
+    app.click('#stop')
+    apply_host_tempo(app, 120000)
+    app.click('#open')
+    state = app.state(lambda s: s['host']['tempo_milli_bpm'] == 90500 and
+                      s['host']['performance']['active_voices'] == 0 and
+                      s['host']['performance']['slots'][:3] == ['recorded'] * 3,
+                      'session reopens with saved tempo and stopped clips')
+    assert app.observe("return document.querySelector('#tempo-form input').value") == '90.5'
+    app.capture('tempo-reopened', state)
+    app.switch('instrument')
+    at = app.observe('return latest.firmware.at_us')
+    app.click('#reset')
+    app.state(lambda s: s['firmware']['at_us'] < at and s['host']['tempo_milli_bpm'] == 90500,
+              'firmware reset retains saved host tempo')
+    app.switch('host')
+    apply_host_tempo(app, 120000)
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -767,6 +813,7 @@ def main():
             edit_conditions_and_hold_fill(app)
             record_humanized_chord(app)
             play_showcase_bank(app)
+            change_showcase_tempo(app)
             print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase')
         except Exception:
             if app.session:

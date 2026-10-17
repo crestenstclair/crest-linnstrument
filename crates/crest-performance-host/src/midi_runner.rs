@@ -73,7 +73,7 @@ pub fn run(input_id: &str, sound_id: &str, device_id: &str) -> Result<(), String
         }
     });
     eprintln!(
-        "MPE lower zone, members 2–16, ±48 semitones. Commands: record N, overdub N, finish, cancel, launch N, quantum TICKS, clips, play, chords, harmony JSON, profile JSON, stop, save PATH, open PATH, quit. Slots 1–8. '-' sound port uses capture only."
+        "MPE lower zone, members 2–16, ±48 semitones. Commands: record N, overdub N, finish, cancel, launch N, quantum TICKS, tempo MILLIBPM, clips, play, chords, harmony JSON, profile JSON, stop, save PATH, open PATH, quit. Slots 1–8. '-' sound port uses capture only."
     );
     let routes = Routes {
         input_id,
@@ -264,6 +264,14 @@ fn apply_command(host: &mut TestHost, line: &str, micros: u64) -> Result<bool, S
             host.configure_output(DestinationId(1), profile)
                 .map_err(|e| e.to_string())?;
             println!("{:?}", host.output_routes());
+            return Ok(true);
+        }
+        "tempo" => {
+            let milli_bpm = argument
+                .parse()
+                .map_err(|_| "tempo requires integer milli-BPM")?;
+            host.set_tempo(micros, milli_bpm)
+                .map_err(|e| e.to_string())?;
             return Ok(true);
         }
         "save" => {

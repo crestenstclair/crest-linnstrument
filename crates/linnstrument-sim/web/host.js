@@ -54,6 +54,8 @@ document.querySelector('#duplicate').onclick=()=>send({type:'duplicate',from:sel
 document.querySelector('#apply-edit').onclick=()=>{if(selectedNote)send({type:'edit_note',slot:selected,note:selectedNote,start:Number(document.querySelector('#note-start').value),duration:Number(document.querySelector('#note-duration').value),key:Number(document.querySelector('#note-key').value)});};
 const quantizeForm=document.querySelector('#quantize-form');
 quantizeForm.onsubmit=event=>{event.preventDefault();send({type:'quantize_clip',slot:selected,ticks:Number(quantizeForm.elements.grid.value)});};
+const tempoForm=document.querySelector('#tempo-form');let renderedTempo=null;
+tempoForm.onsubmit=event=>{event.preventDefault();if(tempoForm.reportValidity())send({type:'tempo',milli_bpm:Math.round(Number(tempoForm.elements.bpm.value)*1000)});};
 const piano=document.querySelector('#piano'),pencil=piano.getContext('2d');
 function noteKey(note){return JSON.stringify(note);}
 function renderNotes(clip){
@@ -172,6 +174,7 @@ subscribers.push(snapshot=>{
   fillButton.setAttribute('aria-pressed',String(state.fill));
   fillButton.textContent=state.fill?'Fill held':'Hold Fill';
   document.querySelector('#launch-quantum').value=String(snapshot.host.launch_quantum);
+  if(renderedTempo!==snapshot.host.tempo_milli_bpm){renderedTempo=snapshot.host.tempo_milli_bpm;tempoForm.elements.bpm.value=renderedTempo/1000;}
   renderNotes(snapshot.host.clips[selected]);
   renderHarmony(state,snapshot.host.tracks);
   renderHarmonySource(state);
@@ -180,6 +183,6 @@ subscribers.push(snapshot=>{
   document.querySelector('#pattern-state').textContent=selectedClip?`${selectedClip.follow?'FOLLOWING SELECTED/LIVE CHORD':'FIXED PITCHES'}${origin?` · seed ${origin.settings.seed} · ${origin.settings.pulses}/${origin.settings.steps} pulses · algorithm ${origin.algorithm_version}`:''}`:'Select an empty or stopped clip slot.';
   renderClips(state.slots,state.muted_slots);
   renderMute(state);
-  document.querySelector('#transport').textContent=`${(state.at/960000).toFixed(3)} beats · 120 BPM · ${state.active_voices} voices · ${snapshot.host.capture_count} captured MIDI messages · ${state.mode.toUpperCase()}`;
+  document.querySelector('#transport').textContent=`${(state.at/960000).toFixed(3)} beats · ${snapshot.host.tempo_milli_bpm/1000} BPM · ${state.active_voices} voices · ${snapshot.host.capture_count} captured MIDI messages · ${state.mode.toUpperCase()}`;
   document.querySelector('#capture').textContent=snapshot.host.recent_midi.map(m=>`${String(m.at).padStart(10)}  ${m.message.bytes.slice(0,m.message.len).map(b=>b.toString(16).padStart(2,'0')).join(' ')}`).join('\n');
 });

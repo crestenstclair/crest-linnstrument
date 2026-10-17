@@ -1,7 +1,7 @@
 # Delivery status — October 17, 2026, Pacific
 
 Stable version `0.2.0` carries API 9, session schema 8 and host document envelope 1.
-Development version `0.3.0-dev.1` uses API 10 and retains schema 8/envelope 1; its additions are not yet tagged.
+Development version `0.3.0-dev.1` uses API 10, schema 8 and host envelope 2; its additions are not yet tagged.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
 the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
@@ -343,3 +343,21 @@ zero-duration attack, restores the old clip with Undo and replays the edited ses
 through a one-voice engine/MPE zone. Tracker adopted this pin at `2c99b8c`; all eight
 adapter contracts and local lint pass, including raw MIDI editing and project reopen
 for the same boundary. Full integration CI is running; this is not M6 completion.
+
+## Local tempo control (development)
+
+The standalone host now applies 1–999 BPM changes at native timestamps through its public
+API, CLI and desktop control. Fractional ticks carry across reanchoring. Scheduled work
+finishes under the old mapping at the boundary; held expression, clip phase and queued
+beat positions remain intact. This controls the local clock, not external MIDI clock sync.
+Recording stores musical timing under the active tempo, without a tempo automation map.
+
+Host envelope 2 stores current tempo alongside output profiles and the unchanged schema-8
+session. Envelope 1 and plain sessions load at 120 BPM without rewriting their source.
+Saving writes envelope 2, which stable v0.2 rejects; retain the original for rollback.
+Focused tests cover independent rational-clock expectations over 4,000 changes, overflow,
+sub-tick backward timestamps, expressive recording, queued playback, migration, invalid
+save preservation and version rejection. Both firmware sizes exercise three-finger
+recording, pad launch, tempo changes, decoded LEDs, reopen and firmware reset. Desktop
+acceptance also checks native clock rate, unchanged clips and saved/restored tempo.
+Full CI and extracted-package verification are pending for this development change.

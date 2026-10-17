@@ -6,7 +6,8 @@ The workspace is named `crest-performance`; it currently lives in the existing
 physical controller, MIDI device, or sound card is needed for the development path.
 
 **Standalone release: `0.2.0`, public API 9, session schema 8.**
-Development on this branch is `0.3.0-dev.1`, API 10/session 8; the release tag remains unchanged.
+Development on this branch is `0.3.0-dev.1`, API 10/session 8/host envelope 2;
+the release tag remains unchanged.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
 defines this contract; an untagged checkout remains a candidate. See
@@ -74,6 +75,15 @@ MPE playing while loops continue. Save and reopen through the host's session pat
 and controller pads. Queued pads show yellow, playing pads green. A second press cancels a
 queued launch or stops playback immediately. This live host preference applies to future
 launches, survives device reset/session open, and starts at Off on application restart.
+
+**Local tempo** changes the standalone host clock from 1–999 BPM, with 0.001 BPM
+resolution. Apply it while playing or recording: held expression and clip phase continue,
+and queued launches keep their musical boundaries. Recording preserves beat positions
+under the active tempo; this does not add a recorded tempo map. Save/reopen and firmware
+reset retain the current tempo. External MIDI mode uses the connected host's clock.
+New host files use envelope 2; envelope-1 and plain sessions load at 120 BPM without
+rewriting the source. Stable v0.2 rejects envelope 2, so keep original files for rollback.
+The embedded core session stays schema 8 and can still be consumed independently.
 
 In this development checkout, **Clip pads** also uses top-row pads 1–7 for I–VII.
 Pressing one selects that degree using the configured harmony settings and takes over
@@ -225,8 +235,9 @@ Use IDs printed by `ports`: **LinnStrument Simulator performance** is host input
 output port ID to audition an MPE instrument. Physical devices use the same CLI and adapter;
 configure lower MPE, channels 2–16 and ±48 semitones first. No automatic MIDI thru is added.
 The CLI accepts `record 1`, `finish`, `launch 1`, `clips`, `play`, `stop`, `save PATH`,
-`open PATH`, `chords`, `harmony JSON`, `profile JSON`, `quantum TICKS`, and `quit`. Use
+`open PATH`, `chords`, `harmony JSON`, `profile JSON`, `quantum TICKS`, `tempo MILLIBPM`, and `quit`. Use
 `quantum 960000` for next-beat launches or `quantum 0` for immediate launches.
+Use `tempo 90500` for 90.5 BPM; this is the local host clock, not external MIDI clock sync.
 Ctrl-C/termination, EOF, overflow and detected removal attempt
 voice cleanup. Reconnect by reopening the current port IDs. OS round-trip tests ran on
 CoreMIDI; Linux runtime and physical USB qualification remain separate.
