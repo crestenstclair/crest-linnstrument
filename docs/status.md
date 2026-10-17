@@ -1,7 +1,12 @@
 # Delivery status — October 17, 2026, Pacific
 
 Version `0.4.0` carries API 13, session schema 10 and host document envelope 2.
-The published `v0.3.0` release remains API 12/session 10/host envelope 2.
+Published `v0.4.0` pins `202bc47c39a70458563616f9683299b62cc0c4ed`.
+[Source CI](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39037310159) and
+[extracted-package acceptance](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39037309684)
+passed at that exact revision. The archive SHA-256 is
+`83bedb8e814859f51770e2fc2226d4b52a931110606caa9b44cd83796fd969a3`.
+The previous `v0.3.0` release remains API 12/session 10/host envelope 2.
 The previous `v0.2.0` tag remains API 9/session 8/host envelope 1.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
@@ -570,7 +575,10 @@ The native test advances several host turns for the bounded 16-cell LED repaint,
 complete firmware multiplexing interval before observing brightness. Source CI [39036977686](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39036977686)
 passed at `80f7b82`, including Linux native mouse selection and exact descending-strum
 record/save/reopen. [Extracted-package acceptance 39036977335](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39036977335)
-also passed at that revision. Exact v0.4 release-revision gates are pending.
+also passed at that revision. The exact v0.4 release gates and archive are recorded above.
+A separate Git consumer of the release commit emits C5 while saving original C4; released
+v0.3 reopens that file and replays C4 without rewriting it. No persistence migration is
+required between these two releases.
 
 Version v0.4.0 adds per-clip transient semitone offsets and independent host/pad
 octave holds. Future attacks resolve harmony then transpose; held X/Y/Z and releases retain
