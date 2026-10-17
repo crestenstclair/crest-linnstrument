@@ -1,4 +1,4 @@
-# Public host contract, API 6
+# Public host contract, API 7
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -182,6 +182,27 @@ changes flush configuration and execute 100 ms of firmware before accepting anot
 The OS CLI suppresses transitional incoming messages for 150 ms after changing modes.
 These control transitions are explicit input gaps, not musical scheduling intervals.
 
+## Seeded humanized chords
+
+`Articulation::Humanized { max_delay, velocity_variation, seed }` is a finite held-chord
+articulation. Maximum positive attack delay is 0–960,000 ticks (one beat); velocity variation
+is 0–63 and the reproducible seed is u32. Velocity clamps to MIDI 1–127. Zero bounds preserve
+block timing/velocity exactly. Bass and manually selected strumplate tones bypass this
+articulation. Trigger release, Stop, disconnect and mode changes cancel pending attacks;
+only sounding tones receive releases. Settings changes affect future triggers only.
+
+Harmony algorithm 5 derives an independent stateless SplitMix64 seed from the configured
+seed, source/track pair and stable trigger note identity. Sorted chord-tone index selects
+separate timing and velocity words. Explicit wrapping arithmetic keeps it platform stable.
+A trigger can therefore yield different attack ordering without changing which voice owns
+pitch, top-voice expression or release. Every voice reserves its identity/capture capacity
+before the chord is accepted. Expression arriving before an attack becomes its initial
+state; it is never emitted for a voice the destination has not heard. The original gesture
+is retained even when all tones are delayed. Rendered event times/velocities and complete
+source provenance persist, and ordinary replay uses those stored events unchanged.
+Pattern algorithm 4 accepts the new harmony settings as provenance; the existing seeded
+pattern recurrence and its historical versions remain unchanged.
+
 ## Conditional note playback
 
 `Clip.conditions` is a sparse list of `ConditionalNote { note, condition }`. It never alters
@@ -212,8 +233,8 @@ host also releases it on pointer-capture or focus loss. Rules are not an audio-b
 
 ## Persistence and compatibility
 
-`Session.version == 6`; unknown schema versions are rejected. `Session::migrate` upgrades
-schemas 1–5 without changing tracks, slots, times or expression. Missing articulation
+`Session.version == 7`; unknown schema versions are rejected. `Session::migrate` upgrades
+schemas 1–6 without changing tracks, slots, times or expression. Missing articulation
 means Block; version-2 data containing strum settings or algorithm-2 harmony origins is rejected. Engine construction and the
 host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. Missing learned-bank entries default to seven empty degrees. Schemas 1–3 reject learned
 banks, harmony algorithm 3 and pattern algorithm 2, including nested origins/followers.
@@ -223,13 +244,14 @@ algorithm labels and exact events. Adding the Arpeggio enum variant requires API
 must handle it deliberately. No automatic regeneration occurs during migration.
 Schemas 1–5 reject nonempty note conditions. Missing conditions mean every note plays on
 every loop. Adding `Clip.conditions`, `PerformanceSnapshot.fill` and the condition/Fill
-commands requires API 6. The schema contains tracks,
+commands requires API 6. Schemas 1–6 reject Humanized articulation, harmony algorithm 5 and pattern algorithm 4,
+including nested origins and followers. Adding Humanized requires API 7. The schema contains tracks,
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 6.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 7.
 
-This development package is `0.2.0-dev`, API 6, schema 6. The accepted `v0.1.0` release
+This development package is `0.2.0-dev`, API 7, schema 7. The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
@@ -264,7 +286,7 @@ using it is rejected. Every generated voice has a fresh ID and a retained trigge
 NoteKey. Repeated input pitches remain independent. Chord attacks, expression fan-out and
 releases preflight the whole batch against voice/output/recording limits. No partial chord
 is emitted on rejection. Recording captures rendered notes and lossless expression, plus
-bounded `harmony_origin` source gestures, settings and algorithm version 4. Existing
+bounded `harmony_origin` source gestures, settings and algorithm version 5. Existing
 algorithm-1 Block and algorithm-2 strum origins remain valid without rewriting; neither
 older algorithm accepts a learned bank.
 
@@ -369,7 +391,7 @@ total engine voice budget (15), which can be lower than a backend's physical cap
 
 `TestHost::configure_output` requires idle live voices, players and recorder. The host UI's
 Output panel and CLI `profile JSON` apply these profiles. Host document version 1 wraps the
-schema-2 library `session` plus per-destination `outputs`. Host save/open/reset preserve this
+versioned library `session` plus per-destination `outputs`. Host save/open/reset preserve this
 configuration. Every session destination needs exactly one validated profile; duplicate,
 missing and unknown destinations fail before replacement. Legacy plain library sessions
 remain readable and explicitly receive lower-MPE defaults. The independent core session

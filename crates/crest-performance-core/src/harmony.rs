@@ -5,7 +5,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const HARMONY_ALGORITHM_VERSION: u32 = 4;
+pub const HARMONY_ALGORITHM_VERSION: u32 = 5;
 pub const MAX_CHORD_VOICES: usize = MAX_VOICING_NOTES + 1;
 /// Reserved for engine-rendered notes. External input must use another source.
 pub const GENERATED_SOURCE: crate::SourceId = crate::SourceId(u32::MAX);
@@ -86,6 +86,13 @@ pub enum Articulation {
         interval: BeatTime,
         gate: BeatTime,
     },
+    /// Seeded positive attack jitter and symmetric velocity variation. Each
+    /// trigger's identity selects a repeatable variation, without mutable RNG.
+    Humanized {
+        max_delay: BeatTime,
+        velocity_variation: u8,
+        seed: u32,
+    },
 }
 impl Articulation {
     pub fn validate(self) -> Result<()> {
@@ -101,15 +108,51 @@ impl Articulation {
             Self::Arpeggio { interval, gate, .. } if gate.0 == 0 || gate > interval => Err(
                 Error::Invalid("arpeggio gate must be 1 tick through its interval"),
             ),
+            Self::Humanized {
+                max_delay,
+                velocity_variation,
+                ..
+            } if max_delay.0 > TICKS_PER_BEAT || velocity_variation > 63 => Err(Error::Invalid(
+                "humanization supports at most 1 beat delay and 63 velocity variation",
+            )),
             _ => Ok(()),
         }
     }
     pub fn is_repeating(self) -> bool {
         matches!(self, Self::Arpeggio { .. })
     }
-    pub(crate) fn delay(self, index: usize, count: usize) -> BeatTime {
+    pub fn is_humanized(self) -> bool {
+        matches!(self, Self::Humanized { .. })
+    }
+    pub(crate) fn attack(
+        self,
+        index: usize,
+        count: usize,
+        trigger: crate::NoteKey,
+        velocity: u8,
+    ) -> (BeatTime, u8) {
+        if let Self::Humanized {
+            max_delay,
+            velocity_variation,
+            seed,
+        } = self
+        {
+            let source_track = (u64::from(trigger.source.0) << 32) | u64::from(trigger.track.0);
+            let seed = crate::random::word(u64::from(seed), trigger.note.0, source_track);
+            let delay = crate::random::word(seed, index as u64, 0) % (max_delay.0 + 1);
+            let variation = (crate::random::word(seed, index as u64, 1)
+                % (2 * u64::from(velocity_variation) + 1)) as i16
+                - i16::from(velocity_variation);
+            return (
+                BeatTime(delay),
+                (i16::from(velocity) + variation).clamp(1, 127) as u8,
+            );
+        }
+        (self.delay(index, count), velocity)
+    }
+    fn delay(self, index: usize, count: usize) -> BeatTime {
         match self {
-            Self::Block => BeatTime(0),
+            Self::Block | Self::Humanized { .. } => BeatTime(0),
             Self::Strum {
                 direction,
                 interval,
@@ -281,6 +324,11 @@ pub struct HarmonyGesture {
 }
 impl HarmonyGesture {
     pub fn validate(&self) -> Result<()> {
+        if self.algorithm_version < HARMONY_ALGORITHM_VERSION
+            && self.settings.articulation.is_humanized()
+        {
+            return Err(Error::Version(self.algorithm_version));
+        }
         let supported = match self.algorithm_version {
             1 => {
                 !self.settings.has_learned_chords()
@@ -288,6 +336,7 @@ impl HarmonyGesture {
             }
             2 => !self.settings.has_learned_chords() && !self.settings.articulation.is_repeating(),
             3 => !self.settings.articulation.is_repeating(),
+            4 => true,
             HARMONY_ALGORITHM_VERSION => true,
             _ => false,
         };

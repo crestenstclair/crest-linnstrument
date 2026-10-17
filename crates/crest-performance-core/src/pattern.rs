@@ -1,9 +1,10 @@
 //! Seeded, bounded accompaniment generation. This is control-thread work.
 //! Rendered clips replay exactly; harmonic following is an explicit opt-in.
+use crate::random::word as random;
 use crate::*;
 use serde::{Deserialize, Serialize};
 
-pub const PATTERN_ALGORITHM_VERSION: u32 = 3;
+pub const PATTERN_ALGORITHM_VERSION: u32 = 4;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatternSettings {
@@ -130,16 +131,6 @@ impl PatternSettings {
         })
     }
 }
-// SplitMix64 with explicit wrapping semantics; separate salts keep pitch,
-// rhythm timing and velocity independent. This recurrence is algorithm v1.
-fn random(seed: u64, step: u64, lane: u64) -> u64 {
-    let mut value = seed
-        .wrapping_add(step.wrapping_mul(0x9e3779b97f4a7c15))
-        .wrapping_add(lane.wrapping_mul(0xd1b54a32d192ed03));
-    value = (value ^ (value >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
-    value = (value ^ (value >> 27)).wrapping_mul(0x94d049bb133111eb);
-    value ^ (value >> 31)
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatternOrigin {
@@ -149,9 +140,15 @@ pub struct PatternOrigin {
 }
 impl PatternOrigin {
     pub fn validate(self) -> Result<()> {
+        if self.algorithm_version < PATTERN_ALGORITHM_VERSION
+            && self.harmony.articulation.is_humanized()
+        {
+            return Err(Error::Version(self.algorithm_version));
+        }
         let supported = match self.algorithm_version {
             1 => !self.harmony.has_learned_chords() && !self.harmony.articulation.is_repeating(),
             2 => !self.harmony.articulation.is_repeating(),
+            3 => true,
             PATTERN_ALGORITHM_VERSION => true,
             _ => false,
         };

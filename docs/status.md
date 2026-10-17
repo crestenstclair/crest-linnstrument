@@ -84,7 +84,7 @@ package. M4/M5 can continue here while Tracker remains pinned to its accepted ve
 
 ## Post-baseline timed strum candidate
 
-Development 0.2.0-dev now uses API 6/session 6; Tracker continues to consume its separately
+Development 0.2.0-dev now uses API 7/session 7; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -185,3 +185,34 @@ launch through an actual sensor pad and check independently specified loop/pitch
 expectations. Decoded LEDs stay green during conditional silence and blue after pad stop.
 The standalone note editor exposes the rules and a pointer/keyboard Fill hold with focus
 recovery. This remains an untagged development candidate; Tracker stays on API 2.
+
+
+The conditional candidate passed full standalone CI [39015475727](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39015475727),
+including real Linux keyboard holds, silence before/after Fill, focus-loss recovery,
+condition editing/Undo/save/reopen, both native firmware platforms and the ARM baseline.
+Local macOS UI verification additionally edited fourth-loop/Fill rules and reopened the
+schema-6 session. The standalone baseline tag remains unchanged.
+
+## Post-baseline humanized chord candidate
+
+API/session 7 adds seeded positive attack jitter and bounded velocity variation for held
+chords. Each trigger chooses deterministic per-tone variation; voice ownership, top-voice
+expression and source provenance survive reordered attacks and entirely delayed chords.
+Early release cancels waiting tones. Bass and manual strumplate retain immediate attacks.
+Harmony algorithm 5 and pattern algorithm 4 accept this provenance, while historical
+algorithms retain their original constraints and rendered events. Schemas 1–6 migrate
+losslessly; new settings hidden under old schema/algorithm labels reject explicitly.
+
+Fixed independent vectors check exact delays and velocities. Core tests cover pending
+expression, complete source gestures, recording reservations, early release, capacity,
+cleanup, separate bass, top-voice policy and exact save/replay. Both native firmware sizes
+record three sensor-generated triggers and independently check nine delayed attacks and
+velocity changes, expression and exact persistence/replay. Desktop acceptance adds a held
+mouse chord, all three expressive dimensions and session reopening. This remains an
+untagged development candidate, independent of Tracker's API-2 integration.
+
+The humanized release-mode workload ran three repeating chord triggers alongside six
+looping notes, with X/Y/Z at 100 Hz for three virtual minutes on macOS/aarch64. The 17,900
+measured batches had p50 583 ns, p95 1,000 ns, p99 1,708 ns and max 32,917 ns; none reached
+1 ms. All 2,160 attacks had matching releases. The timed work excludes sensing, OS MIDI,
+UI, files and audio; this is local processing evidence, not Deck latency qualification.

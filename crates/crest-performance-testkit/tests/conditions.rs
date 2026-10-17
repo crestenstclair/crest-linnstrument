@@ -364,7 +364,7 @@ fn persistence_roundtrip_is_exact_fill_is_ephemeral_and_old_labels_cannot_hide_r
         clip.conditions.clear();
         old.slots[0].clip = Some(clip.clone());
         let migrated = old.migrate().unwrap();
-        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.version, SESSION_VERSION);
         assert_eq!(migrated.slots[0].clip, Some(clip));
     }
 }

@@ -221,6 +221,18 @@ impl Default for Session {
 impl Session {
     /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=6).contains(&self.version)
+            && (self.harmony.articulation.is_humanized()
+                || self
+                    .slots
+                    .iter()
+                    .filter_map(|slot| slot.clip.as_ref())
+                    .any(Clip::requires_humanized_schema))
+        {
+            return Err(Error::Invalid(
+                "older session contains v7 humanized articulation",
+            ));
+        }
         if (1..=5).contains(&self.version)
             && self
                 .slots
@@ -278,7 +290,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if matches!(self.version, 3..=5) {
+        if matches!(self.version, 3..=6) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;
@@ -340,6 +352,15 @@ pub(crate) fn validate_lifecycle(
 }
 
 impl Clip {
+    fn requires_humanized_schema(&self) -> bool {
+        self.harmony_origin.iter().any(|origin| {
+            origin.algorithm_version >= 5 || origin.settings.articulation.is_humanized()
+        }) || self.pattern_origin.iter().any(|origin| {
+            origin.algorithm_version >= 4 || origin.harmony.articulation.is_humanized()
+        }) || self
+            .follow
+            .is_some_and(|follow| follow.reference.articulation.is_humanized())
+    }
     fn requires_arpeggio_schema(&self) -> bool {
         self.harmony_origin.iter().any(|origin| {
             origin.algorithm_version >= 4 || origin.settings.articulation.is_repeating()

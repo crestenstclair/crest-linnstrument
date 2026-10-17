@@ -63,6 +63,7 @@ function sendHarmony(degree){
   settings.bass_track=fields.get('bass_track')===''?null:Number(fields.get('bass_track'));
   const articulation=fields.get('articulation');
   if(articulation==='block')settings.articulation={type:'block'};
+  else if(articulation==='humanized')settings.articulation={type:'humanized',max_delay:Number(fields.get('humanize_delay')),velocity_variation:Number(fields.get('humanize_velocity')),seed:Number(fields.get('humanize_seed'))};
   else if(articulation.startsWith('arpeggio_'))settings.articulation={type:'arpeggio',direction:articulation.slice(9),interval:Number(fields.get('strum_interval')),gate:Number(fields.get('arpeggio_gate'))};
   else settings.articulation={type:'strum',direction:articulation,interval:Number(fields.get('strum_interval'))};
   const gate=harmonyForm.elements.arpeggio_gate;
@@ -94,9 +95,14 @@ function renderHarmony(state,tracks){
   if(key!==renderedHarmony){
     for(const [name,value]of Object.entries(state.harmony)){const field=harmonyForm.elements[name];if(!field)continue;if(field.type==='checkbox')field.checked=value;else field.value=value??'';}
     const articulation=state.harmony.articulation;
-    harmonyForm.elements.articulation.value=articulation.type==='block'?'block':articulation.type==='arpeggio'?`arpeggio_${articulation.direction}`:articulation.direction;
-    if(articulation.type!=='block')showBeatDuration(harmonyForm.elements.strum_interval,articulation.interval);
+    harmonyForm.elements.articulation.value=['block','humanized'].includes(articulation.type)?articulation.type:articulation.type==='arpeggio'?`arpeggio_${articulation.direction}`:articulation.direction;
+    if(['strum','arpeggio'].includes(articulation.type))showBeatDuration(harmonyForm.elements.strum_interval,articulation.interval);
     if(articulation.type==='arpeggio')showBeatDuration(harmonyForm.elements.arpeggio_gate,articulation.gate);
+    if(articulation.type==='humanized'){
+      harmonyForm.elements.humanize_delay.value=articulation.max_delay;
+      harmonyForm.elements.humanize_velocity.value=articulation.velocity_variation;
+      harmonyForm.elements.humanize_seed.value=articulation.seed;
+    }
     renderedHarmony=key;
   }
   for(const [degree,button]of degreeButtons.entries()){

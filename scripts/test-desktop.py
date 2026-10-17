@@ -483,6 +483,51 @@ def edit_conditions_and_hold_fill(app):
     app.capture('conditional-notes-and-fill')
 
 
+def record_humanized_chord(app):
+    app.switch('host')
+    app.click('#grid button:first-child')
+    app.click('[name="articulation"] option[value="humanized"]')
+    app.click('#harmony-form button[type="submit"]')
+    settings = {'type': 'humanized', 'max_delay': 60000, 'velocity_variation': 8, 'seed': 42}
+    app.state(lambda s: s['host']['performance']['harmony']['articulation'] == settings, 'humanized articulation accepted')
+    app.click('#chords')
+    app.click('#record')
+    app.state(lambda s: s['host']['performance']['slots'][0] == 'recording', 'humanized recording armed')
+    app.switch('instrument')
+    app.click('#latch')
+    app.touch(1, 0)
+    app.state(lambda s: s['host']['performance']['active_voices'] == 3, 'humanized chord owned by one finger')
+    app.press('Right')
+    app.press('Up')
+    app.press('bracketright')
+    app.click('#release')
+    app.click('#latch')
+    app.state(lambda s: s['host']['performance']['active_voices'] == 0, 'humanized chord release')
+    app.switch('host')
+    app.click('#finish')
+    state = app.state(lambda s: s['host']['performance']['slots'][0] == 'recorded', 'humanized clip committed')
+    clip = state['host']['clips'][0]
+    triggers = [o['input'] for o in clip['harmony_origin'] if o['input']['gesture']['type'] == 'on']
+    assert len(triggers) == 1 and triggers[0]['note'] == {'source': 1, 'track': 1, 'note': 1}, triggers
+    trigger = triggers[0]
+    attacks = {e['gesture']['key']: e for e in clip['events'] if e['gesture']['type'] == 'on'}
+    assert set(attacks) == {41, 45, 48}
+    for key, delay, delta in [(41, 49021, 5), (45, 35462, 3), (48, 32129, 1)]:
+        assert attacks[key]['at'] == trigger['at'] + delay
+        assert attacks[key]['gesture']['velocity'] == min(127, trigger['gesture']['velocity'] + delta)
+    expressions = [e['gesture']['expression'] for e in clip['events'] if 'expression' in e['gesture']]
+    for dimension in ['pitch', 'timbre', 'pressure']:
+        assert expression_varies(expressions, dimension), dimension
+    path = ARTIFACTS / 'desktop-humanized-session.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'humanized session saved')
+    app.click('#open')
+    app.state(lambda s: s['host']['clips'][0] == clip and s['host']['performance']['harmony']['articulation'] == settings,
+              'humanized clip and settings reopened exactly')
+    app.capture('humanized-chord')
+
+
 
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
@@ -504,7 +549,8 @@ def main():
             learn_played_voicing(app)
             record_repeating_arpeggio(app)
             edit_conditions_and_hold_fill(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill')
+            record_humanized_chord(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

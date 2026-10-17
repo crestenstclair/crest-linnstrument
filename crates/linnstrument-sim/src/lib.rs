@@ -4,6 +4,8 @@ mod condition_tests;
 mod contact_envelope;
 #[cfg(test)]
 mod harmony_tests;
+#[cfg(test)]
+mod humanized_tests;
 pub use contact_envelope::ContactProfile;
 use contact_envelope::PressureRamp;
 mod scenario;

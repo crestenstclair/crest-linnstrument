@@ -170,7 +170,6 @@ impl Engine {
                 .any(|event| event.note.track == self.session.slots[recording.slot].track)
         });
         self.check_harmony_origin_capacity(owner, trigger.gesture, records_trigger)?;
-        let mut captured = false;
         for (index, event) in events
             .into_iter()
             .enumerate()
@@ -186,12 +185,14 @@ impl Engine {
             voice.arpeggio = repeating[index];
             *self.active.last_mut().expect("allocated voice") = voice;
             if voice.pending_attack.is_none() {
-                captured |= self.emit_harmony(voice, event);
+                self.emit_harmony(voice, event);
             }
         }
         self.session.harmony.degree = degree;
         self.last_voicing = Some(voicing);
-        self.remember_harmony(trigger, captured);
+        // Every tone may be delayed. Keep its generating trigger as soon as
+        // the reserved chord is accepted, before any rendered note sounds.
+        self.remember_harmony(trigger, records_trigger);
         Ok(())
     }
     fn prepare_chord(
@@ -237,14 +238,15 @@ impl Engine {
                 .next_voice
                 .checked_add(index as u64)
                 .ok_or(Error::Capacity("voice identities"))?;
+            let (delay, velocity) = if is_bass || settings.playing == HarmonyPlaying::Strumplate {
+                (BeatTime(0), velocity)
+            } else {
+                settings
+                    .articulation
+                    .attack(index, count, trigger.note, velocity)
+            };
             events[index] = Some(InputEvent {
-                at: trigger.at.checked_add(
-                    if is_bass || settings.playing == HarmonyPlaying::Strumplate {
-                        BeatTime(0)
-                    } else {
-                        settings.articulation.delay(index, count)
-                    },
-                )?,
+                at: trigger.at.checked_add(delay)?,
                 note: NoteKey {
                     source: GENERATED_SOURCE,
                     track: if is_bass {

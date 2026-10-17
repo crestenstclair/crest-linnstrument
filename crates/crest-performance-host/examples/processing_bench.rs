@@ -162,7 +162,12 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             interval: BeatTime(FRAME_TICKS * 3),
             gate: BeatTime(FRAME_TICKS * 2),
         }),
-        _ => return Err("usage: processing_bench [--strum | --arpeggio]".into()),
+        [arg] if arg == "--humanized" => Some(Articulation::Humanized {
+            max_delay: BeatTime(60000),
+            velocity_variation: 8,
+            seed: 42,
+        }),
+        _ => return Err("usage: processing_bench [--strum | --arpeggio | --humanized]".into()),
     };
     let mut engine = Engine::new(
         API_VERSION,
@@ -209,6 +214,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         debug_assertions: cfg!(debug_assertions),
         workload: if articulation.is_some_and(Articulation::is_repeating) {
             "3 expressive arpeggio triggers (9 reserved voices) + 6 looping notes, 30 ms steps/20 ms gates, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
+        } else if articulation.is_some_and(Articulation::is_humanized) {
+            "3 repeating humanized chord triggers (9 reserved voices) + 6 looping notes, 31.25 ms maximum delay, velocity ±8, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
         } else if articulation.is_some() {
             "3 repeating expressive strum triggers (9 voices) + 6 looping notes, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
         } else {

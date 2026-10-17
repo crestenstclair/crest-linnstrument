@@ -318,10 +318,10 @@ fn versions_invalid_sessions_and_clock_boundaries() {
         Err(Error::Version(version)) if version == API_VERSION + 1
     ));
     let mut session = Session {
-        version: 7,
+        version: SESSION_VERSION + 1,
         ..Session::default()
     };
-    assert_eq!(session.validate(), Err(Error::Version(7)));
+    assert_eq!(session.validate(), Err(Error::Version(SESSION_VERSION + 1)));
     session.version = SESSION_VERSION;
     session.slots[0].clip = Some(Clip {
         length: BeatTime(10),

@@ -11,9 +11,9 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 6, session schema 6**. Timed strumming, learned chord banks, repeating arpeggios and per-note conditions are
+Current development is **0.2.0-dev, API 7, session schema 7**. Timed strumming, humanized chords, learned chord banks, repeating arpeggios and per-note conditions are
 versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
-Schemas 1–5 load losslessly; saving with this checkout writes schema 6, rejected by
+Schemas 1–6 load losslessly; saving with this checkout writes schema 7, rejected by
 older readers. Keep the original session to return to the baseline release.
 
 Conditional playback keeps the original notes and expression. In the note editor, select a
@@ -22,6 +22,12 @@ Not Fill. Rules decide at attack only; held notes always retain their expression
 Hold the host's **Fill** button with the pointer, or focus it and hold Space/Enter. Focus
 loss releases Fill. Edits require a stopped slot and support Undo; each launch restarts the
 loop count. Fill is temporary and is never saved in a session.
+
+**Humanized chord** adds repeatable timing and velocity variation to held chords. Set maximum
+delay, velocity variation and seed in Harmony. Each trigger gets its own deterministic
+variation. Expression follows each voice from its actual attack; releasing early cancels
+waiting tones. Bass and manual strumplate remain immediate. Recording stores exact rendered
+notes plus the original gestures and settings, so replay does not roll the dice again.
 
 ## Run
 
