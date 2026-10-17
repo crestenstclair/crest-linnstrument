@@ -908,13 +908,23 @@ def morph_parameter_capture(app):
     app.touch(2, 2)
     start = app.state(lambda s: 0 < s['host']['performance']['morph_position'] < 10000,
                       'firmware X controls morph row')
-    first, last = app.point(2, 2), app.point(8, 2)
+    first = app.point(2, 2)
+    # WebKit's pointerMove duration waits but does not guarantee intermediate
+    # events. Deliver actual small mouse moves; a single six-cell jump loses
+    # upstream touch ownership and is not a continuous sensor gesture.
+    movements = []
+    for step in range(1, 61):
+        point = app.point(2 + step / 10, 2)
+        movements.extend([
+            {'type': 'pointerMove', 'duration': 0, 'origin': 'viewport', 'x': point[0], 'y': point[1]},
+            {'type': 'pause', 'duration': 50},
+        ])
     app.command('POST', '/actions', {'actions': [{
         'type': 'pointer', 'id': 'mouse', 'parameters': {'pointerType': 'mouse'}, 'actions': [
             {'type': 'pointerMove', 'duration': 0, 'origin': 'viewport', 'x': first[0], 'y': first[1]},
-            {'type': 'pointerDown', 'button': 0}, {'type': 'pause', 'duration': 100},
-            {'type': 'pointerMove', 'duration': 1200, 'origin': 'viewport', 'x': last[0], 'y': last[1]},
-            {'type': 'pause', 'duration': 100}, {'type': 'pointerUp', 'button': 0}]}]})
+            {'type': 'pointerDown', 'button': 0}, {'type': 'pause', 'duration': 150},
+            *movements,
+            {'type': 'pause', 'duration': 150}, {'type': 'pointerUp', 'button': 0}]}]})
     state = app.state(lambda s: s['host']['performance']['morph_position'] > start['host']['performance']['morph_position'] + 10000
                       and s['host']['parameter_capture_count'] > start['host']['parameter_capture_count'] + 4,
                       'continuous mouse slide produces firmware-derived parameter samples')
