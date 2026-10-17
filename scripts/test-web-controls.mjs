@@ -19,6 +19,8 @@ function dispatch(target,type,properties={}){
   target.dispatchEvent(Object.assign(new Event(type,{cancelable:true}),properties));
 }
 dispatch(button,'click');assert.equal(focused,true);
+dispatch(button,'keydown',{key:' ',repeat:true});
+assert.deepEqual(changes,[]); // Held key returning after focus loss cannot retrigger.
 dispatch(button,'pointerdown',{button:0,pointerId:1});
 dispatch(button,'keydown',{key:' ',repeat:false});
 dispatch(button,'keydown',{key:' ',repeat:true});
@@ -30,6 +32,7 @@ dispatch(button,'pointerdown',{button:0,pointerId:2});
 dispatch(button,'lostpointercapture',{pointerId:2});
 dispatch(button,'keydown',{key:'Enter',repeat:false});
 dispatch(window,'blur');
+dispatch(button,'keydown',{key:'Enter',repeat:true});
 dispatch(button,'keyup',{key:'Enter'});
 assert.deepEqual(changes,[true,false,true,false,true,false]);
 button.disabled=true;
