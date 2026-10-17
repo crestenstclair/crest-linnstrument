@@ -109,31 +109,63 @@ impl Clip {
         Ok(clip)
     }
     pub(crate) fn overdub(&self, take: &Clip) -> Result<Self> {
-        let mut notes = self.notes()?;
-        let mut next = notes.iter().map(|n| n.id.note.0).max().unwrap_or(0);
-        for mut note in take.notes()? {
-            next = next
-                .checked_add(1)
-                .ok_or(Error::Capacity("clip note identities"))?;
-            note.id.note = NoteId(next);
-            note.start.0 %= self.length.0;
-            note.duration.0 = note.duration.0.min(self.length.0 - note.start.0);
-            note.expression.points.retain(|p| p.offset < note.duration);
-            notes.push(note);
-        }
-        let mut clip = Self::from_notes(self.length, &notes)?;
-        clip.harmony_origin = self.harmony_origin.clone();
-        clip.pattern_origin = self.pattern_origin.clone();
-        clip.follow = self.follow;
+        // The existing raw stream is authoritative, including equal-time order,
+        // zero-duration notes and expression immediately before a release.
+        let mut clip = self.clone();
+        append_overdub_take(&mut clip, take)?;
+        clip.events.sort_by_key(|event| event.at);
         clip.pattern_origin.extend_from_slice(&take.pattern_origin);
         clip.harmony_origin
             .extend(take.harmony_origin.iter().copied().map(|mut g| {
                 g.input.at.0 %= self.length.0;
                 g
             }));
+        if let Some(event) = clip.events.first() {
+            clip.validate(event.note.track)?;
+        }
         Ok(clip)
     }
 }
+/// Fold only the new lifetimes. Original events precede new events at equal
+/// timestamps, and stable sorting retains each stream's caller order. A new
+/// identity is allocated for every attack, even when an input reuses its ID.
+fn append_overdub_take(clip: &mut Clip, take: &Clip) -> Result<()> {
+    let mut next = clip.events.iter().map(|e| e.note.note.0).max().unwrap_or(0);
+    let mut held = std::collections::BTreeMap::new();
+    for event in &take.events {
+        let key = (event.note.source.0, event.note.track.0, event.note.note.0);
+        if matches!(event.gesture, Gesture::On { .. }) {
+            next = next
+                .checked_add(1)
+                .ok_or(Error::Capacity("clip note identities"))?;
+            let mut note = event.note;
+            note.note = NoteId(next);
+            held.insert(key, (note, event.at.0, event.at.0 % clip.length.0));
+        }
+        let &(note, original_start, loop_start) = held.get(&key).ok_or(Error::UnknownNote)?;
+        let offset = event
+            .at
+            .0
+            .checked_sub(original_start)
+            .ok_or(Error::TimeOrder)?;
+        let remaining = clip.length.0 - loop_start;
+        // Only releases may reach the loop boundary. Other closing expression
+        // remains untouched, including samples on a zero-duration note.
+        if matches!(event.gesture, Gesture::Expression { .. }) && offset >= remaining {
+            continue;
+        }
+        clip.events.push(InputEvent {
+            at: BeatTime(loop_start + offset.min(remaining)),
+            note,
+            gesture: event.gesture,
+        });
+        if matches!(event.gesture, Gesture::Off { .. }) {
+            held.remove(&key);
+        }
+    }
+    Ok(())
+}
+
 /// Closing expression precedes its release; held-note releases precede new
 /// attacks. Zero-duration notes keep their original On/Off ordering. A pitch-only
 /// edit bypasses this pass and preserves the entire original event sequence.

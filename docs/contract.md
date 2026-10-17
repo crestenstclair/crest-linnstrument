@@ -93,7 +93,11 @@ Only releases may occur exactly at the loop boundary. Loop playback allocates ne
 
 Overdub plays the existing loop while capturing a separate take. On commit, note positions
 fold modulo the original loop length; crossing notes are explicitly truncated at that
-loop end. Commit releases the old playback and queues the merged clip at the next boundary
+loop end. Existing raw events retain their exact values and relative order. Every new
+attack receives a fresh identity; zero-duration lifetimes and expression immediately
+before release survive. Expression at the loop boundary is trimmed, since only releases
+may occur there. At equal times the original stream precedes the new take, with caller
+order preserved within each stream. Commit releases the old playback and queues the merged clip at the next boundary
 relative to the overdub's origin. Finishing mid-cycle can therefore create a short gap.
 The prior complete clip remains available to one-step Undo. Cancel keeps the original loop.
 
