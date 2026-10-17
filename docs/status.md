@@ -84,7 +84,7 @@ owns its adapter, engine capability changes, production UI, project mapping and 
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
 
 Tracker's separate `feat/performance-v0.1` branch now consumes API-2 patch commit
-`2e86f2af04c456ad1ac0d989c3ab5d2e3783d909`. Its retrospective capture integration at
+`0288b407e6b59ccd789d7b8ef6c4699a689ec50c`. Its retrospective capture integration at
 `f56f6fe3e4f6820f2fd59f950201fbbb2c4cb4ea` passed [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393),
 including native Sample monitoring/capture/reopen/replay and the macOS bundle. M6 remains
 open: simultaneous performance clips, external performance routes and Linux MIDI/audio
@@ -327,9 +327,19 @@ and save/replay beside a live note of the same pitch. Both firmware sizes record
 off-grid three-finger phrase, quantize through the typed bridge, compare every curve,
 Undo, save/reopen, launch through a sensor pad and check exact output times and LEDs.
 The updated desktop suite checks explicit editing, field refresh without overwriting
-drafts, Undo, save/reopen and firmware-pad playback; its CI is pending. Schema 8 is unchanged.
+drafts, Undo, save/reopen and firmware-pad playback.
+[Full CI 39021686871](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39021686871)
+passed those actions, Rust, both native firmware platforms and the ARM baseline.
+Schema 8 is unchanged.
 
 A separate Cargo consumer pinned to the unchanged v0.2.0 tag (API 9) read both newly
 quantized firmware sessions and replayed two loops with six balanced attacks/releases
 and retained expression. This proves the edited schema-8 files remain readable by the
 stable release despite the new development command requiring API 10.
+
+The shared release-order correction also has an API-2 maintenance patch at `0288b407`.
+Its independent regression records raw input, shortens a held note to an untouched
+zero-duration attack, restores the old clip with Undo and replays the edited session
+through a one-voice engine/MPE zone. Tracker adopted this pin at `2c99b8c`; all eight
+adapter contracts and local lint pass, including raw MIDI editing and project reopen
+for the same boundary. Full integration CI is running; this is not M6 completion.
