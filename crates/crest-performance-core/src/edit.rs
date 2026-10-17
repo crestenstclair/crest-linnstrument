@@ -37,7 +37,8 @@ impl Clip {
         Ok(notes)
     }
     /// Explicit edit: moving retains curve offsets; shortening trims points
-    /// beyond the new end. The engine retains the complete previous clip for undo.
+    /// at or beyond a shortened end. Moving or repitching preserves samples at
+    /// the existing release. The engine retains the complete previous clip for undo.
     pub fn edit_note(&self, id: NoteKey, edit: NoteEdit) -> Result<Self> {
         if edit.key > 127
             || edit.duration.0 == 0
@@ -45,19 +46,39 @@ impl Clip {
         {
             return Err(Error::Invalid("edited note bounds"));
         }
-        let mut notes = self.notes()?;
-        let note = notes
-            .iter_mut()
-            .find(|n| n.id == id)
+        self.validate(id.track)?;
+        let original = self
+            .notes()?
+            .into_iter()
+            .find(|note| note.id == id)
             .ok_or(Error::UnknownNote)?;
-        note.start = edit.start;
-        note.duration = edit.duration;
-        note.key = edit.key;
-        note.expression.points.retain(|p| p.offset < edit.duration);
-        let mut clip = Self::from_notes(self.length, &notes)?;
-        clip.harmony_origin = self.harmony_origin.clone();
-        clip.pattern_origin = self.pattern_origin.clone();
-        clip.follow = self.follow;
+        let mut clip = self.clone();
+        clip.events.retain_mut(|event| {
+            if event.note != id {
+                return true;
+            }
+            let offset = event.at.0 - original.start.0;
+            match &mut event.gesture {
+                Gesture::On { key, .. } => {
+                    *key = edit.key;
+                    event.at = edit.start;
+                }
+                Gesture::Expression { .. } => {
+                    if edit.duration < original.duration && offset >= edit.duration.0 {
+                        return false;
+                    }
+                    // The edited end was checked above. Retained offsets cannot
+                    // exceed it, including samples exactly at a retained release.
+                    event.at = BeatTime(edit.start.0 + offset);
+                }
+                Gesture::Off { .. } => event.at = BeatTime(edit.start.0 + edit.duration.0),
+            }
+            true
+        });
+        if edit.start != original.start || edit.duration != original.duration {
+            order_edited_events(&mut clip.events);
+        }
+        clip.validate(id.track)?;
         Ok(clip)
     }
     pub(crate) fn from_notes(length: BeatTime, notes: &[Note]) -> Result<Self> {
@@ -113,6 +134,37 @@ impl Clip {
         Ok(clip)
     }
 }
+/// Closing expression precedes its release; held-note releases precede new
+/// attacks. Zero-duration notes keep their original On/Off ordering. A pitch-only
+/// edit bypasses this pass and preserves the entire original event sequence.
+fn order_edited_events(events: &mut [InputEvent]) {
+    let key = |note: NoteKey| (note.source.0, note.track.0, note.note.0);
+    let mut lifetimes = std::collections::BTreeMap::new();
+    for event in events.iter() {
+        let lifetime = lifetimes
+            .entry(key(event.note))
+            .or_insert((event.at, event.at));
+        match event.gesture {
+            Gesture::On { .. } => lifetime.0 = event.at,
+            Gesture::Off { .. } => lifetime.1 = event.at,
+            _ => {}
+        }
+    }
+    events.sort_by_key(|event| {
+        let (start, end) = lifetimes[&key(event.note)];
+        let phase = if event.at == end {
+            0
+        } else {
+            match event.gesture {
+                Gesture::On { .. } => 2,
+                Gesture::Expression { .. } if event.at == start => 3,
+                _ => 1,
+            }
+        };
+        (event.at, phase)
+    });
+}
+
 fn project_event(notes: &mut Vec<Note>, event: InputEvent) -> Result<()> {
     if let Gesture::On {
         key,

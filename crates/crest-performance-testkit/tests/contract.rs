@@ -23,6 +23,112 @@ fn on() -> Gesture {
         expression: Expression::default(),
     }
 }
+
+#[test]
+fn edits_preserve_release_time_expression_and_unedited_zero_length_notes() {
+    let expression = Gesture::Expression {
+        expression: Expression {
+            pitch: 123_456,
+            pressure: 456,
+            timbre: 789,
+        },
+    };
+    let original = Clip {
+        length: BeatTime(20),
+        events: vec![
+            note(1, 0, on()),
+            note(2, 0, on()),
+            note(3, 1, on()),
+            note(3, 1, Gesture::Off { velocity: 4 }),
+            note(2, 3, expression),
+            note(2, 3, Gesture::Off { velocity: 5 }),
+            note(1, 10, expression),
+            note(1, 10, Gesture::Off { velocity: 6 }),
+        ],
+        harmony_origin: vec![],
+        pattern_origin: vec![],
+        follow: None,
+    };
+    original.validate(TrackId(1)).unwrap();
+    let id = original.events[0].note;
+    let pitched = original
+        .edit_note(
+            id,
+            NoteEdit {
+                key: 61,
+                start: BeatTime(0),
+                duration: BeatTime(10),
+            },
+        )
+        .unwrap();
+    assert_eq!(&pitched.events[1..], &original.events[1..]);
+    let moved = original
+        .edit_note(
+            id,
+            NoteEdit {
+                key: 61,
+                start: BeatTime(3),
+                duration: BeatTime(10),
+            },
+        )
+        .unwrap();
+    moved.validate(TrackId(1)).unwrap();
+    let target = moved
+        .notes()
+        .unwrap()
+        .into_iter()
+        .find(|n| n.id == id)
+        .unwrap();
+    assert_eq!(
+        target.expression.points.last().unwrap().offset,
+        BeatTime(10)
+    );
+    assert_eq!(target.expression, original.notes().unwrap()[0].expression);
+    assert_eq!(
+        moved
+            .events
+            .iter()
+            .filter(|e| e.note != id)
+            .copied()
+            .collect::<Vec<_>>(),
+        original
+            .events
+            .iter()
+            .filter(|e| e.note != id)
+            .copied()
+            .collect::<Vec<_>>()
+    );
+    let boundary: Vec<_> = moved
+        .events
+        .iter()
+        .filter(|e| e.at == BeatTime(3))
+        .map(|e| e.gesture)
+        .collect();
+    assert!(matches!(
+        boundary.as_slice(),
+        [
+            Gesture::Expression { .. },
+            Gesture::Off { .. },
+            Gesture::On { .. }
+        ]
+    ));
+    assert!(matches!(
+        moved.events[moved.events.len() - 2].gesture,
+        Gesture::Expression { .. }
+    ));
+    let shorter = original
+        .edit_note(
+            id,
+            NoteEdit {
+                key: 60,
+                start: BeatTime(0),
+                duration: BeatTime(5),
+            },
+        )
+        .unwrap();
+    assert_eq!(shorter.notes().unwrap()[0].expression.points.len(), 1);
+    assert_eq!(original.events.len(), 8);
+}
 #[test]
 fn independent_expression_survives_session_and_playback_alongside_live_note() {
     let mut engine = engine();
