@@ -132,12 +132,19 @@ These commands do not build the simulator, require a C++ compiler, or fetch firm
 cargo build -p crest-performance-core -p crest-linnstrument --release --locked
 cargo run -p crest-performance-host --locked -- demo
 cargo run -p crest-performance-host --locked -- inspect target/demo-session.json
+cargo run -p crest-performance-host --example processing_bench --release --locked
 ```
 
 The CLI `demo` is explicitly a **protocol fixture**, useful for library regression checks.
 The firmware-backed demonstration is the ignored-by-default native integration test above;
 CI builds its worker and runs it explicitly. It records three expressive sensor contacts,
 reopens the session, launches through a user-mode sensor pad, and verifies firmware LED output.
+
+The processing benchmark measures three virtual minutes of six live and six looping notes
+with full expression at 100 Hz, including overlapping pitches and MPE allocation. It reports
+p50/p95/p99/max batch cost and verifies balanced releases. Sensing, OS MIDI, UI, file I/O and
+audio are excluded from timing. CI publishes observations without treating a shared runner
+as a Steam Deck latency qualification.
 
 - `crest-performance-core`: host-clock engine, stable note/voice identities, clip streams,
   recording, overdub, retrospective capture, launch quantization, editing, duplication, undo.
