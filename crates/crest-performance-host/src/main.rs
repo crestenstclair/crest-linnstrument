@@ -1,6 +1,6 @@
 use crest_linnstrument::*;
 use crest_performance_core::*;
-use crest_performance_host::storage::{load_session, save_session};
+use crest_performance_host::storage::{load_document, load_session, save_session};
 use crest_performance_testkit::*;
 use std::{error::Error, path::PathBuf};
 
@@ -28,8 +28,8 @@ fn main() -> std::result::Result<(), Box<dyn Error>> {
     match command.as_str() {
         "demo" => demo(path),
         "inspect" => {
-            let session = load_session(&path)?;
-            let engine = Engine::new(API_VERSION, session, Limits::default())?;
+            let document = load_document(&path)?;
+            let engine = Engine::new(API_VERSION, document.session, Limits::default())?;
             println!("{}", serde_json::to_string_pretty(&engine.snapshot())?);
             Ok(())
         }
