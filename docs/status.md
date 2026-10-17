@@ -570,3 +570,16 @@ machine, p50/p95/p99 were 708/1,084/1,875 ns, maximum 75,458 ns; no batch reache
 excludes sensors, transport, UI and audio and is not Deck qualification. Session schema 10
 and host envelope 2 remain unchanged. Tracker
 continues consuming API 12 and does not acquire these controls implicitly.
+
+
+The first API-13 Linux desktop run exposed a test-observation error after octave release:
+all three clips were playing with zero transposition, but the inspector's last 24 MIDI
+messages held only later expression and accompaniment. The test now waits for actual
+post-transition destination attacks before asserting independently specified pitches;
+it does not change firmware or musical behavior. A separate active-transposition benchmark
+includes full 1,206-event phrase validation every 130 ms while six live and six clip voices
+move X/Y/Z at 100 Hz. It retained 546 balanced attacks/releases and original saved data;
+local p50/p95/p99 were 875/1,334/2,375 ns, maximum 20,750 ns, no batch at 1 ms. CI runs this
+workload separately from the unchanged baseline. A Git-pinned API-13 consumer emitted C5
+while saving original C4; the released API-12 consumer reopened that unchanged schema-10
+session and replayed C4 without rewriting it.

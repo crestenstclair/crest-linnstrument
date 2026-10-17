@@ -98,6 +98,7 @@ struct Capture {
     attacks: u64,
     releases: u64,
     members: [Option<u8>; 16],
+    attack_pitches: u128,
 }
 impl Capture {
     fn collect(&mut self, engine: &mut Engine, output: &mut MpeOutput) -> Result<()> {
@@ -118,6 +119,7 @@ impl Capture {
                         return Err(Error::Invalid("benchmark MPE channel collision"));
                     }
                     self.attacks += 1;
+                    self.attack_pitches |= 1_u128 << key;
                 }
                 0x80 => {
                     if self.members[channel].take() != Some(key) {
@@ -152,8 +154,10 @@ struct Report {
 }
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    let transpose = matches!(args.as_slice(), [arg] if arg == "--transpose");
     let articulation = match args.as_slice() {
         [] => None,
+        [arg] if arg == "--transpose" => None,
         [arg] if arg == "--strum" => Some(Articulation::Strum {
             direction: StrumDirection::Ascending,
             interval: BeatTime(FRAME_TICKS * 3),
@@ -168,7 +172,11 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             velocity_variation: 8,
             seed: 42,
         }),
-        _ => return Err("usage: processing_bench [--strum | --arpeggio | --humanized]".into()),
+        _ => {
+            return Err(
+                "usage: processing_bench [--strum | --arpeggio | --humanized | --transpose]".into(),
+            );
+        }
     };
     let mut engine = Engine::new(
         API_VERSION,
@@ -194,6 +202,12 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })?;
     for frame in 0..RUN_FRAMES {
         let started = Instant::now();
+        if transpose && frame.is_multiple_of(13) {
+            engine.command(Command::SetClipTranspose {
+                slot: 0,
+                semitones: [12, 0, -12, 0][(frame / 13 % 4) as usize],
+            })?;
+        }
         input_frame(&mut engine, frame, articulation.is_some())?;
         capture.collect(&mut engine, &mut output)?;
         let elapsed = started.elapsed().as_nanos();
@@ -204,6 +218,14 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     engine.command(Command::Stop)?;
     capture.collect(&mut engine, &mut output)?;
     assert_eq!(capture.attacks, capture.releases);
+    if transpose {
+        // Independent pitches: the source contains C4; successive temporary
+        // directions must produce both C3 and C5 while live notes remain C4.
+        for key in [48, 60, 72] {
+            assert_ne!(capture.attack_pitches & (1_u128 << key), 0);
+        }
+        assert_eq!(engine.save_session()?, session());
+    }
     assert!(capture.members.iter().all(Option::is_none));
     assert_eq!(engine.snapshot().active_voices, 0);
     samples.sort_unstable();
@@ -213,7 +235,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,
         debug_assertions: cfg!(debug_assertions),
-        workload: if articulation.is_some_and(Articulation::is_repeating) {
+        workload: if transpose {
+            "6 live + 6 looping notes, XYZ at 100 Hz; temporary clip offsets +12/0/-12/0 every 130 ms, including full 1,206-event phrase validation; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
+        } else if articulation.is_some_and(Articulation::is_repeating) {
             "3 expressive arpeggio triggers (9 reserved voices) + 6 looping notes, 30 ms steps/20 ms gates, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
         } else if articulation.is_some_and(Articulation::is_humanized) {
             "3 repeating humanized chord triggers (9 reserved voices) + 6 looping notes, 31.25 ms maximum delay, velocity ±8, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"

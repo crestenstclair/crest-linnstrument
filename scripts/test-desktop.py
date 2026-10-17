@@ -665,6 +665,11 @@ def hold_showcase_mute(app):
         'released mute resumes future attacks')
 
 
+def destination_attacks(state, destination, after):
+    return [m['message']['bytes'][1] for m in state['host']['recent_midi']
+            if m['destination'] == destination and m['at'] > after and m['message']['bytes'][0] & 0xf0 == 0x90]
+
+
 def hold_showcase_octaves(app):
     # The released showcase's first clip has these fixed rendered pitches.
     original = {64, 67, 69, 71, 72, 74, 76, 77}
@@ -674,10 +679,11 @@ def hold_showcase_octaves(app):
                       and s['firmware']['leds'][12][0] > 200 and s['firmware']['leds'][12][2] > 200,
                       'keyboard octave-up and decoded magenta pad')
     start = state['host']['performance']['at']
-    state = app.state(lambda s: s['host']['performance']['at'] > start + 3840000,
-                      'shifted clip keeps looping alongside accompaniment')
-    notes = [m['message']['bytes'][1] for m in state['host']['recent_midi']
-             if m['destination'] == 1 and m['at'] > start and m['message']['bytes'][0] & 0xf0 == 0x90]
+    # The inspector retains only 24 messages. Observe the attack itself rather
+    # than sampling after a fixed delay, when expression may have evicted it.
+    state = app.state(lambda s: any(key > 77 for key in destination_attacks(s, 1, start)),
+                      'shifted clip attack alongside accompaniment')
+    notes = destination_attacks(state, 1, start)
     assert notes and set(notes) <= {key + 12 for key in original}, notes
     assert any(key > 77 for key in notes), notes
     assert state['host']['performance']['slots'][:3] == ['playing'] * 3
@@ -686,10 +692,9 @@ def hold_showcase_octaves(app):
     state = app.state(lambda s: s['host']['performance']['clip_transpositions'][0] == 0,
                       'key release restores original clip pitch')
     start = state['host']['performance']['at']
-    state = app.state(lambda s: s['host']['performance']['at'] > start + 3840000,
+    state = app.state(lambda s: bool(destination_attacks(s, 1, start)),
                       'restored clip plays original future notes')
-    notes = [m['message']['bytes'][1] for m in state['host']['recent_midi']
-             if m['destination'] == 1 and m['at'] > start and m['message']['bytes'][0] & 0xf0 == 0x90]
+    notes = destination_attacks(state, 1, start)
     assert notes and set(notes) <= original, notes
     app.click('#octave-down')
     app.native('keydown', 'Return')
