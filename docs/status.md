@@ -1,102 +1,83 @@
 # Delivery status — October 16, 2026, Pacific
 
-This checkout implements a standalone development baseline. It has no dependency on
-Crest Tracker and no changes were made to Tracker. Current framework versions were
-confirmed from GitHub (`crestenstclair/crest-tracker`, main Cargo.lock) and the working
-checkout: Tauri 2.12.4, tauri-build 2.7.3, Wry 0.57.0; plain HTML/CSS/JavaScript.
-There is no frontend npm framework package to fork or copy.
+Version `0.1.0` is the first standalone integration baseline: API 2, session schema 2,
+host document envelope 1. Acceptance is attached to the matching `v0.1.0` tag and release
+checks; an untagged checkout is a candidate. There is no dependency on Crest Tracker and
+no Tracker application code was copied. Its current framework versions were confirmed
+from GitHub and the working checkout: Tauri 2.12.4, tauri-build 2.7.3, Wry 0.57.0, with
+plain HTML/CSS/JavaScript.
 
-## Delivered and locally exercised
+## Standalone qualification
 
-- Independent Rust workspace, public API/schema versions, bounded processing/storage,
-  headless CLI, deterministic testkit, CI definitions and candidate artifact workflow.
-- Pinned unmodified firmware, successful ARM build, reproducible native translation unit,
-  C++ worker, peripheral services, ideal fixtures for both sizes and 119 ARM layout checks.
-- Real firmware sensor-path MPE with independent three-contact X/Y/Z, continuous slides,
-  wraparound, user-mode MIDI/LED round trips and deterministic replay.
-- Separate Tauri instrument and host views. Actual desktop mouse and keyboard actions
-  reached firmware, lit played cells, changed per-note expression and produced capture MIDI.
-  A manually recorded desktop take was saved and reopened successfully. A real mouse
-  selection/pitch edit changed exactly one saved Note On; all times and expression samples
-  remained identical.
-- Public-API recording, loop playback, live plus clip output allocation, session reopening,
-  clip pad launch, feedback, launch quantization, duplication, one-step undo, retrospective
-  capture, overdub and basic note-selection/edit commands. UI exposes the basic workflows.
-- Firmware-backed Rust integration test records a three-note expressive phrase, reopens it,
-  launches from a firmware user-mode contact and checks the actual green playing LED.
-- Core builds without firmware/C++; native and UI build without Tracker. Local fmt/clippy,
-  contract and firmware checks are runnable independently of GitHub CI.
+| Boundary | Evidence |
+| --- | --- |
+| Independent library | Core/adapter builds and tests without C++, firmware, GUI, audio, MIDI hardware or Tracker. A separate Cargo application consumed the Git-pinned public contracts. |
+| Firmware | Unmodified pinned ARM baseline builds; native worker executes upstream setup/loop, sensors, touch processing, MIDI and LEDs. 119 ARM layout assertions; Linux/macOS normal and UBSan suites. |
+| Raw MPE | Both geometries pass independent and concurrent three-finger X/Y/Z, repeated pitches, vibrato, slides, member capacity/reuse, sustain, timer wrap, user-mode return and LED round trips. Split lower/upper zones and ±24-semitone negotiation are independently checked. |
+| Public library | Stable note ownership, live-plus-clip output allocation, destination profiles, queue rejection/cleanup, parser recovery, sustain, expression, loop boundaries and version rejection have behavioral tests. |
+| Recording | Polyphonic expression survives recording, save/reopen, loop playback alongside live notes, basic editing, retrospective capture, duplication, overdub and undo. |
+| Virtual pads | Firmware sensor contacts launch/stop clips. Quantized launches stay silent and show decoded yellow LEDs, start exactly on the musical boundary and show green LEDs. Both geometries pass. |
+| Desktop | Linux Xvfb runs real X11 keyboard and native WebDriver mouse input through the webview/bridge/firmware. Three-finger expression, record/save/reopen, pad launch/stop, actual canvas LED pixels and focus cleanup pass. |
+| Recovery | Worker failure, bounded bridge/input/output queues and a dropped release during overflow fail closed. Reset clears stale gestures and preserves committed clips. Pressure tails, scripts and focus/pointer recovery have native tests. |
+| Stress | Eight clips with 16,016 stored events serialize losslessly below the host's 8 MB file bound. Over 90,000 scheduled events survive more than 1,000 output-capacity retries with exact times/curves and fresh voice identities. 128 successive overdubs preserve timing, expression and complete undo. |
+| Package | Relocatable Linux x86_64 archive includes worker, both flash fixtures, examples, notices, provenance and checksums. The extracted package passes the same desktop scenario while build-tree firmware assets are hidden. |
 
-## Still required before M3/v0.1 acceptance
+The successful pre-release [desktop CI run 38998143577](https://github.com/crestenstclair/crest-linnstrument/actions/runs/38998143577)
+includes Rust, desktop runtime, unmodified ARM and both native firmware platforms.
+[Run 38998319513](https://github.com/crestenstclair/crest-linnstrument/actions/runs/38998319513)
+verified the extracted Linux package. Subsequent release checks rerun these paths against
+the release revision. Screenshots, session files, observations and driver logs are CI
+artifacts, alongside independent firmware expectations in the tests. Captured traces do
+not approve themselves as golden truth.
 
-The working vertical demonstration is not the complete release matrix. No v0.1 tag or
-published release has been created. [CI run 38995410528](https://github.com/crestenstclair/crest-linnstrument/actions/runs/38995410528)
-passed Rust, the Linux desktop build, the unmodified ARM baseline, and native firmware on
-Linux/macOS, including UBSan. Edge calibration/touch guards and their fidelity limits are
-documented in the firmware notes; physical equivalence is not implied by CI.
+Local macOS desktop testing also exercised mouse/keyboard contact movement, independent
+latched fingers, note selection/editing, harmony recording, pattern freeze, session reopening
+and pad launch/stop. A 10,771-step pressure-envelope gesture replay matched exact firmware
+MIDI/LED snapshots. The native clock samples optional 0–2-second pressure envelopes every
+1 ms; browser frames only render snapshots. Contact overlays are distinct from firmware LEDs.
 
-1. Broaden input/output overload recovery and input-profile selection in the host. Explicit
-   destination MPE, ordinary-polyphonic and monophonic profiles now report capabilities,
-   validate required polyphony/bend range, and persist in the host document. Ordinary output
-   preserves key pressure and explicitly rejects or discards unrepresentable pitch/timbre;
-   overlapping identical pitches are rejected. Monophonic last-note priority restores held
-   notes with their latest expression. Profiles cannot change during transport/recording.
-   Disconnect after output rejection releases actual allocated voices. Ordinary polyphonic
-   input, key/channel expression, sustain and incoming RPN bend/zone negotiation are tested;
-   the host input profile remains explicit lower MPE. Automatic device discovery is pending.
-2. Complete control-panel/calibration, split-zone and endurance acceptance. Both sizes now
-   pass concurrent X/Y/Z, capacity/reuse, foot-switch sustain, persisted octave and erased
-   flash boot. Physical sensor behavior and USB delivery remain unqualified.
-3. Repeatable automated desktop gesture/focus regression coverage. Native-clock linear
-   attack/release shaping now feeds the sensor path for mouse, keyboard and scripts, with
-   bounded durations, safe cancellation and script-tail ownership. Desktop keyboard attack
-   and release were exercised; a 10,771-step pressure run replayed exactly. Configurable
-   geometry-validated keyboard contacts/pressure keys now persist;
-   physical key-code ownership survives modifier changes and suppresses repeat attacks.
-   Stable contact/clip buttons preserve selection and focus during snapshot updates. Richer per-note inspector plots remain optional.
-   Actual mouse/keyboard input, independent latched contacts, gesture export and exact replay
-   were exercised manually in the Tauri app. Native-clock scripted multi-contact playback and
-   cancellation are also implemented, with public scenario validation and firmware tests. A 1,267-step manual run replayed exactly. The final desktop build also ran its scripted
-   phrase, reopened the included session, and launched/stopped it from a mouse-operated
-   firmware pad, with actual LEDs changing from blue to green and back. Worker
-   failure/recovery, live-plus-clip channel separation and reset preserving clips are tested.
-4. Large-session/overdub stress, broader saturation tests and release packaging/runtime on
-   Linux/Steam Deck. MIDI input overflow, failed session replacement and version rejection
-   have focused tests. Capture remains bounded diagnostic history.
-5. Keep repository CI passing and deliberately publish the accepted version with example sessions
-   and compatibility documentation. A firmware-recorded example session is included. Current workflow creates development artifacts only.
+The processing benchmark covers three virtual minutes of six live and six looping notes,
+full expression at 100 Hz, overlapping pitches and retrospective-history rollover. It
+validated 216,546 events, 651,276 MIDI messages and 546 balanced attacks/releases. Observed
+Linux x86_64 CI batch cost: p50 641 ns, p95 671 ns, p99 1,142 ns, max 121,767 ns; no batch
+reached 1 ms. This measures library processing/allocation/capture validation, excluding
+sensing, OS MIDI, GUI, files and audio. These observations are not Deck latency qualification.
 
-OS MIDI transport is implemented as an optional midir backend. Physical devices and the
-virtual firmware use the same adapter. On macOS, tests passed an actual CoreMIDI virtual
-port round trip and firmware sensor → OS MIDI → standalone host, with LED feedback returning
-through the firmware parser. The CLI supplies native scheduling, explicit routing, removal
-checks and shutdown cleanup. Linux compilation is in CI; Linux runtime and physical device
-qualification have not been claimed. The core still builds without MIDI, C++, or Tracker.
+## Explicit limits
 
-M0 contracts/firmware baseline and the principal M1 feasibility path are implemented.
-M2 and M3 have useful working behavior but remain open against their complete gates.
-The native-port feasibility uncertainty is substantially reduced; this does not qualify
-physical hardware, every upstream feature, or the M3 release.
+- The included fixture and test host use lower MPE, main channel 1, members 2–16, ±48
+  semitones. The adapter supports ordinary input and upper zones; selecting additional host
+  input profiles and automatic device discovery remain expansion work. Split tests validate
+  firmware generation separately. The test host's total engine voice budget is 15.
+- Output destinations support MPE, ordinary polyphony or explicit monophonic reduction.
+  Ordinary output cannot preserve independent pitch/timbre and rejects overlapping identical
+  pitches; its discard policy is explicit. Profiles persist in host documents.
+- Native compilation is source-level simulation, not execution of the ARM binary. Three
+  portability patches and synthetic sensor assumptions are documented in [firmware notes](firmware.md).
+  Physical calibration, sensor noise/latency, edge behavior and full ARM/native trace
+  equivalence are unqualified. All upstream settings and split combinations have not been
+  exhaustively tested. The control column uses actual firmware settings logic.
+- Optional OS MIDI is implemented with midir. CoreMIDI port round trips and firmware through
+  OS MIDI/host/return LEDs passed on macOS. Linux compiles and the packaged internal path runs;
+  Linux OS-port runtime, physical USB and reconnect fidelity remain unqualified.
+- No reference audio backend is connected. The mandatory capture sink proves musical events,
+  not audible Crest Synth MPE. There is no new production synth or plugin host.
+- Linux packaging was exercised on Ubuntu 24.04 with system GTK/WebKitGTK/ALSA dependencies.
+  SteamOS packaging, controller navigation, audio, suspend/resume and physical hardware are M7.
+  Virtual desktop workflow is qualified for the tested profiles; Deck and physical workflows
+  are not qualified.
 
-## Later ownership
+## Further library work and integration
 
-Initial M4/M5 slices are now implemented: diatonic chord pads, extensions/suspensions,
-parallel-scale borrowing, inversion/spread/register, bounded voice leading, bass routing,
-all/top-voice expression, selected-chord strumplate, seeded Euclidean accompaniment,
-independent pitch cycles, bounded humanization, live/selected harmony following and freeze.
-Firmware tests on 128/200 record three expressive gestures as nine voices, reopen and launch
-with actual firmware LED feedback. Public-contract tests cover atomic fan-out, held-note
-safety, seeds, lane independence, freeze/undo and schema-1 migration. Desktop UI recording
-saved nine generated voices with source provenance. Desktop generation, clip launch, degree
-selection, freeze and save were exercised; the saved frozen pattern contained the expected
-D-minor pitches and retained its original seed. Full M4/M5 acceptance remains open:
-live strum/arpeggio articulation, custom chord capture, chord-clip leaders, conditions,
+Initial M4/M5 features are included: diatonic chord pads, extensions/suspensions, parallel-scale
+borrowing, inversion/spread/register, bounded voice leading, bass routing, all/top-voice
+expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
+cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
+source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
+open: live strum/arpeggio articulation, custom chord capture, chord-clip leaders, conditions,
 parameter locks, momentary transforms and scene morphing remain future work.
 
-M6 integration must start
-against the accepted M3 release in Crest Tracker's repository. Inspecting/changing its
-engine and production integration was deliberately not done early. The confirmed native
-backend is Rust, so a direct dependency is available; no speculative FFI wrapper was added.
-M7 Linux/Deck audio, suspend/reconnect, controller workflow and physical comparison remain
-separate qualification work. Optional reference sound is not connected; mandatory proof
-uses captured musical/MIDI events.
+M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
+is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
+owns its adapter, engine capability changes, production UI, project mapping and later Deck
+package. M4/M5 can continue here while Tracker remains pinned to its accepted version.

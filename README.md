@@ -5,9 +5,11 @@ The workspace is named `crest-performance`; it currently lives in the existing
 `crest-linnstrument` repository. No Crest Tracker checkout, application code, sound engine,
 physical controller, MIDI device, or sound card is needed for the development path.
 
-**Status: development baseline, `0.1.0-dev.2`. This is not the accepted M3/v0.1 release or
-Crest Tracker integration.** The expressive record/reopen/virtual-pad-launch path works;
-remaining release gates are listed in [status](docs/status.md).
+**Standalone integration baseline: `0.1.0`, public API 2, session schema 2.**
+The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
+The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0)
+establishes the accepted baseline; an untagged checkout remains a candidate. See
+[qualification evidence and limits](docs/status.md).
 
 ## Run
 

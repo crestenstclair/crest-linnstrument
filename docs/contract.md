@@ -1,24 +1,24 @@
-# Public host contract, development API 2
+# Public host contract, API 2
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
 The application owns one mutable Engine and its clock. The simulator's C++ worker is a
 separate development dependency. No C ABI is introduced before a consumer needs it.
 
-An application outside this workspace can pin the development contract directly:
+An application outside this workspace consumes the accepted baseline by tag:
 
 ```toml
 [dependencies]
-crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "9ad6ea12ea56e3ea84f969c308aa64b47896dfd2" }
-crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", rev = "9ad6ea12ea56e3ea84f969c308aa64b47896dfd2" }
+crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.1.0" }
+crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.1.0" }
 ```
 
-This revision was built by a fresh external Cargo application using engine creation,
-clock advance, session save, snapshots and destination configuration. Only the two Rust
-libraries and their Rust dependencies compiled; no sibling checkout, GUI or C++ build was
-used. Cargo also fetches the declared firmware submodule when resolving the Git repository.
-The pin is a development integration example, not the accepted M3 release. Replace it
-deliberately when adopting a newer contract or release; keep the consumer's Cargo.lock.
+A fresh external Cargo application verified engine creation, clock advance, session save,
+snapshots and destination configuration against the development predecessor
+`9ad6ea12ea56e3ea84f969c308aa64b47896dfd2`. Only the two libraries and Rust dependencies
+compiled; no sibling checkout, GUI or C++ build was used. Cargo fetches the declared firmware
+submodule when resolving the Git repository but does not compile it for these crates.
+Keep the consumer's Cargo.lock and upgrade deliberately using the shared contract fixtures.
 
 ## Time and ownership
 
@@ -129,7 +129,7 @@ interleaved realtime, and skips unsupported SysEx without accumulating it. MPE m
 before release and mismatched release ownership are errors. The pinned firmware rotates
 back onto an occupied member at its 16th touch without first sending an Off; the adapter
 rejects this ambiguous input and the host fails closed, independently of output allocation. SysEx/device discovery support
-and exhaustive malformed-input recovery remain release work.
+and additional malformed-input fuzzing remain expansion work.
 
 User Firmware Mode decodes rows from channels 1–8 and columns from note numbers. It is a
 separate control path, never evidence of stock MPE generation. LED intent emits ordered
@@ -149,9 +149,9 @@ integer times and expression; save/reopen preserves them exactly. The host limit
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
 Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 2.
 
-The package is `0.1.0-dev.2`, API 2, schema 2. No ABI version exists. Before 1.0, public or
+The package is `0.1.0`, API 2, schema 2. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
-An accepted M3 tag will define the first integration baseline. Consumers should pin it;
+The accepted M3 tag `v0.1.0` defines the first integration baseline. Consumers should pin it;
 a local path override is only a development convenience.
 
 ## Optional OS transport
