@@ -30,7 +30,10 @@ There is no frontend npm framework package to fork or copy.
 ## Still required before M3/v0.1 acceptance
 
 The working vertical demonstration is not the complete release matrix. No v0.1 tag or
-published release has been created, and remote CI has not been claimed as passing.
+published release has been created. [CI run 38995410528](https://github.com/crestenstclair/crest-linnstrument/actions/runs/38995410528)
+passed Rust, the Linux desktop build, the unmodified ARM baseline, and native firmware on
+Linux/macOS, including UBSan. Edge calibration/touch guards and their fidelity limits are
+documented in the firmware notes; physical equivalence is not implied by CI.
 
 1. Broaden input/output overload recovery and input-profile selection in the host. Explicit
    destination MPE, ordinary-polyphonic and monophonic profiles now report capabilities,
@@ -44,8 +47,11 @@ published release has been created, and remote CI has not been claimed as passin
 2. Complete control-panel/calibration, split-zone and endurance acceptance. Both sizes now
    pass concurrent X/Y/Z, capacity/reuse, foot-switch sustain, persisted octave and erased
    flash boot. Physical sensor behavior and USB delivery remain unqualified.
-3. Repeatable automated desktop gesture/focus regression coverage and mouse attack/release
-   shaping. Configurable geometry-validated keyboard contacts/pressure keys now persist;
+3. Repeatable automated desktop gesture/focus regression coverage. Native-clock linear
+   attack/release shaping now feeds the sensor path for mouse, keyboard and scripts, with
+   bounded durations, safe cancellation and script-tail ownership. Desktop keyboard attack
+   and release were exercised; a 10,771-step pressure run replayed exactly. Configurable
+   geometry-validated keyboard contacts/pressure keys now persist;
    physical key-code ownership survives modifier changes and suppresses repeat attacks.
    Stable contact/clip buttons preserve selection and focus during snapshot updates. Richer per-note inspector plots remain optional.
    Actual mouse/keyboard input, independent latched contacts, gesture export and exact replay
@@ -57,7 +63,7 @@ published release has been created, and remote CI has not been claimed as passin
 4. Large-session/overdub stress, broader saturation tests and release packaging/runtime on
    Linux/Steam Deck. MIDI input overflow, failed session replacement and version rejection
    have focused tests. Capture remains bounded diagnostic history.
-5. Run repository CI and deliberately publish the accepted version with example sessions
+5. Keep repository CI passing and deliberately publish the accepted version with example sessions
    and compatibility documentation. A firmware-recorded example session is included. Current workflow creates development artifacts only.
 
 OS MIDI transport is implemented as an optional midir backend. Physical devices and the

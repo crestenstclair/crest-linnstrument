@@ -22,6 +22,8 @@ fn runtime(model: u16) -> Runtime {
         host: TestHost::new(Session::default(), geometry).unwrap(),
         geometry,
         contacts: vec![],
+        contact_profile: ContactProfile::default(),
+        ramps: Vec::with_capacity(16),
         scenario: None,
         recent_midi: std::collections::VecDeque::new(),
         verified_steps: None,
@@ -32,6 +34,172 @@ fn runtime(model: u16) -> Runtime {
     };
     runtime.advance(1_000_000).unwrap();
     runtime
+}
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn native_pressure_profiles_reach_sensors_and_safety_release_bypasses_tails() {
+    let mut r = runtime(200);
+    r.command(BridgeCommand::ContactProfile {
+        profile: ContactProfile {
+            attack_us: 100_000,
+            release_us: 80_000,
+        },
+    })
+    .unwrap();
+    r.command(BridgeCommand::Contact(Contact {
+        id: 1,
+        x: 4.0,
+        y: 2.0,
+        z: 0.6,
+        latched: false,
+    }))
+    .unwrap();
+    assert_eq!(r.contacts[0].z, 0.0);
+    r.advance(50_000).unwrap();
+    assert!((r.contacts[0].z - 0.3).abs() < 0.02);
+    assert_eq!(
+        r.host.engine.snapshot().active_voices,
+        1,
+        "normal firmware touch path must detect ramped sensor pressure"
+    );
+    assert!(
+        r.command(BridgeCommand::ContactProfile {
+            profile: ContactProfile::default()
+        })
+        .is_err()
+    );
+    r.advance(60_000).unwrap();
+    assert_eq!(r.contacts[0].z, 0.6);
+    r.command(BridgeCommand::Release { id: 1 }).unwrap();
+    r.advance(40_000).unwrap();
+    assert!((r.contacts[0].z - 0.3).abs() < 0.02);
+    r.advance(60_000).unwrap();
+    assert!(r.contacts.is_empty() && r.ramps.is_empty());
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+    r.command(BridgeCommand::Contact(Contact {
+        id: 2,
+        x: 9.0,
+        y: 3.0,
+        z: 0.6,
+        latched: false,
+    }))
+    .unwrap();
+    r.advance(100_000).unwrap();
+    r.command(BridgeCommand::ReleaseMomentary {}).unwrap();
+    assert!(r.contacts.is_empty() && r.ramps.is_empty());
+    r.advance(30_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+    r.set_contact(Contact {
+        id: 3,
+        x: 14.0,
+        y: 4.0,
+        z: 0.5,
+        latched: false,
+    })
+    .unwrap();
+    r.advance(100_000).unwrap();
+    r.command(BridgeCommand::CancelContact { id: 3 }).unwrap();
+    assert!(r.contacts.is_empty() && r.ramps.is_empty());
+    r.advance(30_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    assert_eq!(
+        r.run
+            .verify(
+                &root.join("target/firmware-native/linnstrument-worker"),
+                &root.join("target/firmware-native/ideal-200.bin")
+            )
+            .unwrap(),
+        r.run.steps()
+    );
+}
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn scripted_contacts_survive_window_focus_changes_and_reject_manual_collisions() {
+    let mut r = runtime(200);
+    r.command(BridgeCommand::PlayExample {}).unwrap();
+    r.advance(250_000).unwrap();
+    r.command(BridgeCommand::ReleaseMomentary {}).unwrap();
+    assert_eq!(r.contacts.len(), 3);
+    assert!(
+        r.command(BridgeCommand::Contact(Contact {
+            id: 1,
+            x: 1.0,
+            y: 1.0,
+            z: 0.5,
+            latched: false
+        }))
+        .is_err()
+    );
+    r.advance(800_000).unwrap();
+    assert!(r.contacts.is_empty());
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+}
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn script_owns_release_tails_and_new_fingers_retire_tails_at_capacity() {
+    let mut r = runtime(200);
+    r.set_contact_profile(ContactProfile {
+        attack_us: 0,
+        release_us: 200_000,
+    })
+    .unwrap();
+    let contact = Contact {
+        id: 1,
+        x: 4.0,
+        y: 2.0,
+        z: 0.5,
+        latched: false,
+    };
+    r.start_scenario(ContactScenario {
+        version: 1,
+        model: 200,
+        steps: vec![
+            ContactStep {
+                at_us: 0,
+                action: ContactAction::Contact(contact),
+            },
+            ContactStep {
+                at_us: 100_000,
+                action: ContactAction::Release { id: 1 },
+            },
+        ],
+    })
+    .unwrap();
+    r.advance(150_000).unwrap();
+    assert!(r.scenario.as_ref().unwrap().steps.is_empty());
+    assert_eq!(r.contacts.len(), 1);
+    r.command(BridgeCommand::ReleaseMomentary {}).unwrap();
+    assert!(r.command(BridgeCommand::Release { id: 1 }).is_err());
+    assert_eq!(r.contacts.len(), 1);
+    r.advance(200_000).unwrap();
+    assert!(r.scenario.is_none() && r.contacts.is_empty());
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+
+    // No time advances here: capacity and tail ownership are native contact
+    // invariants, independent of firmware's separate MPE channel limit.
+    for id in 1..=16 {
+        r.set_contact(Contact {
+            id,
+            x: f64::from(id),
+            ..contact
+        })
+        .unwrap();
+    }
+    let seventeenth = Contact {
+        id: 17,
+        x: 17.0,
+        ..contact
+    };
+    assert!(r.set_contact(seventeenth).is_err());
+    assert_eq!(r.contacts.len(), 16);
+    r.release(1).unwrap();
+    r.set_contact(seventeenth).unwrap();
+    assert_eq!(r.contacts.len(), 16);
+    assert!(!r.contacts.iter().any(|c| c.id == 1));
+    assert!(r.contacts.iter().any(|c| c.id == 17));
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    assert!(r.contacts.is_empty() && r.ramps.is_empty());
 }
 #[test]
 #[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]

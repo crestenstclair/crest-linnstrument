@@ -89,7 +89,8 @@ patches, layout assertions and native build/generation scripts.
 
 ## Bridge and fixtures
 
-Typed bridge commands include contact `{id,x,y,z,latched}`, release, release-momentary,
+Typed bridge commands include contact `{id,x,y,z,latched}`, contact-profile, release,
+cancel-contact, release-momentary,
 release-all, pause, step and reset. X centers run 0 through 25 (16 for the small model),
 column 0 is the control column; Y centers run 0–7 from bottom; Z is 0–1. Nonfinite or
 out-of-bounds input is rejected before contacting the worker. Mouse pressure is explicit.
@@ -97,8 +98,15 @@ The worker protocol is bounded line commands and JSON snapshots. `contact`, `rel
 `release_all`, `switch`, `midi`, `advance`, `snapshot`, and `save` are implemented commands.
 
 The native bridge timestamps receipt with `Instant`. Its scheduler advances before applying
-each received command; contacts are held constant until the next native update (zero-order
-hold, no invented interpolation). Real-time catch-up is limited to 50 ms per wake; a stalled
+each received command; X/Y and target pressure are held until the next native update.
+Optional linear pressure envelopes apply a 0–2 second attack/release, sampled every 1 ms
+by this scheduler; zero is immediate. Moving an attacking finger preserves its current
+pressure and retargets the remaining attack. Normal release uses the selected tail;
+focus recovery, pointer cancellation, Release All, reset and mode changes bypass it.
+At the 16-contact limit a new active finger retires the oldest released tail before any
+active contact is rejected. This is synthetic contact behavior, not firmware voice stealing.
+Trace commands contain the resampled sensor inputs, so replay follows the identical path.
+Real-time catch-up is limited to 50 ms per wake; a stalled
 host can run simulation behind wall time. Headless tests use explicit advances. A worker
 loop can overshoot the requested endpoint by its current scan operation; actual snapshot
 and MIDI byte timestamps remain authoritative. Browser polling only displays snapshots.
@@ -157,5 +165,8 @@ ordered relative microsecond times, with contact, release and release-all action
 entire scenario validates before execution: at most 4,096 steps, 60 seconds and 16 contacts,
 with all contacts released by its end. File reads are capped at 1 MB. Scenario time follows
 native firmware time; sensor-loop overshoot is retained, not concealed by frame timing.
-Pause/single-step work during a script. Release All cancels future script steps. Reset and
+Pause/single-step work during a script. A script owns contacts through their release tails;
+manual contact edits/releases are rejected while it runs, and window focus does not cancel
+it. Due envelope samples execute before a same-time script command; firmware scan overshoot
+remains authoritative. Release All cancels future script steps. Reset and
 mode changes cancel scripts and release contacts. Browser frames only render snapshots.

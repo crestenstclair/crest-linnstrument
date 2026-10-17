@@ -1,6 +1,9 @@
 //! Typed contact bridge; the native scheduler, never browser frames, advances firmware.
+mod contact_envelope;
 #[cfg(test)]
 mod harmony_tests;
+pub use contact_envelope::ContactProfile;
+use contact_envelope::PressureRamp;
 mod scenario;
 mod trace;
 #[cfg(feature = "midi")]
@@ -37,7 +40,13 @@ pub struct Contact {
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum BridgeCommand {
     Contact(Contact),
+    ContactProfile {
+        profile: ContactProfile,
+    },
     Release {
+        id: u32,
+    },
+    CancelContact {
         id: u32,
     },
     ReleaseMomentary {},
@@ -137,6 +146,8 @@ pub struct DisplaySnapshot {
     pub error: Option<String>,
     pub paused: bool,
     pub contacts: Vec<Contact>,
+    pub contact_profile: ContactProfile,
+    pub scenario_running: bool,
     pub firmware: FirmwareSnapshot,
     pub host: HostSnapshot,
 }
@@ -183,6 +194,8 @@ impl Bridge {
                 firmware,
                 host,
                 contacts: Vec::new(),
+                contact_profile: ContactProfile::default(),
+                ramps: Vec::with_capacity(16),
                 paused: false,
                 geometry,
                 connected: true,
@@ -284,6 +297,8 @@ struct Runtime {
     firmware: FirmwareSnapshot,
     host: TestHost,
     contacts: Vec<Contact>,
+    contact_profile: ContactProfile,
+    ramps: Vec<PressureRamp>,
     paused: bool,
     geometry: Geometry,
     connected: bool,
@@ -316,6 +331,7 @@ impl Runtime {
         self.firmware = firmware;
         self.host = TestHost::from_document(document, self.geometry).map_err(|e| e.to_string())?;
         self.contacts.clear();
+        self.ramps.clear();
         self.paused = false;
         self.connected = true;
         Ok(())
@@ -395,43 +411,69 @@ impl Runtime {
         });
         Ok(())
     }
+    fn next_scenario_time(&mut self) -> Result<Option<u64>, String> {
+        let Some(playback) = &self.scenario else {
+            return Ok(None);
+        };
+        let Some(step) = playback.steps.front() else {
+            // The script owns its release tails until the native envelopes end.
+            if self.ramps.is_empty() {
+                self.scenario = None;
+            }
+            return Ok(None);
+        };
+        playback
+            .started_us
+            .checked_add(step.at_us)
+            .map(Some)
+            .ok_or("scenario time overflow".into())
+    }
+    fn apply_scenario_step(&mut self) -> Result<(), String> {
+        if self
+            .next_scenario_time()?
+            .is_none_or(|at| at > self.firmware.at_us)
+        {
+            return Ok(());
+        }
+        let action = self
+            .scenario
+            .as_mut()
+            .unwrap()
+            .steps
+            .pop_front()
+            .unwrap()
+            .action;
+        match action {
+            ContactAction::Contact(contact) => self.set_contact(contact),
+            ContactAction::Release { id } => self.release(id),
+            ContactAction::ReleaseAll {} => {
+                self.request("release_all")?;
+                self.contacts.clear();
+                self.ramps.clear();
+                Ok(())
+            }
+        }
+    }
     fn advance_contacts(&mut self, micros: u32) -> Result<(), String> {
         let target = self
             .firmware
             .at_us
             .checked_add(u64::from(micros))
             .ok_or("scenario clock overflow")?;
-        while let Some(playback) = &self.scenario {
-            let Some(step) = playback.steps.front() else {
-                self.scenario = None;
+        loop {
+            let scenario = self.next_scenario_time()?;
+            let envelope = self.ramps.iter().map(|r| r.next).min();
+            let Some(next) = scenario.into_iter().chain(envelope).min() else {
                 break;
             };
-            let at = playback
-                .started_us
-                .checked_add(step.at_us)
-                .ok_or("scenario time overflow")?;
-            if at > target {
+            if next > target {
                 break;
             }
-            let action = self
-                .scenario
-                .as_mut()
-                .unwrap()
-                .steps
-                .pop_front()
-                .unwrap()
-                .action;
-            if at > self.firmware.at_us {
-                self.request(&format!("advance {}", at - self.firmware.at_us))?;
+            if next > self.firmware.at_us {
+                self.request(&format!("advance {}", next - self.firmware.at_us))?;
             }
-            match action {
-                ContactAction::Contact(contact) => self.set_contact(contact)?,
-                ContactAction::Release { id } => self.release(id)?,
-                ContactAction::ReleaseAll {} => {
-                    self.request("release_all")?;
-                    self.contacts.clear();
-                }
-            }
+            self.advance_envelopes()?;
+            self.apply_scenario_step()?;
         }
         if target > self.firmware.at_us {
             self.request(&format!("advance {}", target - self.firmware.at_us))?;
@@ -445,12 +487,30 @@ impl Runtime {
             );
         }
         match command {
-            BridgeCommand::Contact(contact) => self.set_contact(contact),
-            BridgeCommand::Release { id } => self.release(id),
+            BridgeCommand::Contact(contact) => {
+                if self.scenario.is_some() {
+                    return Err("stop the script before manual contacts".into());
+                }
+                self.set_contact(contact)
+            }
+            BridgeCommand::ContactProfile { profile } => self.set_contact_profile(profile),
+            BridgeCommand::Release { id } => {
+                if self.scenario.is_some() {
+                    return Err("stop the script before manual contacts".into());
+                }
+                self.release(id)
+            }
+            BridgeCommand::CancelContact { id } => {
+                if self.scenario.is_some() {
+                    return Err("stop the script before manual contacts".into());
+                }
+                self.release_immediately(id)
+            }
             BridgeCommand::ReleaseAll {} => {
                 self.scenario = None;
                 self.request("release_all")?;
                 self.contacts.clear();
+                self.ramps.clear();
                 Ok(())
             }
             BridgeCommand::ReleaseMomentary {} => self.release_momentary(),
@@ -564,6 +624,7 @@ impl Runtime {
         }
         self.request("release_all")?;
         self.contacts.clear();
+        self.ramps.clear();
         self.scenario = None;
         self.advance(100_000)?;
         self.host_command(Command::SetMode(mode))?;
@@ -588,25 +649,10 @@ impl Runtime {
         self.verified_steps = Some(GestureRun::load(Path::new(path))?.verify(executable, flash)?);
         Ok(())
     }
-    fn set_contact(&mut self, c: Contact) -> Result<(), String> {
-        scenario::validate_contact(c, self.geometry)?;
-        if self.contacts.len() >= 16 && !self.contacts.iter().any(|old| old.id == c.id) {
-            return Err("16 contact limit".into());
-        }
-        self.request(&format!("contact {} {} {} {}", c.id, c.x, c.y, c.z))?;
-        if let Some(old) = self.contacts.iter_mut().find(|old| old.id == c.id) {
-            *old = c;
-        } else {
-            self.contacts.push(c);
-        }
-        Ok(())
-    }
-    fn release(&mut self, id: u32) -> Result<(), String> {
-        self.request(&format!("release {id}"))?;
-        self.contacts.retain(|c| c.id != id);
-        Ok(())
-    }
     fn release_momentary(&mut self) -> Result<(), String> {
+        if self.scenario.is_some() {
+            return Ok(());
+        }
         let ids: Vec<_> = self
             .contacts
             .iter()
@@ -614,7 +660,7 @@ impl Runtime {
             .map(|c| c.id)
             .collect();
         for id in ids {
-            self.release(id)?;
+            self.release_immediately(id)?;
         }
         Ok(())
     }
@@ -638,6 +684,7 @@ impl Runtime {
         host.advance_micros(self.firmware.at_us)
             .map_err(|e| e.to_string())?;
         self.contacts.clear();
+        self.ramps.clear();
         self.host = host;
         // Reopening restores ordinary playing through the firmware parser.
         self.host_command(Command::SetMode(SurfaceMode::Play))?;
@@ -655,6 +702,8 @@ impl Runtime {
             error,
             paused: self.paused,
             contacts: self.contacts.clone(),
+            contact_profile: self.contact_profile,
+            scenario_running: self.scenario.is_some(),
             firmware: self.firmware.clone(),
             host: self.host.snapshot(),
         };
@@ -709,6 +758,8 @@ mod tests {
             firmware,
             host: TestHost::new(Session::default(), Geometry::Pads200).unwrap(),
             contacts: vec![],
+            contact_profile: ContactProfile::default(),
+            ramps: Vec::with_capacity(16),
             paused: true,
             geometry: Geometry::Pads200,
             connected: true,
@@ -979,6 +1030,8 @@ mod tests {
             firmware,
             host: TestHost::new(Session::default(), Geometry::Pads200).unwrap(),
             contacts: vec![],
+            contact_profile: ContactProfile::default(),
+            ramps: Vec::with_capacity(16),
             paused: true,
             geometry: Geometry::Pads200,
             connected: true,

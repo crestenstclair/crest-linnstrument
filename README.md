@@ -76,7 +76,13 @@ Expand **Keyboard contacts** to assign letter/digit keys to sensor coordinates a
 pressure keys. Settings validate against geometry and persist in this simulator. OS key
 repeat never retriggers attacks; release ownership uses physical key codes, so modifier
 changes cannot strand a held note. Text/number editors and OS shortcuts do not play notes.
-Focus loss releases momentary contacts. Release All clears every contact. Contact rings
+Expand **Mouse / keyboard pressure profile** for linear attack/release times from 0–2 seconds.
+The native clock samples pressure every 1 ms for mouse, keyboard and scripted contacts.
+Zero uses immediate pressure. At 16 fingers, a newly pressed finger retires the oldest
+released tail; active fingers are never stolen. Focus loss or lost pointer capture releases
+momentary contacts immediately. Release All cancels scripts and clears every contact.
+Scripts retain ownership through their release tails and survive window focus changes.
+Contact rings
 are an optional overlay; illuminated pad colors come only from decoded firmware SPI writes.
 The control column is part of the sensor surface, so its settings UI is the firmware's UI.
 

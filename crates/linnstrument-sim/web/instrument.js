@@ -7,9 +7,9 @@ let nextId=1, selected=null, columns=26;
 const labels=['PER SPLIT','PRESET','VOLUME','OCTAVE / TRANSPOSE','SPLIT','SWITCH 1','SWITCH 2','GLOBAL SETTINGS'];
 document.querySelector('#controls').replaceChildren(...labels.map(label=>{const div=document.createElement('div');div.textContent=label;return div;}));
 function position(event){const box=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(columns-1,(event.clientX-box.left)/box.width*columns-.5)),y:Math.max(0,Math.min(7,7.5-(event.clientY-box.top)/box.height*8))};}
-function active(){return latest?.connected===true;}
+function active(){return latest?.connected===true&&!latest?.scenario_running;}
 function update(contact){if(!active())return;contacts.set(contact.id,contact);selected=contact.id;send({type:'contact',...contact});}
-function release(id){contacts.delete(id);send({type:'release',id});if(selected===id)selected=null;}
+function release(id,cancel=false){if(!active())return;contacts.delete(id);send({type:cancel?'cancel_contact':'release',id});if(selected===id)selected=null;}
 canvas.addEventListener('pointerdown',event=>{
   if(!active())return;
   canvas.focus();canvas.setPointerCapture(event.pointerId);
@@ -21,11 +21,13 @@ canvas.addEventListener('pointermove',event=>{
   const id=pointers.get(event.pointerId),contact=contacts.get(id);if(!contact)return;
   update({...contact,...position(event),z:event.pointerType!=='mouse'&&event.pressure>0?event.pressure:contact.z});
 });
-function endPointer(event){const id=pointers.get(event.pointerId);pointers.delete(event.pointerId);if(contacts.has(id)&&!contacts.get(id).latched)release(id);}
+function endPointer(event){const id=pointers.get(event.pointerId);pointers.delete(event.pointerId);if(contacts.has(id)&&!contacts.get(id).latched)release(id,event.type!=='pointerup');}
 canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);canvas.addEventListener('lostpointercapture',endPointer);
 function setPressure(value){value=Math.max(0,Math.min(1,value));pressure.value=value;document.querySelector('#pressure-value').textContent=`${Math.round(value*100)}%`;const contact=contacts.get(selected);if(contact)update({...contact,z:value});}
 canvas.addEventListener('wheel',event=>{event.preventDefault();setPressure(Number(pressure.value)-Math.sign(event.deltaY)*.03);},{passive:false});
 pressure.addEventListener('input',()=>setPressure(Number(pressure.value)));
+const pressureProfile=document.querySelector('#pressure-profile');let profileKey='';
+pressureProfile.onsubmit=event=>{event.preventDefault();if(!pressureProfile.reportValidity())return;send({type:'contact_profile',profile:{attack_us:Number(pressureProfile.elements.attack.value)*1000,release_us:Number(pressureProfile.elements.release.value)*1000}});};
 let bindings=defaultBindings(),bindingsLoaded=false;
 const bindingText=document.querySelector('#keyboard-settings');
 function describeBindings(){const padKeys=Object.keys(bindings.pads).join(' ').toUpperCase();document.querySelector('#keyboard-help').textContent=`${padKeys} hold independent contacts. ${bindings.pressure_down} / ${bindings.pressure_up} adjust pressure. Arrows move selected contact; Shift makes fine moves.`;canvas.setAttribute('aria-label',`LinnStrument sensor surface. Keys ${padKeys}. Arrow keys move selected finger. Pressure keys ${bindings.pressure_down} and ${bindings.pressure_up}.`);}
@@ -69,7 +71,7 @@ function renderContactButtons(snapshot){
 }
 subscribers.push(snapshot=>{
   if(!snapshot.connected){contacts.clear();pointers.clear();keys.clear();}
-  document.querySelector('#scenario-status').textContent=snapshot.scenario_steps_remaining?`${snapshot.scenario_steps_remaining} native script steps remaining`:'';
+  document.querySelector('#scenario-status').textContent=snapshot.scenario_steps_remaining?`${snapshot.scenario_steps_remaining} native script steps remaining`:snapshot.scenario_running?'Script release tails':'';
   document.querySelector('#run-status').textContent=snapshot.run_full?'Buffer full: reset before new capture':`${snapshot.run_steps} steps captured${snapshot.verified_steps===null?'':` · ${snapshot.verified_steps} replay steps verified`}`;
   document.querySelector('#model').textContent=snapshot.firmware.model;
   document.querySelector('#revision').textContent=`54bb1c9 · sensor SPI / native C++`;
@@ -77,6 +79,9 @@ subscribers.push(snapshot=>{
   document.querySelector('#fingers').textContent=`${snapshot.contacts.length} FINGERS`;
   document.querySelector('#pause').textContent=snapshot.paused?'Resume':'Pause';document.querySelector('#step').disabled=!snapshot.paused;
   draw(snapshot);
+  for(const c of snapshot.contacts)nextId=Math.max(nextId,c.id+1);
+  const profile=JSON.stringify(snapshot.contact_profile);if(profile!==profileKey){pressureProfile.elements.attack.value=snapshot.contact_profile.attack_us/1000;pressureProfile.elements.release.value=snapshot.contact_profile.release_us/1000;profileKey=profile;}
+  document.querySelector('#profile-state').textContent=`Native profile: ${snapshot.contact_profile.attack_us/1000} ms attack · ${snapshot.contact_profile.release_us/1000} ms release`;
   if(!bindingsLoaded){bindingsLoaded=true;try{const stored=localStorage.getItem('linnstrument-keyboard-v1');if(stored)bindings=parseBindings(stored,columns);}catch(error){document.querySelector('#keyboard-status').textContent=`Using defaults: ${error.message}`;}bindingText.value=JSON.stringify(bindings,null,2);describeBindings();}
   renderContactButtons(snapshot);
   const f=snapshot.firmware;document.querySelector('#diagnostics').textContent=`Firmware  ${f.firmware}\nTime      ${f.at_us} µs\nADC reads ${f.sensor_reads}\nSelections ${f.sensor_selects}\nLED writes ${f.led_writes}\nContacts  ${JSON.stringify(snapshot.contacts)}`;
