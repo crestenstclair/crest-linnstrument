@@ -412,6 +412,15 @@ attacks do not repeat. Stop, mode change and disconnect clear this input bookkee
 The resulting harmony settings persist; press ownership does not. This is standalone
 host policy using the existing core API and session schema.
 
+Row 5, columns 1–5, toggles seventh, ninth, sus2, sus4 and parallel-scale borrowing.
+Seventh/ninth are mutually exclusive: pressing the active extension restores triad.
+Sus2/sus4 are likewise exclusive and toggle back to no suspension. Borrowing combines
+with either group and follows the existing parallel-scale rule. These controls share
+the voicing pad's validated effective-chord takeover, press ownership and LED policy.
+Diatonic modifiers have no effect on a learned entry's fixed tones; those pads are
+therefore dark and inert for the active learned degree. No alternate MIDI generation
+path is introduced: Chords mode continues to transform stock firmware MPE gestures.
+
 `LearnChord { source, track, degree, root }` learns the currently held live notes of one
 source and track in Play mode while recording is idle. It does not read retrospective
 history or include clip/generated voices. It stores their MIDI attack pitches, preserving

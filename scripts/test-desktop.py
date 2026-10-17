@@ -823,6 +823,65 @@ def change_showcase_tempo(app):
     apply_host_tempo(app, 120000)
 
 
+def record_controller_modifiers(app):
+    app.switch('host')
+    app.click('#harmony-form [name="articulation"] option[value="block"]')
+    app.click('#harmony-form [name="bass_track"] option[value=""]')
+    app.click('#degrees button:first-child')
+    app.state(lambda s: s['host']['performance']['harmony']['degree'] == 0 and
+              s['host']['performance']['harmony']['articulation']['type'] == 'block' and
+              s['host']['performance']['harmony']['bass_track'] is None, 'C chord with immediate articulation')
+    app.click('#clips')
+    app.switch('instrument')
+    for column, field, value in [(1, 'extension', 'seventh'), (2, 'extension', 'ninth'),
+                                 (3, 'suspension', 'second'), (4, 'suspension', 'fourth'),
+                                 (4, 'suspension', 'none'), (5, 'borrowed', True)]:
+        app.touch(column, 5)
+        app.state(lambda s: s['host']['performance']['harmony'][field] == value,
+                  f'modifier pad selects {field}: {value}')
+    state = app.state(lambda s: s['firmware']['leds'][21][1] > 200 and
+                      s['firmware']['leds'][45][1] > 200 and s['firmware']['leds'][13][2] > 200,
+                      'ninth and borrowing enabled, seventh disabled in firmware LEDs')
+    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(105,105,1,1).data)")
+    assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
+    app.capture('controller-modifier-leds', state)
+    app.switch('host')
+    assert app.observe("return document.querySelector('#harmony-form [name=extension]').value") == 'ninth'
+    assert app.observe("return document.querySelector('#harmony-form [name=borrowed]').checked")
+    app.click('#grid button:nth-child(4)')
+    app.click('#chords')
+    app.click('#record')
+    app.state(lambda s: s['host']['performance']['slots'][3] == 'recording', 'modified chord recording')
+    app.switch('instrument')
+    app.touch(1, 0)
+    app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
+              'modified chord releases every voice')
+    app.switch('host')
+    app.click('#finish')
+    state = app.state(lambda s: s['host']['performance']['slots'][3] == 'recorded', 'modifier take finished')
+    clip = state['host']['clips'][3]
+    assert [e['gesture']['key'] for e in clip['events'] if e['gesture']['type'] == 'on'] == [60, 63, 67, 70, 74]
+    assert len([e for e in clip['events'] if e['gesture']['type'] == 'off']) == 5
+    path = ARTIFACTS / 'desktop-modifiers.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'modified chord saved')
+    app.click('#open')
+    app.state(lambda s: s['host']['clips'][3] == clip and
+              s['host']['performance']['harmony']['borrowed'], 'modified chord and settings reopened')
+    app.click('#clips')
+    app.switch('instrument')
+    app.touch(4, 0)
+    state = app.state(lambda s: s['host']['performance']['slots'][3] == 'playing' and
+                      s['firmware']['leds'][32][1] > 200, 'modified chord launches from firmware pad')
+    app.capture('controller-modified-chord-playing', state)
+    app.switch('host')
+    app.click('#stop')
+    app.click('#play')
+    app.state(lambda s: s['host']['performance']['active_voices'] == 0 and
+              s['host']['performance']['mode'] == 'play', 'stock playing restored after modifiers')
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -847,6 +906,7 @@ def main():
             record_humanized_chord(app)
             play_showcase_bank(app)
             change_showcase_tempo(app)
+            record_controller_modifiers(app)
             print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase')
         except Exception:
             if app.session:

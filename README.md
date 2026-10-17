@@ -101,6 +101,13 @@ enabled toggles are green. Invalid steps are dark and inert, including MIDI pitc
 Release before pressing again; duplicate attacks do not repeat steps. These changes
 persist with harmony settings. The host displays current inversion, register and toggles.
 
+Row 5, columns 1–5, toggles seventh, ninth, sus2, sus4 and parallel-scale borrowing.
+Extensions and suspensions each select one option; pressing the active option again
+restores triad or no suspension. Borrowing combines with either. These use the same
+takeover, release-before-repeat and blue/green/dark feedback as voicing controls. Learned
+chord entries retain fixed pitches, so their diatonic modifiers are dark and inert.
+Return to **Chord pads** to play the selected settings through stock MPE.
+
 Hold the pad directly above a running/queued clip to mute it; both pads turn cyan.
 Release resumes future attacks at the existing loop phase. Dark mute pads are inactive.
 The pad directly below degree I holds **Fill**, yellow when ready and magenta while held.

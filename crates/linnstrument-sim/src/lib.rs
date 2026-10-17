@@ -11,6 +11,8 @@ mod harmony_tests;
 #[cfg(test)]
 mod humanized_tests;
 #[cfg(test)]
+mod modifier_tests;
+#[cfg(test)]
 mod quantize_tests;
 #[cfg(test)]
 mod tempo_tests;

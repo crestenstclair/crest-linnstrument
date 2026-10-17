@@ -342,7 +342,8 @@ Its independent regression records raw input, shortens a held note to an untouch
 zero-duration attack, restores the old clip with Undo and replays the edited session
 through a one-voice engine/MPE zone. Tracker adopted this pin at `2c99b8c`; all eight
 adapter contracts and local lint pass, including raw MIDI editing and project reopen
-for the same boundary. Full integration CI is running; this is not M6 completion.
+for the same boundary. [Full integration CI 39021936850](https://github.com/crestenstclair/crest-tracker/actions/runs/39021936850)
+passed, including native audio witnesses and the macOS bundle. This is not M6 completion.
 
 ## Local tempo control (development)
 
@@ -363,6 +364,9 @@ acceptance also checks native clock rate, unchanged clips and saved/restored tem
 [Full CI 39023083887](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39023083887)
 passed Rust, both native firmware platforms, the ARM baseline and Linux desktop tempo
 changes, rate checks, save/reopen and reset. Extracted-package verification is pending.
+A separate consumer pinned to unchanged v0.2.0 verified rejection of both new firmware
+host documents without rewriting them, while accepting their identical embedded schema-8
+sessions. Its own envelope-1 round trip remains intact.
 
 ## Controller voicing (development)
 
@@ -378,4 +382,22 @@ takeover, independent controls, limits, duplicate presses, persistence and safet
 Both native firmware sizes exercise all six controls through sensor contacts with exact
 expected follower pitches and decoded LED colors, then record/save/reopen the selected
 voicing. Desktop acceptance adds real pad clicks, independent bass-pitch assertions,
-host field updates and actual canvas pixels. Full CI is pending for this addition.
+host field updates and actual canvas pixels.
+[Full CI 39023429485](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39023429485)
+passed all those paths, the Rust workspace, both native firmware platforms and ARM baseline.
+
+## Controller chord modifiers (development)
+
+Clips-mode row 5 columns 1–5 toggles seventh, ninth, sus2, sus4 and parallel-scale borrowing
+through the existing harmony API. Extensions and suspensions each select one option and
+toggle back to triad/none; borrowing combines with either. These share effective-chord
+takeover, duplicate-press protection and validated blue/green/dark feedback with voicing
+controls. Learned chord entries retain fixed tones, so their diatonic modifiers are dark.
+
+Protocol fixtures check exclusive toggles, duplicate/release semantics, independent
+settings, persistence, range rejection and exact held-note MIDI expression/release.
+Both firmware sizes drive ten combinations through sensor pads, record independently
+specified chord pitches, reopen and launch the result with decoded LED checks. They
+also prove learned entries stay unchanged under every modifier. Desktop acceptance
+adds real modifier clicks, field/LED updates, five-voice borrowed-ninth recording,
+save/reopen and firmware-pad launch. Full CI and package checks are pending for this change.

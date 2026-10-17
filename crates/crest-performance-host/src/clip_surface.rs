@@ -4,50 +4,69 @@ use super::*;
 
 #[derive(Default)]
 pub(super) struct Controls {
-    pressed_voicing: u8,
+    pressed_harmony: u16,
 }
 impl Controls {
-    /// Only a fresh press changes voicing. Releases and duplicate MIDI attacks
+    /// Only a fresh press changes harmony. Releases and duplicate MIDI attacks
     /// cannot step again. Unavailable steps are dark and inert until released.
-    fn voicing_change(
+    fn harmony_change(
         &mut self,
         pad: PadEvent,
         settings: HarmonySettings,
     ) -> Option<HarmonySettings> {
-        let index = usize::from(pad.column.checked_sub(2)?);
-        let control = *VOICING_CONTROLS.get(index)?;
+        let index = HARMONY_CONTROLS
+            .iter()
+            .position(|(row, column, _)| *row == pad.row && *column == pad.column)?;
+        let (_, _, control) = HARMONY_CONTROLS[index];
         let mask = 1 << index;
         if !pad.pressed {
-            self.pressed_voicing &= !mask;
+            self.pressed_harmony &= !mask;
             return None;
         }
-        if self.pressed_voicing & mask != 0 {
+        if self.pressed_harmony & mask != 0 {
             return None;
         }
-        self.pressed_voicing |= mask;
+        self.pressed_harmony |= mask;
         control.change(settings).ok()
     }
 }
 
 #[derive(Clone, Copy)]
-enum VoicingControl {
+enum HarmonyControl {
     InvertDown,
     InvertUp,
     RegisterDown,
     RegisterUp,
     Spread,
     VoiceLeading,
+    Extension(ChordExtension),
+    Suspension(Suspension),
+    Borrowed,
 }
-const VOICING_CONTROLS: [VoicingControl; 6] = [
-    VoicingControl::InvertDown,
-    VoicingControl::InvertUp,
-    VoicingControl::RegisterDown,
-    VoicingControl::RegisterUp,
-    VoicingControl::Spread,
-    VoicingControl::VoiceLeading,
+const HARMONY_CONTROLS: [(u8, u8, HarmonyControl); 11] = [
+    (6, 2, HarmonyControl::InvertDown),
+    (6, 3, HarmonyControl::InvertUp),
+    (6, 4, HarmonyControl::RegisterDown),
+    (6, 5, HarmonyControl::RegisterUp),
+    (6, 6, HarmonyControl::Spread),
+    (6, 7, HarmonyControl::VoiceLeading),
+    (5, 1, HarmonyControl::Extension(ChordExtension::Seventh)),
+    (5, 2, HarmonyControl::Extension(ChordExtension::Ninth)),
+    (5, 3, HarmonyControl::Suspension(Suspension::Second)),
+    (5, 4, HarmonyControl::Suspension(Suspension::Fourth)),
+    (5, 5, HarmonyControl::Borrowed),
 ];
-impl VoicingControl {
+impl HarmonyControl {
     fn change(self, mut settings: HarmonySettings) -> Result<HarmonySettings> {
+        // Learned entries are fixed pitch sets; diatonic modifiers would be
+        // inaudible. Keep those pads dark until the degree is diatonic again.
+        if matches!(
+            self,
+            Self::Extension(_) | Self::Suspension(_) | Self::Borrowed
+        ) && settings.learned[usize::from(settings.degree)].is_some()
+        {
+            return Err(Error::State("learned voicing keeps fixed pitches"));
+        }
         match self {
             Self::InvertDown => settings.inversion -= 1,
             Self::InvertUp => settings.inversion += 1,
@@ -55,6 +74,21 @@ impl VoicingControl {
             Self::RegisterUp => settings.register += 1,
             Self::Spread => settings.spread = !settings.spread,
             Self::VoiceLeading => settings.voice_leading = !settings.voice_leading,
+            Self::Extension(extension) => {
+                settings.extension = if settings.extension == extension {
+                    ChordExtension::Triad
+                } else {
+                    extension
+                };
+            }
+            Self::Suspension(suspension) => {
+                settings.suspension = if settings.suspension == suspension {
+                    Suspension::None
+                } else {
+                    suspension
+                };
+            }
+            Self::Borrowed => settings.borrowed = !settings.borrowed,
         }
         settings.validate()?;
         Ok(settings)
@@ -66,6 +100,9 @@ impl VoicingControl {
         match self {
             Self::Spread if settings.spread => 3,
             Self::VoiceLeading if settings.voice_leading => 3,
+            Self::Extension(extension) if settings.extension == extension => 3,
+            Self::Suspension(suspension) if settings.suspension == suspension => 3,
+            Self::Borrowed if settings.borrowed => 3,
             _ => 5, // blue step/toggle; enabled toggles are green
         }
     }
@@ -94,9 +131,9 @@ impl TestHost {
                 }
             }
             6 if index == 0 => self.set_fill(ControlSource::Pad, pad.pressed)?,
-            6 => {
+            5 | 6 => {
                 let effective = self.engine.snapshot().effective_harmony;
-                if let Some(settings) = self.clip_controls.voicing_change(pad, effective) {
+                if let Some(settings) = self.clip_controls.harmony_change(pad, effective) {
                     // Take over the audible chord, preserving its degree and
                     // musical identity even while a recorded leader is running.
                     self.engine.command(Command::SetHarmony(settings))?;
@@ -146,8 +183,8 @@ pub(super) fn frame(state: &PerformanceSnapshot) -> [[u8; 8]; 26] {
         };
     }
     frame[1][6] = if state.fill { 6 } else { 2 }; // magenta held; yellow ready
-    for (index, control) in VOICING_CONTROLS.iter().enumerate() {
-        frame[index + 2][6] = control.color(state.effective_harmony);
+    for (row, column, control) in HARMONY_CONTROLS {
+        frame[usize::from(column)][usize::from(row)] = control.color(state.effective_harmony);
     }
     frame
 }
