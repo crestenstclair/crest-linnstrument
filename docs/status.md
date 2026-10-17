@@ -81,3 +81,9 @@ M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its nat
 is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
 owns its adapter, engine capability changes, production UI, project mapping and later Deck
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
+
+The API-2 maintenance branch also fixes edited release ordering at zero-duration notes.
+Shortening an earlier held note to that note's attack now frees the old voice first.
+A shared public-contract fixture reproduces the original failure and verifies exact
+Undo, session reopen and two loops through a one-voice engine/MPE destination. This
+changes neither API 2 nor schema 2; the original v0.1.0 release tag remains unchanged.

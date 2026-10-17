@@ -184,13 +184,17 @@ fn order_edited_events(events: &mut [InputEvent]) {
     }
     events.sort_by_key(|event| {
         let (start, end) = lifetimes[&key(event.note)];
-        let phase = if event.at == end {
+        let phase = if start == end {
+            // A newly arriving zero-duration lifetime must not delay releases
+            // of voices already held at this timestamp. Keep its own order.
+            1
+        } else if event.at == end {
             0
         } else {
             match event.gesture {
-                Gesture::On { .. } => 2,
-                Gesture::Expression { .. } if event.at == start => 3,
-                _ => 1,
+                Gesture::On { .. } => 3,
+                Gesture::Expression { .. } if event.at == start => 4,
+                _ => 2,
             }
         };
         (event.at, phase)

@@ -111,7 +111,9 @@ and session replacement; it is not stored in the musical session or host documen
 Duplicate retargets the copied clip's track. Editing requires a stopped slot. Moving a note
 preserves expression offsets, including samples exactly at release. Repitching leaves
 the original event sequence intact. Shortening explicitly trims points at or beyond its
-new end; unedited notes retain every sample, including zero-duration notes. All
+new end; unedited notes retain every sample, including zero-duration notes. Already held
+voices release before newly arriving zero-duration lifetimes at the same edited tick;
+each zero-duration note retains its own On/expression/Off order. All
 edits validate bounds before replacing a clip and retain the previous clip for Undo.
 The small host piano roll performs selection, pitch, start, and duration edits in ticks.
 There is no implicit tracker quantization. Arrangement, destructive quantization commands,
