@@ -129,3 +129,10 @@ The firmware scenario learns three sensor-generated notes, records the learned c
 X/Y/Z expression, reopens its session and launches it from a firmware pad on both geometries.
 Linux desktop acceptance includes three mouse-latched notes, Learn, expressive chord capture,
 Undo and session reopening. These are virtual-development scenarios, not hardware qualification.
+
+
+The learned-bank candidate passed the complete standalone CI run, including the Linux
+webview scenario, both native firmware platforms and the ARM baseline. Native macOS
+keyboard input also learned pitches 42/45/49, triggered the bank from one firmware pad,
+recorded three notes with 21 expression events and nine source gestures, and reopened the
+schema-4 session stopped with zero held voices. This candidate is not a new release tag.
