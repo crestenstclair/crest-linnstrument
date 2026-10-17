@@ -329,8 +329,9 @@ the original ARM build/layout, and Linux desktop mouse/keyboard record/reopen/la
 `candidate-artifacts` creates relocatable development archives with checksums, provenance
 and dependency notices, then exercises the extracted application. See [package usage](docs/package.md).
 Tags and releases are published only after the matching source and extracted-package gates pass.
-Crest Tracker consumes its accepted API-2 patch pin in its own repository; upgrades to this
-release remain deliberate integration changes.
+Crest Tracker consumes the accepted `v0.3.0` commit (`a05f8df`, API 12) in its own
+repository. This API-13 development branch remains independent; upgrades are deliberate
+integration changes validated by shared fixtures.
 
 Licensed Apache-2.0. Upstream firmware is copyright Roger Linn Design, Roger Linn and
 Geert Bevin, with contributions credited upstream. Its unmodified source, Apache license,
