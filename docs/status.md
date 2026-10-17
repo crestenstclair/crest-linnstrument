@@ -483,5 +483,9 @@ Reopening retained both endpoints with zero captured events and no emitted posit
 saved `target/dev/firmware-scene-morph.json` has SHA-256
 `40ccf36fab977c6edcf3c6ba4c21598d536fd8a1f6e770a6a32df9a9485ecdd2`.
 The actual API-10 Git consumer rejects the schema-9 file without changing its input.
-Linux desktop, extracted-package and full CI acceptance remain pending. Per-note parameter locks,
+[Full CI 39029580696](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39029580696)
+and [extracted-package acceptance 39029580321](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39029580321)
+passed at `b105885f3a3bca66c46fff891f205217e859bd6f`. The desktop gate delivers small native
+mouse moves explicitly: WebKit's single long-duration move did not generate intermediate
+positions and correctly failed the continuous-slide assertion. Per-note parameter locks,
 automation recording and production sound-engine parameter mappings remain separate work.
