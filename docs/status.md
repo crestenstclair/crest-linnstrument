@@ -83,13 +83,19 @@ is Rust, so a direct dependency is available; no speculative FFI wrapper was add
 owns its adapter, engine capability changes, production UI, project mapping and later Deck
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
 
-Tracker's separate `feat/performance-v0.1` branch now consumes API-2 patch commit
-`0288b407e6b59ccd789d7b8ef6c4699a689ec50c`. Its retrospective capture integration at
-`f56f6fe3e4f6820f2fd59f950201fbbb2c4cb4ea` passed [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393),
-including native Sample monitoring/capture/reopen/replay and the macOS bundle. M6 remains
-open: simultaneous performance clips, external performance routes and Linux MIDI/audio
-clock correlation still need integration work. Deck and physical-device qualification
-remain separate. This library has no dependency on that checkout or its application.
+Tracker's separate `feat/performance-v0.1` branch deliberately upgraded at `4562762`
+to the tested API-10 development pin `6c37aa5e695dd6968d69b693137f0f9bee16b67f`.
+Schema-2 projects migrate in memory with exact playback fixtures produced by the old
+API-2 Git consumer; explicit saves write schema 8 and older readers reject them. Original
+files remain unchanged for rollback. Current integration also supports independent clip
+players and block-chord/manual-strumplate controls at `088192b`. Local source, native DSP,
+firmware-backed desktop and bundle checks passed; full CI for this newer work is pending.
+The earlier API-2 retrospective integration at `f56f6fe3` passed
+[full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393).
+M6 remains open: continuous live articulation scheduling, external performance routes and
+Linux MIDI/audio clock correlation still need integration work. Deck and physical-device
+qualification remain separate. This library has no dependency on Tracker's checkout.
+Older sections below describe the dependency pins current when those features landed.
 
 ## Timed strum
 
@@ -433,3 +439,26 @@ save/reopen and firmware-pad launch.
 and [extracted-package checks 39024099123](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39024099123)
 passed at `6c37aa5e695dd6968d69b693137f0f9bee16b67f`. These development checks do not
 move the stable v0.2.0 release or certify physical hardware.
+
+## Tracker harmony controls and API-10 adoption
+
+The independent Tracker branch at `088192b` consumes `6c37aa5` through Git and its lockfile;
+stable library tags and the API-2 maintenance branch are unchanged. Typed semantic controls
+reuse the library's diatonic chords, modifiers, inversion/register/spread, voice leading,
+all/top-voice expression and manual strumplate. Mode changes cancel Monitor ownership only,
+including queued attacks, while independently running clips keep their phase. Armed and
+active takes reject mode changes before mutation. Unsupported imported delayed articulations
+are retained and require explicit Block selection before live chord-pad use.
+
+Both Sample and Braids native witnesses record generated chords and per-note expression,
+reopen the project, replay alongside another clip, and switch live modes without disturbing
+those loops. Callback allocations/deallocations and late events are zero. The focused
+performance gate passed 42 tests, including 13 native performance witnesses; app source tests,
+scoped lint and the verified macOS bundle also passed. Full CI remains pending.
+
+Manual desktop evidence used a real mouse contact, drag and pressure keys in the firmware
+replica. One stock-MPE pad recorded a C/E/G chord with 30 events: each note retained changing
+pitch, timbre and pressure and a release. The schema-8 project reopened, both clips looped,
+and voicing controls produced `[76, 84, 91]` without changing already-running clip snapshots.
+The test app was left stopped, saved and in stock firmware Play. This is macOS virtual
+workflow evidence, not Linux/Deck or physical-device qualification.

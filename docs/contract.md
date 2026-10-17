@@ -1,8 +1,10 @@
 # Public host contract, API 10 (development)
 
 Stable v0.2.0 exposes API 9. This checkout adds explicit quantization in API 10; the
-stable release and Crest Tracker's separate API-2 pin are unchanged. Persistence stays
-at schema 8. Use a tested development commit to consume API 10.
+stable release is unchanged. Persistence stays at schema 8. Crest Tracker's independent
+integration branch now pins tested development commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`
+(API 10), with explicit schema-2 migration and preserved original project files for rollback.
+Use a tested development commit to consume API 10.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
