@@ -99,6 +99,10 @@ pub enum BridgeCommand {
     Fill {
         held: bool,
     },
+    ClipMuted {
+        slot: usize,
+        muted: bool,
+    },
     Undo {},
     FinishRecord {},
     CancelRecord {},
@@ -651,6 +655,9 @@ impl Runtime {
                 condition,
             }),
             BridgeCommand::Fill { held } => self.host_command(Command::SetFill(held)),
+            BridgeCommand::ClipMuted { slot, muted } => {
+                self.host_command(Command::SetClipMuted { slot, muted })
+            }
             BridgeCommand::FinishRecord {} => self.host_command(Command::FinishRecord),
             BridgeCommand::CancelRecord {} => self.host_command(Command::CancelRecord),
             BridgeCommand::Launch { slot } => {

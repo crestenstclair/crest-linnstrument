@@ -77,6 +77,7 @@ fn verify_source(model: u16) {
         &[SlotState::Playing; 2]
     );
     assert!(r.firmware.leds[8][1] > 200 && r.firmware.leds[16][1] > 200);
+    verify_muted_leader(&mut r);
     touch(&mut r, 1.0);
     assert_eq!(
         &r.host.engine.snapshot().slots[..2],
@@ -90,6 +91,52 @@ fn verify_source(model: u16) {
     assert!(r.firmware.leds[8][2] > 200 && r.firmware.leds[16][1] > 200);
     r.command(BridgeCommand::Stop {}).unwrap();
     assert_eq!(r.host.engine.snapshot().active_voices, 0);
+}
+fn verify_muted_leader(r: &mut Runtime) {
+    let harmony = r.host.engine.snapshot().effective_harmony;
+    r.command(BridgeCommand::ClipMuted {
+        slot: 0,
+        muted: true,
+    })
+    .unwrap();
+    assert_eq!(r.host.engine.snapshot().effective_harmony, harmony);
+    let before = r.host.output_count();
+    r.advance(600_000).unwrap();
+    assert!(
+        r.host
+            .output_since(before)
+            .unwrap()
+            .iter()
+            .all(|m| m.destination != DestinationId(1))
+    );
+    let notes = follower_notes(r, before);
+    assert!(notes.iter().any(|(_, key)| *key == 60));
+    assert!(notes.iter().any(|(_, key)| *key == 67));
+    let [red, green, blue] = r.firmware.leds[8];
+    assert!(
+        red < 50 && green > 200 && blue > 200,
+        "muted firmware LED is cyan"
+    );
+    r.command(BridgeCommand::ClipMuted {
+        slot: 0,
+        muted: false,
+    })
+    .unwrap();
+    let before = r.host.output_count();
+    r.advance(600_000).unwrap();
+    assert!(
+        r.host
+            .output_since(before)
+            .unwrap()
+            .iter()
+            .any(|m| m.destination == DestinationId(1) && m.message.bytes()[0] & 0xf0 == 0x90)
+    );
+    assert!(!r.host.engine.snapshot().muted_slots[0]);
+    let [red, green, blue] = r.firmware.leds[8];
+    assert!(
+        red < 50 && green > 200 && blue < 50,
+        "released mute restores green"
+    );
 }
 fn configure_and_reopen(r: &mut Runtime, model: u16) {
     r.command(BridgeCommand::Harmony {

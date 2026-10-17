@@ -68,6 +68,10 @@ pub enum Command {
     StopSlot {
         slot: usize,
     },
+    SetClipMuted {
+        slot: usize,
+        muted: bool,
+    },
     Stop,
     SetMode(SurfaceMode),
     SetHarmony(HarmonySettings),
@@ -113,6 +117,7 @@ pub struct PerformanceSnapshot {
     pub active_voices: usize,
     pub voice_capacity: usize,
     pub slots: Vec<SlotState>,
+    pub muted_slots: Vec<bool>,
     pub harmony: HarmonySettings,
     pub harmony_source: HarmonySource,
     pub effective_harmony: HarmonySettings,
@@ -139,6 +144,7 @@ struct ActiveVoice {
 #[derive(Debug)]
 struct Player {
     slot: usize,
+    muted: bool,
     loop_start: BeatTime,
     scheduled_start: BeatTime,
     cursor: usize,
@@ -336,6 +342,9 @@ impl Engine {
             harmony_source: self.session.harmony_source,
             effective_harmony: self.effective_harmony_at(self.at),
             last_voicing: self.last_voicing,
+            muted_slots: (0..self.session.slots.len())
+                .map(|slot| self.slot_muted(slot))
+                .collect(),
             slots: (0..self.session.slots.len())
                 .map(|slot| self.slot_state(slot))
                 .collect(),
@@ -404,31 +413,26 @@ impl Engine {
             .as_ref()
             .ok_or(Error::NotFound)?;
         let owner = Owner::Clip(slot, event.note);
-        let condition = clip.note_condition(event.note);
-        let play = match event.gesture {
-            Gesture::On { .. } => {
-                let iteration = (self.players[player_index].loop_start.0
-                    - self.players[player_index].scheduled_start.0)
-                    / clip.length.0;
-                condition.accepts_validated(iteration, self.fill)
+        if matches!(event.gesture, Gesture::On { .. }) {
+            let iteration = (self.players[player_index].loop_start.0
+                - self.players[player_index].scheduled_start.0)
+                / clip.length.0;
+            if self.players[player_index].muted
+                || !clip
+                    .note_condition(event.note)
+                    .accepts_validated(iteration, self.fill)
+            {
+                return Ok(());
             }
-            // Fill changes cannot suppress a previously accepted release or
-            // introduce expression for a skipped attack. Unconditional clips
-            // retain strict lifecycle errors rather than masking corruption.
-            _ => {
-                condition == (NoteCondition::Always {})
-                    || self.active.iter().any(|voice| voice.owner == owner)
-            }
-        };
-        if play
-            && let (
-                Some(follow),
-                Gesture::On {
-                    key,
-                    velocity,
-                    expression,
-                },
-            ) = (clip.follow, event.gesture)
+        }
+        if let (
+            Some(follow),
+            Gesture::On {
+                key,
+                velocity,
+                expression,
+            },
+        ) = (clip.follow, event.gesture)
         {
             event.gesture = Gesture::On {
                 key: follow.pitch(key, self.effective_harmony_at(event.at))?,
@@ -436,10 +440,7 @@ impl Engine {
                 expression,
             };
         }
-        if play {
-            self.emit(owner, event)?;
-        }
-        Ok(())
+        self.emit(owner, event)
     }
     fn next_playback_event(&self, target: BeatTime) -> Result<Option<(usize, InputEvent)>> {
         let mut next: Option<(usize, InputEvent)> = None;
@@ -497,10 +498,19 @@ impl Engine {
         Ok(())
     }
     fn emit(&mut self, owner: Owner, event: InputEvent) -> Result<()> {
+        let position = self.active.iter().position(|voice| voice.owner == owner);
+        // Clip lifecycles are validated on load. Conditional attacks can be
+        // skipped and mute can release early; neither may receive later
+        // expression or release without a sounding voice. Live input stays strict.
+        if position.is_none()
+            && matches!(owner, Owner::Clip(..))
+            && !matches!(event.gesture, Gesture::On { .. })
+        {
+            return Ok(());
+        }
         if self.output.len() == self.limits.output_events {
             return Err(Error::Capacity("output; drain and retry"));
         }
-        let position = self.active.iter().position(|voice| voice.owner == owner);
         let voice = match (event.gesture, position) {
             (Gesture::On { .. }, Some(_)) => return Err(Error::DuplicateNote),
             (Gesture::On { key, .. }, None) => self.allocate_voice(owner, event.note.track, key)?,
@@ -620,6 +630,7 @@ impl Engine {
             }
             Command::Launch { slot, quantum } => self.launch(slot, quantum),
             Command::StopSlot { slot } => self.stop_slot(slot),
+            Command::SetClipMuted { slot, muted } => self.set_clip_muted(slot, muted),
             Command::Stop => self.stop(),
             Command::SetMode(mode) => {
                 if self.recording.is_some() {
@@ -630,6 +641,7 @@ impl Engine {
                 self.release_matching(|owner| matches!(owner, Owner::Live(_) | Owner::Harmony(_)))?;
                 self.mode = mode;
                 self.fill = false;
+                self.unmute_clips();
                 Ok(())
             }
             Command::SetHarmony(settings) => self.set_harmony(settings),
@@ -761,6 +773,7 @@ impl Engine {
         if let Some(loop_start) = resume {
             self.players.push(Player {
                 slot,
+                muted: false,
                 loop_start,
                 scheduled_start: loop_start,
                 cursor: 0,
@@ -791,6 +804,7 @@ impl Engine {
         }
         self.players.push(Player {
             slot,
+            muted: false,
             loop_start: self.at,
             scheduled_start: self.at,
             cursor: 0,
@@ -882,10 +896,40 @@ impl Engine {
         self.stop_slot(slot)?;
         self.players.push(Player {
             slot,
+            muted: false,
             loop_start,
             scheduled_start: loop_start,
             cursor: 0,
         });
+        Ok(())
+    }
+    fn slot_muted(&self, slot: usize) -> bool {
+        self.players
+            .iter()
+            .any(|player| player.slot == slot && player.muted)
+    }
+    fn unmute_clips(&mut self) {
+        for player in &mut self.players {
+            player.muted = false;
+        }
+    }
+    /// Mute keeps the playhead running. Releases are reserved before changing
+    /// state, so output pressure leaves the old state intact for drain/retry.
+    fn set_clip_muted(&mut self, slot: usize, muted: bool) -> Result<()> {
+        if slot >= self.session.slots.len() {
+            return Err(Error::NotFound);
+        }
+        let Some(index) = self.players.iter().position(|player| player.slot == slot) else {
+            return if muted {
+                Err(Error::State("launch clip before muting"))
+            } else {
+                Ok(())
+            };
+        };
+        if muted && !self.players[index].muted {
+            self.release_matching(|owner| matches!(owner, Owner::Clip(s, _) if s == slot))?;
+        }
+        self.players[index].muted = muted;
         Ok(())
     }
     fn stop_slot(&mut self, slot: usize) -> Result<()> {
@@ -970,6 +1014,7 @@ impl Engine {
             |owner| matches!(owner, Owner::Live(key) | Owner::Harmony(key) if key.source == source),
         )?;
         self.fill = false;
+        self.unmute_clips();
         self.recording = None;
         Ok(())
     }

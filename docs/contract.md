@@ -1,4 +1,4 @@
-# Public host contract, API 8
+# Public host contract, API 9
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -235,6 +235,27 @@ It cannot change attacks already prepared by a scheduling host. Fill resets on s
 Stop, mode change, disconnect and engine construction; it is not persisted. The standalone
 host also releases it on pointer-capture or focus loss. Rules are not an audio-backend feature.
 
+## Temporary clip mute
+
+API 9 adds `SetClipMuted { slot, muted }` and `PerformanceSnapshot.muted_slots`, parallel
+to slot states. Muting requires a launched/queued clip; unmuting a stopped valid slot is
+a harmless late controller release. Unknown slots reject. Mute immediately releases only
+that clip's sounding voices, after reserving output room. Queue pressure leaves state
+unchanged so the host can drain and retry. Live notes and other clips retain ownership.
+
+The playhead keeps advancing and attacks are skipped. Later expression/release for skipped
+or early-released notes is ignored against the validated clip's voice ownership. Unmute
+resumes only future attacks, preserving loop phase and conditions; it never resurrects a
+held note. Recorded harmonic intent continues to drive followers while its audio is muted.
+Mute does not consume Undo or alter raw events, provenance or the saved session. Each new
+launch (including overdub restart) starts unmuted. Stop, mode change and disconnect clear
+mute. This transient feature leaves persistence schema 8 unchanged.
+
+The standalone host's momentary button captures the selected slot at press and releases
+that same slot on pointer/key release or focus loss. A disabled/stopped control clears its
+hold. Firmware feedback uses cyan (`MUTED_SLOT_COLOR = 4`) while muted, with the actual
+Queued/Playing status retained independently in snapshots and the host grid.
+
 ## Persistence and compatibility
 
 `Session.version == 8`; unknown schema versions are rejected. `Session::migrate` upgrades
@@ -258,7 +279,7 @@ integer times and expression; save/reopen preserves them exactly. The host limit
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
 Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 8.
 
-This development package is `0.2.0-dev`, API 8, schema 8. The accepted `v0.1.0` release
+This development package is `0.2.0-dev`, API 9, schema 8. The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.

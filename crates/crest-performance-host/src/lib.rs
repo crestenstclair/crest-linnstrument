@@ -220,8 +220,13 @@ impl TestHost {
             return Ok(());
         }
         let mut frame = [[0; 8]; 26];
-        for (slot, state) in self.engine.snapshot().slots.iter().take(25).enumerate() {
-            frame[slot + 1][0] = slot_color(*state);
+        let state = self.engine.snapshot();
+        for (slot, status) in state.slots.iter().take(25).enumerate() {
+            frame[slot + 1][0] = if state.muted_slots[slot] {
+                MUTED_SLOT_COLOR
+            } else {
+                slot_color(*status)
+            };
         }
         // Firmware owns the global-settings control-column indicator.
         self.device_commands.extend(self.leds.diff(&frame, 16)?);

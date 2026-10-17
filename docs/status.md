@@ -91,7 +91,7 @@ remain separate. This library has no dependency on that checkout or its applicat
 
 ## Post-baseline timed strum candidate
 
-Development 0.2.0-dev now uses API 8/session 8; Tracker continues to consume its separately
+Development 0.2.0-dev now uses API 9/session 8; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -249,7 +249,7 @@ relaunch, simultaneous/unsorted provenance, Freeze, replacement/Undo, persistenc
 source rejection. Both firmware geometries record I/V from sensor contacts, save/reopen,
 launch source and follower from firmware pads, compare independently specified follower
 pitches across loops, then stop the source and verify D-minor fallback with independent
-firmware LEDs. Desktop and release checks are still required for this candidate.
+firmware LEDs. Desktop and package verification passed; the matching CI runs are linked below.
 
 
 The API-2 overdub patch preserves the original raw stream, zero-duration notes and closing
@@ -260,3 +260,30 @@ locally. Development full [CI 39017632570](https://github.com/crestenstclair/cre
 and extracted-package [CI 39017800242](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39017800242)
 passed the three-route showcase, firmware-pad launches, held Fill, independent stop and
 firmware LED checks. These runs precede the API-8 harmony-source candidate.
+
+
+The chord-source candidate passed [full CI 39018148143](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39018148143)
+and [extracted-package CI 39018207872](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39018207872).
+Real desktop actions select and reopen the source, launch three clips through firmware
+pads, verify the leader overrides selected harmony, and switch sources during playback.
+
+## Post-baseline temporary clip mute candidate
+
+API 9 adds transient per-player mute; persistence remains schema 8. It releases only the
+selected clip's voices and suppresses attacks while retaining loop phase, original data,
+Undo and harmonic leadership. Unmute resumes future attacks; old notes never revive.
+Queue-pressure rejection is atomic, and stop/mode/disconnect/relaunch clear mute.
+
+Five core scenarios verify live/other-clip isolation, expression/release ownership,
+queued launch phase, output-pressure retry, safety transitions, persistence and Undo.
+Both firmware sizes also mute/unmute a chord leader: its independent follower continues
+I/V, source MIDI goes silent, decoded LEDs turn cyan and return green, and future source
+attacks resume. Desktop keyboard-hold and package checks are still required for this candidate.
+
+
+After the mute lifecycle change, the existing three-minute release benchmarks still
+balanced every note: 546 attacks/releases for six live plus six looping notes (p50 667 ns,
+p95 959 ns, p99 1,334 ns, max 28,375 ns), and 2,160 for humanized chords plus looping notes
+(p50 542 ns, p95 1,000 ns, p99 1,417 ns, max 15,833 ns). Neither macOS/aarch64 run had a
+batch at or above 1 ms. These measure the existing expressive workload after the change,
+not total latency, Deck performance or a dedicated mute-toggle workload.

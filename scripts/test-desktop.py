@@ -535,6 +535,30 @@ def record_humanized_chord(app):
     app.capture('humanized-chord')
 
 
+def hold_showcase_mute(app):
+    app.click('#mute')
+    app.native('keydown', 'Return')
+    state = app.state(lambda s: s['host']['performance']['muted_slots'][0] and
+                      s['firmware']['leds'][8][1] > 200 and s['firmware']['leds'][8][2] > 200,
+                      'keyboard mute and cyan firmware LED')
+    start = state['host']['performance']['at']
+    state = app.state(lambda s: s['host']['performance']['at'] > start + 1920000 and any(
+        m['destination'] == 2 and m['at'] >= start and m['message']['bytes'][0] & 0xf0 == 0x90
+        for m in s['host']['recent_midi']), 'muted source keeps accompaniment running')
+    assert not any(m['destination'] == 1 and m['at'] >= start and m['message']['bytes'][0] & 0xf0 == 0x90
+                   for m in state['host']['recent_midi'])
+    assert state['host']['performance']['slots'][:3] == ['playing'] * 3
+    app.capture('showcase-mute-cyan', state)
+    app.native('keyup', 'Return')
+    state = app.state(lambda s: not s['host']['performance']['muted_slots'][0] and
+                      s['firmware']['leds'][8][1] > 200 and s['firmware']['leds'][8][2] < 50,
+                      'mute release restores green firmware LED')
+    start = state['host']['performance']['at']
+    app.state(lambda s: any(m['destination'] == 1 and m['at'] > start and
+        m['message']['bytes'][0] & 0xf0 == 0x90 for m in s['host']['recent_midi']),
+        'released mute resumes future attacks')
+
+
 def play_showcase_bank(app):
     app.switch('host')
     packaged = BINARY.parent / 'examples/performance-showcase.json'
@@ -588,6 +612,7 @@ def play_showcase_bank(app):
     app.click('#harmony-source option[value="0"]')
     app.state(lambda s: s['host']['performance']['effective_harmony']['degree'] == 2,
               'running followers resume clip harmony')
+    hold_showcase_mute(app)
     app.switch('instrument')
     app.touch(2, 0)
     state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing', 'recorded', 'playing'] and

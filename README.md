@@ -11,7 +11,7 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 8, session schema 8**. Timed strumming, humanized chords, learned chord banks, repeating arpeggios per-note conditions and chord-clip leaders are
+Current development is **0.2.0-dev, API 9, session schema 8**. Timed strumming, humanized chords, learned chord banks, repeating arpeggios per-note conditions and chord-clip leaders are
 versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
 Schemas 1–7 load losslessly; saving with this checkout writes schema 8, rejected by
 older readers. Keep the original session to return to the baseline release.
@@ -33,6 +33,11 @@ Choose **Follower harmony source** in Harmony to follow a recorded chord clip. I
 chord gestures lead accompaniment while it loops, even when its rendered notes are strummed
 or humanized. Followers keep rhythm, expression and held-note pitches. Stopping the leader
 restores live/selected harmony. The choice survives save/reopen; reopening starts stopped.
+
+**Hold mute selected** silences only the selected running/queued clip. Its loop keeps
+advancing, and recorded harmony still leads accompaniment. Release restores future
+attacks without reviving already-passed notes. The virtual pad shows cyan while muted.
+Mute is temporary, clears on safety transitions, and never changes saved clips or Undo.
 
 ## Run
 

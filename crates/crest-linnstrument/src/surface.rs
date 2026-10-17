@@ -93,6 +93,9 @@ impl LedRenderer {
         }
     }
 }
+/// Stock User Firmware Mode palette: cyan distinguishes a muted running clip.
+pub const MUTED_SLOT_COLOR: u8 = 4;
+
 pub fn slot_color(state: SlotState) -> u8 {
     match state {
         SlotState::Empty => 0,

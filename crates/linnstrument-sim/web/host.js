@@ -2,6 +2,18 @@ import {bindHoldControl} from './hold-control.js';
 'use strict';let selected=0;let selectedNote=null;let displayedNotes=[];
 const fillButton=document.querySelector('#fill');
 bindHoldControl(fillButton,window,held=>send({type:'fill',held}));
+const muteButton=document.querySelector('#mute');let heldMuteSlot=null;
+const clearMute=bindHoldControl(muteButton,window,held=>{
+  if(held){heldMuteSlot=selected;send({type:'clip_muted',slot:heldMuteSlot,muted:true});}
+  else if(heldMuteSlot!==null){const slot=heldMuteSlot;heldMuteSlot=null;send({type:'clip_muted',slot,muted:false});}
+});
+function renderMute(state){
+  muteButton.disabled=!['playing','queued'].includes(state.slots[selected]);
+  if(muteButton.disabled)clearMute();
+  const muted=state.muted_slots[selected];
+  muteButton.setAttribute('aria-pressed',String(muted));
+  muteButton.textContent=muted?'Selected clip muted':'Hold mute selected';
+}
 const conditionForm=document.querySelector('#condition-form');
 conditionForm.onsubmit=event=>{
   event.preventDefault();if(!selectedNote||!conditionForm.reportValidity())return;
@@ -139,13 +151,13 @@ function renderOutputs(host){outputRoutes=host.outputs;const destinations=JSON.s
   const route=outputRoutes.find(r=>String(r.destination)===outputForm.elements.destination.value);if(!route)return;const c=route.capabilities;document.querySelector('#output-state').textContent=`Destination ${route.destination}: ${c.sounding_voices} sounding voices · ${c.held_notes} held notes · independent pitch ${c.independent_pitch?'yes':'no'} / timbre ${c.independent_timbre?'yes':'no'} / pressure ${c.independent_pressure?'yes':'no'} · host total voice budget ${host.performance.voice_capacity}`;
 }
 let clipButtons=[];let currentStates=[];
-function renderClips(states){
+function renderClips(states,muted){
   currentStates=states;
   if(clipButtons.length!==states.length){
     clipButtons=states.map((_,slot)=>{const button=document.createElement('button');const label=document.createElement('strong'),status=document.createElement('span');button.append(label,status);button.onclick=()=>{if(selected!==slot){selected=slot;selectedNote=null;return;}const state=currentStates[slot];if(state==='recorded')send({type:'launch',slot});else if(state==='playing'||state==='queued')send({type:'stop_slot',slot});};return button;});
     document.querySelector('#grid').replaceChildren(...clipButtons);
   }
-  states.forEach((state,slot)=>{const button=clipButtons[slot];button.className=`clip ${state}`;button.setAttribute('aria-pressed',String(selected===slot));const label=`${String(slot+1).padStart(2,'0')}${selected===slot?' ·':''}`;if(button.firstChild.textContent!==label)button.firstChild.textContent=label;if(button.lastChild.textContent!==state.toUpperCase())button.lastChild.textContent=state.toUpperCase();});
+  states.forEach((state,slot)=>{const button=clipButtons[slot];button.className=`clip ${state}`;button.setAttribute('aria-pressed',String(selected===slot));const label=`${String(slot+1).padStart(2,'0')}${selected===slot?' ·':''}`;if(button.firstChild.textContent!==label)button.firstChild.textContent=label;const status=state.toUpperCase()+(muted[slot]?' · MUTED':'');if(button.lastChild.textContent!==status)button.lastChild.textContent=status;});
 }
 subscribers.push(snapshot=>{
   if(snapshot.external_host){document.querySelector('#transport').textContent='OS MIDI DEVICE MODE · Connect external host to Simulator performance / feedback ports';for(const element of document.querySelectorAll('button,input,select'))element.disabled=true;return;}
@@ -159,7 +171,8 @@ subscribers.push(snapshot=>{
   renderOutputs(snapshot.host);
   const selectedClip=snapshot.host.clips[selected],origin=selectedClip?.pattern_origin?.at(-1);
   document.querySelector('#pattern-state').textContent=selectedClip?`${selectedClip.follow?'FOLLOWING SELECTED/LIVE CHORD':'FIXED PITCHES'}${origin?` · seed ${origin.settings.seed} · ${origin.settings.pulses}/${origin.settings.steps} pulses · algorithm ${origin.algorithm_version}`:''}`:'Select an empty or stopped clip slot.';
-  renderClips(state.slots);
+  renderClips(state.slots,state.muted_slots);
+  renderMute(state);
   document.querySelector('#transport').textContent=`${(state.at/960000).toFixed(3)} beats · 120 BPM · ${state.active_voices} voices · ${snapshot.host.capture_count} captured MIDI messages · ${state.mode.toUpperCase()}`;
   document.querySelector('#capture').textContent=snapshot.host.recent_midi.map(m=>`${String(m.at).padStart(10)}  ${m.message.bytes.slice(0,m.message.len).map(b=>b.toString(16).padStart(2,'0')).join(' ')}`).join('\n');
 });
