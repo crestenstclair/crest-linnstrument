@@ -30,12 +30,13 @@ is required for the simulator; the capture host remains headless:
 
 ```sh
 ./crest-performance-host inspect examples/expressive-phrase.json
+./crest-performance-host inspect examples/performance-showcase.json
 ./crest-performance-host demo
 LINNSTRUMENT_MODEL=128 ./linnstrument-sim
 ```
 
 The package workflow extracts into a fresh temporary directory, verifies every checksum,
-opens the example session with the CLI, hides the build-tree firmware assets, and runs
+opens both example sessions with the CLI, hides the build-tree firmware assets, and runs
 the same real keyboard/mouse desktop acceptance scenario against the packaged executable.
 Screenshots and observations are retained separately as `package-acceptance-linux`.
 No release or Git tag is created by this workflow.

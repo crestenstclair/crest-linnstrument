@@ -19,6 +19,7 @@ jobs:
       - run: cargo test --workspace --locked
       - run: cargo build -p crest-performance-core -p crest-linnstrument --release --locked
       - run: cargo run -p crest-performance-host --locked -- demo
+      - run: cargo run -p crest-performance-host --example performance_showcase --locked -- target/performance-showcase.json && cmp examples/performance-showcase.json target/performance-showcase.json
       - run: cargo run -p crest-performance-host --example processing_bench --release --locked > target/processing-bench.json
       - run: cargo run -p crest-performance-host --example processing_bench --release --locked -- --strum > target/processing-bench-strum.json
       - run: cargo run -p crest-performance-host --example processing_bench --release --locked -- --arpeggio > target/processing-bench-arpeggio.json

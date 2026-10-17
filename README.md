@@ -61,6 +61,32 @@ and controller pads. Queued pads show yellow, playing pads green. A second press
 queued launch or stops playback immediately. This live host preference applies to future
 launches, survives device reset/session open, and starts at Off on application restart.
 
+For the expansion demo, enter the absolute path to `examples/performance-showcase.json`
+in the host's session field and choose **Reopen**. The first three slots contain:
+
+- **01 — expressive chords:** the bundled firmware-captured phrase rendered through seeded
+  humanization, retaining its free timing, expression and generating gestures.
+- **02 — following bass:** three Euclidean pulses over two beats, routed to destination 2.
+- **03 — Fill accompaniment:** four seeded notes per beat, routed to destination 3 and
+  silent until the host's **Fill** control is held.
+
+Select each slot, then click it again to launch; all three loop independently. In **Clip
+pads**, the first three bottom-row pads launch/stop them with firmware LED feedback.
+The bass and Fill parts follow the selected/live harmony on new attacks; the recorded
+chord phrase retains its pitches. Return to **Chord pads** and hold one chord trigger
+while the bank runs to explore the default 15-voice budget. These destinations use the
+mandatory MIDI capture sink; optional reference audio is not connected.
+
+The reproducible builder uses only public APIs and checks destination isolation, balanced
+MPE ownership, Fill silence and exact save/reopen:
+
+```sh
+cargo run -p crest-performance-host --example performance_showcase -- target/performance-showcase.json
+```
+
+This builder replays an existing firmware capture through the library. Live sensor/firmware
+acceptance remains the separate native and desktop test suites.
+
 **Chord pads** keeps stock MPE input and renders diatonic chords in the Rust library.
 The Harmony panel selects scale, sevenths/ninths, suspensions, borrowed harmony, inversion,
 spread, register, voice leading and all-voices/top-voice expression. Seven successive

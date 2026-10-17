@@ -1,4 +1,4 @@
-# Delivery status — October 16, 2026, Pacific
+# Delivery status — October 17, 2026, Pacific
 
 Version `0.1.0` is the first standalone integration baseline: API 2, session schema 2,
 host document envelope 1. Acceptance is attached to the matching `v0.1.0` tag and release
@@ -81,6 +81,14 @@ M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its nat
 is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
 owns its adapter, engine capability changes, production UI, project mapping and later Deck
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
+
+Tracker's separate `feat/performance-v0.1` branch now consumes API-2 patch commit
+`b47950f63f4dbacfd9de4cbc0e0bed34e8c6b78b`. Its retrospective capture integration at
+`f56f6fe3e4f6820f2fd59f950201fbbb2c4cb4ea` passed [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39014158393),
+including native Sample monitoring/capture/reopen/replay and the macOS bundle. M6 remains
+open: simultaneous performance clips, external performance routes and Linux MIDI/audio
+clock correlation still need integration work. Deck and physical-device qualification
+remain separate. This library has no dependency on that checkout or its application.
 
 ## Post-baseline timed strum candidate
 
@@ -216,3 +224,12 @@ looping notes, with X/Y/Z at 100 Hz for three virtual minutes on macOS/aarch64. 
 measured batches had p50 583 ns, p95 1,000 ns, p99 1,708 ns and max 32,917 ns; none reached
 1 ms. All 2,160 attacks had matching releases. The timed work excludes sensing, OS MIDI,
 UI, files and audio; this is local processing evidence, not Deck latency qualification.
+
+The humanized candidate passed [full standalone CI 39016098434](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39016098434),
+including a real Linux mouse contact, X/Y/Z, fixed seeded timing/velocity expectations,
+session reopening, both native firmware platforms and the unchanged ARM baseline.
+`examples/performance-showcase.json` adds a reproducible three-destination bank built
+through public APIs from the existing firmware phrase: expressive humanized chords,
+following Euclidean bass and Fill-gated accompaniment. The builder checks 108 balanced
+attacks/releases, destination isolation, Fill silence and exact persistence. It remains
+usable with only capture sinks and does not require a sound engine or Tracker checkout.

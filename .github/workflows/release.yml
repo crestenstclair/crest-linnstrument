@@ -30,7 +30,7 @@ jobs:
           tar -xzf target/candidate/*.tar.gz -C "$package_test_dir"
           package_roots=("$package_test_dir"/*)
           package_root=${package_roots[0]}
-          (cd "$package_root" && sha256sum --quiet -c SHA256SUMS && ./crest-performance-host inspect examples/expressive-phrase.json)
+          (cd "$package_root" && sha256sum --quiet -c SHA256SUMS && ./crest-performance-host inspect examples/expressive-phrase.json && ./crest-performance-host inspect examples/performance-showcase.json)
           mv target/firmware-native target/firmware-native-hidden
           LINNSTRUMENT_DESKTOP_BINARY="$package_root/linnstrument-sim" \
             LINNSTRUMENT_DESKTOP_ARTIFACTS="$PWD/target/package-acceptance" \
