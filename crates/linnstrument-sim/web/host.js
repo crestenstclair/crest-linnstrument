@@ -22,15 +22,23 @@ function renderNotes(clip){
 piano.onclick=event=>{const box=piano.getBoundingClientRect(),x=(event.clientX-box.left)/box.width*800,y=(event.clientY-box.top)/box.height*140;const note=displayedNotes.find(n=>x>=n.rect.x&&x<=n.rect.x+n.rect.w&&y>=n.rect.y&&y<=n.rect.y+n.rect.h);if(!note)return;selectedNote=note.id;document.querySelector('#note-key').value=note.key;document.querySelector('#note-start').value=note.start;document.querySelector('#note-duration').value=note.duration;};
 const harmonyForm=document.querySelector('#harmony-form');let harmonySettings=null;let renderedHarmony='';let renderedTracks='';
 function sendHarmony(degree){
+  harmonyForm.elements.arpeggio_gate.setCustomValidity('');
   if(!harmonySettings||!harmonyForm.reportValidity())return;
   const fields=new FormData(harmonyForm), settings={...harmonySettings,degree:degree??harmonySettings.degree};
   for(const name of ['tonic','inversion','register','input_anchor'])settings[name]=Number(fields.get(name));
   for(const name of ['scale','playing','extension','suspension','expression'])settings[name]=fields.get(name);
   for(const name of ['borrowed','spread','voice_leading'])settings[name]=fields.has(name);
   settings.bass_track=fields.get('bass_track')===''?null:Number(fields.get('bass_track'));
-  settings.articulation=fields.get('articulation')==='block'?{type:'block'}:{type:'strum',direction:fields.get('articulation'),interval:Number(fields.get('strum_interval'))};
+  const articulation=fields.get('articulation');
+  if(articulation==='block')settings.articulation={type:'block'};
+  else if(articulation.startsWith('arpeggio_'))settings.articulation={type:'arpeggio',direction:articulation.slice(9),interval:Number(fields.get('strum_interval')),gate:Number(fields.get('arpeggio_gate'))};
+  else settings.articulation={type:'strum',direction:articulation,interval:Number(fields.get('strum_interval'))};
+  const gate=harmonyForm.elements.arpeggio_gate;
+  gate.setCustomValidity(settings.articulation.type==='arpeggio'&&settings.articulation.gate>settings.articulation.interval?'Gate must not exceed step spacing.':'');
+  if(!harmonyForm.reportValidity())return;
   send({type:'harmony',settings});
 }
+harmonyForm.addEventListener('input',()=>harmonyForm.elements.arpeggio_gate.setCustomValidity(''));
 harmonyForm.onsubmit=event=>{event.preventDefault();sendHarmony();};
 const degreeButtons=['I','II','III','IV','V','VI','VII'].map((label,degree)=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>sendHarmony(degree);return button;});
 document.querySelector('#degrees').replaceChildren(...degreeButtons);
@@ -40,6 +48,12 @@ document.querySelector('#learn-chord').onclick=()=>{
   send({type:'learn_chord',slot:selected,degree:harmonySettings.degree,root:root.value===''?null:Number(root.value)});
 };
 document.querySelector('#clear-chord').onclick=()=>{if(harmonySettings)send({type:'clear_learned_chord',degree:harmonySettings.degree});};
+function showBeatDuration(select,ticks){
+  const value=String(ticks);
+  for(const option of [...select.options])if(option.dataset.session)option.remove();
+  if(![...select.options].some(option=>option.value===value)){const option=new Option(`${value}/960000 beat (session)`,value);option.dataset.session='true';select.add(option);}
+  select.value=value;
+}
 function renderHarmony(state,tracks){
   harmonySettings=state.harmony;
   const trackKey=JSON.stringify(tracks);
@@ -48,13 +62,9 @@ function renderHarmony(state,tracks){
   if(key!==renderedHarmony){
     for(const [name,value]of Object.entries(state.harmony)){const field=harmonyForm.elements[name];if(!field)continue;if(field.type==='checkbox')field.checked=value;else field.value=value??'';}
     const articulation=state.harmony.articulation;
-    harmonyForm.elements.articulation.value=articulation.type==='block'?'block':articulation.direction;
-    if(articulation.type==='strum'){
-      const spacing=harmonyForm.elements.strum_interval,value=String(articulation.interval);
-      for(const option of [...spacing.options])if(option.dataset.session)option.remove();
-      if(![...spacing.options].some(option=>option.value===value)){const option=new Option(`${value}/960000 beat (session)`,value);option.dataset.session='true';spacing.add(option);}
-      spacing.value=value;
-    }
+    harmonyForm.elements.articulation.value=articulation.type==='block'?'block':articulation.type==='arpeggio'?`arpeggio_${articulation.direction}`:articulation.direction;
+    if(articulation.type!=='block')showBeatDuration(harmonyForm.elements.strum_interval,articulation.interval);
+    if(articulation.type==='arpeggio')showBeatDuration(harmonyForm.elements.arpeggio_gate,articulation.gate);
     renderedHarmony=key;
   }
   for(const [degree,button]of degreeButtons.entries()){

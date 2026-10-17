@@ -14,8 +14,8 @@ pub use engine::*;
 pub use model::*;
 pub use time::*;
 
-pub const API_VERSION: u32 = 4;
-pub const SESSION_VERSION: u32 = 4;
+pub const API_VERSION: u32 = 5;
+pub const SESSION_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {

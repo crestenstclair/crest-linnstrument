@@ -74,7 +74,7 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: repeating arpeggio articulation, chord-clip leaders, conditions,
+open: chord-clip leaders, conditions,
 parameter locks, momentary transforms and scene morphing remain future work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
@@ -84,7 +84,7 @@ package. M4/M5 can continue here while Tracker remains pinned to its accepted ve
 
 ## Post-baseline timed strum candidate
 
-Development 0.2.0-dev now uses API 4/session 4; Tracker continues to consume its separately
+Development 0.2.0-dev now uses API 5/session 5; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -136,3 +136,35 @@ webview scenario, both native firmware platforms and the ARM baseline. Native ma
 keyboard input also learned pitches 42/45/49, triggered the bank from one firmware pad,
 recorded three notes with 21 expression events and nine source gestures, and reopened the
 schema-4 session stopped with zero held voices. This candidate is not a new release tag.
+
+
+## Post-baseline repeating arpeggio candidate
+
+Ascending and descending held-chord arpeggios use the native musical clock, configurable
+beat spacing and a bounded gate. Each repeat gets a fresh note identity and retains its
+trigger's fixed voicing/expression policy. Bass stays sustained; strumplate stays manual.
+Core acceptance covers equal-time release ordering, independent X/Y/Z across three
+triggers, silent gaps, top-voice policy, stop/disconnect/mode cleanup, output retries,
+full recording buffers and exact save/replay beside live MPE. API/session 5 and harmony
+algorithm 4 explicitly version the new behavior; schemas 1–4 migrate without changing
+rendered events. Tracker keeps its independently pinned API-2 dependency.
+
+Both native firmware geometries run three actual expressive sensor contacts through the
+stock MIDI path, render repeating library notes, verify independently calculated pitch,
+attack and gate times, then save/reopen/replay exact events. The standalone host exposes
+arpeggio direction, step spacing and gate; Linux desktop acceptance includes a held mouse
+contact, expression and session reopening. This remains a development candidate.
+
+Native macOS desktop acceptance selected ascending arpeggio, latched a keyboard contact,
+changed X/Y/Z, released, finished, saved and reopened. The saved take contains 266 attacks
+and 266 releases, independently checked 60,000-tick spacing, gates no longer than 30,000
+ticks, four sounding expression events and nine source gestures. Initial expression on
+subsequent notes also preserves updates made during silence. Reopening leaves zero held
+voices in ordinary Play mode. No physical hardware was used.
+
+The new release-mode workload runs three arpeggio triggers alongside six looping notes,
+with 30 ms steps, 20 ms gates and independent X/Y/Z at 100 Hz for three virtual minutes.
+On this macOS/aarch64 machine, 17,900 measured batches had p50 583 ns, p95 958 ns,
+p99 1,584 ns and maximum 42,583 ns; none reached 1 ms. All 15,120 attacks had matching
+releases with no MPE channel collisions. Sensing, transport, files, UI and audio are
+excluded; this does not qualify Steam Deck latency. CI publishes the same workload.

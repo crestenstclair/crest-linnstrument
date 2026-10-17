@@ -169,6 +169,7 @@ impl Engine {
             voicing,
             events,
             expressive,
+            repeating,
         } = self.prepare_chord(trigger, key, velocity, expression)?;
         self.check_harmony_capacity(&events, true)?;
         let records_trigger = self.recording.as_ref().is_some_and(|recording| {
@@ -191,6 +192,7 @@ impl Engine {
             voice.rendered_note = event.note;
             voice.expressive = expressive[index];
             voice.pending_attack = (event.at > trigger.at).then_some(event);
+            voice.arpeggio = repeating[index];
             *self.active.last_mut().expect("allocated voice") = voice;
             if voice.pending_attack.is_none() {
                 captured |= self.emit_harmony(voice, event);
@@ -238,19 +240,20 @@ impl Engine {
             } else {
                 voicing.notes()[index]
             };
-            expressive[index] = count == 1
-                || settings.expression == ExpressionPolicy::AllVoices
-                || index == count - 1;
+            expressive[index] =
+                settings.expression == ExpressionPolicy::AllVoices || index == count - 1;
             let id = self
                 .next_voice
                 .checked_add(index as u64)
                 .ok_or(Error::Capacity("voice identities"))?;
             events[index] = Some(InputEvent {
-                at: trigger.at.checked_add(if is_bass {
-                    BeatTime(0)
-                } else {
-                    settings.articulation.delay(index, count)
-                })?,
+                at: trigger.at.checked_add(
+                    if is_bass || settings.playing == HarmonyPlaying::Strumplate {
+                        BeatTime(0)
+                    } else {
+                        settings.articulation.delay(index, count)
+                    },
+                )?,
                 note: NoteKey {
                     source: GENERATED_SOURCE,
                     track: if is_bass {
@@ -271,12 +274,14 @@ impl Engine {
                 },
             });
         }
-        Ok(ChordAttack {
+        ChordAttack {
             degree,
             voicing,
             events,
             expressive,
-        })
+            repeating: [None; MAX_CHORD_VOICES],
+        }
+        .schedule_repeats(settings, trigger.at)
     }
     fn update_chord(&mut self, trigger: InputEvent) -> Result<()> {
         let owner = Owner::Harmony(trigger.note);
@@ -402,4 +407,26 @@ struct ChordAttack {
     voicing: Voicing,
     events: [Option<InputEvent>; MAX_CHORD_VOICES],
     expressive: [bool; MAX_CHORD_VOICES],
+    repeating: [Option<articulation::RepeatingTone>; MAX_CHORD_VOICES],
+}
+
+impl ChordAttack {
+    fn schedule_repeats(mut self, settings: HarmonySettings, trigger: BeatTime) -> Result<Self> {
+        if settings.playing == HarmonyPlaying::ChordPads {
+            for (index, event) in self
+                .events
+                .iter()
+                .take(self.voicing.notes().len())
+                .enumerate()
+            {
+                self.repeating[index] = articulation::RepeatingTone::new(
+                    settings.articulation,
+                    self.voicing.notes().len(),
+                    event.expect("prepared chord tone"),
+                    trigger,
+                )?;
+            }
+        }
+        Ok(self)
+    }
 }

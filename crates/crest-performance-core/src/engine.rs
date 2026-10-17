@@ -123,6 +123,7 @@ struct ActiveVoice {
     rendered_note: NoteKey,
     expressive: bool,
     pending_attack: Option<InputEvent>,
+    arpeggio: Option<articulation::RepeatingTone>,
 }
 #[derive(Debug)]
 struct Player {
@@ -351,14 +352,14 @@ impl Engine {
         }
         loop {
             let playback = self.next_playback_event(target)?;
-            let pending = self.next_harmony_attack(target);
+            let pending = self.next_harmony_event(target);
             if let Some((index, event)) = pending
                 && playback.is_none_or(|(_, played)| {
                     (event.at, release_order(event.gesture))
                         < (played.at, release_order(played.gesture))
                 })
             {
-                self.sound_pending_chord_voice(index, event)?;
+                self.perform_harmony_event(index, event)?;
                 self.at = event.at;
                 continue;
             }
@@ -496,6 +497,7 @@ impl Engine {
             },
             expressive: true,
             pending_attack: None,
+            arpeggio: None,
         };
         self.next_voice = next;
         self.active.push(voice);
@@ -652,7 +654,9 @@ impl Engine {
             .active
             .iter()
             .filter(|voice| {
-                voice.pending_attack.is_some() && voice.track == self.session.slots[slot].track
+                voice.pending_attack.is_some()
+                    && voice.arpeggio.is_none()
+                    && voice.track == self.session.slots[slot].track
             })
             .count();
         if 2 * pending > self.limits.recorded_events {

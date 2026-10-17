@@ -3,7 +3,7 @@
 use crate::*;
 use serde::{Deserialize, Serialize};
 
-pub const PATTERN_ALGORITHM_VERSION: u32 = 2;
+pub const PATTERN_ALGORITHM_VERSION: u32 = 3;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatternSettings {
@@ -150,7 +150,8 @@ pub struct PatternOrigin {
 impl PatternOrigin {
     pub fn validate(self) -> Result<()> {
         let supported = match self.algorithm_version {
-            1 => !self.harmony.has_learned_chords(),
+            1 => !self.harmony.has_learned_chords() && !self.harmony.articulation.is_repeating(),
+            2 => !self.harmony.articulation.is_repeating(),
             PATTERN_ALGORITHM_VERSION => true,
             _ => false,
         };

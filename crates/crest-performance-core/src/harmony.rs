@@ -5,7 +5,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const HARMONY_ALGORITHM_VERSION: u32 = 3;
+pub const HARMONY_ALGORITHM_VERSION: u32 = 4;
 pub const MAX_CHORD_VOICES: usize = MAX_VOICING_NOTES + 1;
 /// Reserved for engine-rendered notes. External input must use another source.
 pub const GENERATED_SOURCE: crate::SourceId = crate::SourceId(u32::MAX);
@@ -70,8 +70,8 @@ pub enum StrumDirection {
     Descending,
 }
 
-/// A finite sweep of the held chord. Releasing its trigger cancels tones that
-/// have not sounded. Bass and manually picked strumplate notes attack immediately.
+/// Held-chord articulation. Releasing the trigger cancels future attacks and
+/// releases sounding voices. Bass and manually picked strumplate notes stay immediate.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Articulation {
@@ -81,17 +81,31 @@ pub enum Articulation {
         direction: StrumDirection,
         interval: BeatTime,
     },
+    Arpeggio {
+        direction: StrumDirection,
+        interval: BeatTime,
+        gate: BeatTime,
+    },
 }
 impl Articulation {
     pub fn validate(self) -> Result<()> {
-        if let Self::Strum { interval, .. } = self
-            && !(1..=TICKS_PER_BEAT).contains(&interval.0)
-        {
-            return Err(Error::Invalid(
-                "strum interval must be 1 tick through 1 beat",
-            ));
+        match self {
+            Self::Block => Ok(()),
+            Self::Strum { interval, .. } | Self::Arpeggio { interval, .. }
+                if !(1..=TICKS_PER_BEAT).contains(&interval.0) =>
+            {
+                Err(Error::Invalid(
+                    "articulation interval must be 1 tick through 1 beat",
+                ))
+            }
+            Self::Arpeggio { interval, gate, .. } if gate.0 == 0 || gate > interval => Err(
+                Error::Invalid("arpeggio gate must be 1 tick through its interval"),
+            ),
+            _ => Ok(()),
         }
-        Ok(())
+    }
+    pub fn is_repeating(self) -> bool {
+        matches!(self, Self::Arpeggio { .. })
     }
     pub(crate) fn delay(self, index: usize, count: usize) -> BeatTime {
         match self {
@@ -99,6 +113,11 @@ impl Articulation {
             Self::Strum {
                 direction,
                 interval,
+            }
+            | Self::Arpeggio {
+                direction,
+                interval,
+                ..
             } => {
                 let step = match direction {
                     StrumDirection::Ascending => index,
@@ -267,7 +286,8 @@ impl HarmonyGesture {
                 !self.settings.has_learned_chords()
                     && self.settings.articulation == Articulation::Block
             }
-            2 => !self.settings.has_learned_chords(),
+            2 => !self.settings.has_learned_chords() && !self.settings.articulation.is_repeating(),
+            3 => !self.settings.articulation.is_repeating(),
             HARMONY_ALGORITHM_VERSION => true,
             _ => false,
         };

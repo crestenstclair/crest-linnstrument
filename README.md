@@ -11,9 +11,9 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 4, session schema 4**. Timed strumming and learned chord banks are
+Current development is **0.2.0-dev, API 5, session schema 5**. Timed strumming, learned chord banks and repeating arpeggios are
 versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
-Schemas 1–3 load losslessly; saving with this checkout writes schema 4, rejected by
+Schemas 1–4 load losslessly; saving with this checkout writes schema 5, rejected by
 older readers. Keep the original session to return to the baseline release.
 
 ## Run
@@ -56,7 +56,12 @@ attacks to selected chord tones across octaves. Slides retain stock firmware not
 and bend the held note; they do not synthesize extra harp attacks. Held voices keep their
 original pitches when controls change. Record/save/reopen preserves their rendered curves
 and source gestures. A separate bass track can be chosen from tracks present in a session.
-**Articulation** adds low-to-high or high-to-low timed strums with beat-based spacing.
+**Articulation** selects timed strums or repeating arpeggios, low-to-high or high-to-low.
+Step spacing sets the beat interval; an arpeggio gate sets each note's duration, up to that
+interval. A held finger repeats its original voiced chord, with independent X/Y/Z applied
+to sounding and future notes under the selected expression policy. Each repeat has a new
+note identity. Release cancels future attacks and releases sounding notes. Bass remains
+held; Strumplate remains manually picked. Record stores exact gates and expression.
 To learn a voicing, use Play mode, latch 1–5 notes, select a degree in the host and click
 **Learn held notes**. The bank preserves fixed MIDI pitches and unisons; it ignores bends
 when learning. An optional root supports rootless voicings and routed bass. Release fingers,

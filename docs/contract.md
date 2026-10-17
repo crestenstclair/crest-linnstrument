@@ -1,4 +1,4 @@
-# Public host contract, API 4
+# Public host contract, API 5
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -184,18 +184,22 @@ These control transitions are explicit input gaps, not musical scheduling interv
 
 ## Persistence and compatibility
 
-`Session.version == 4`; unknown schema versions are rejected. `Session::migrate` upgrades
-schemas 1–3 without changing tracks, slots, times or expression. Missing articulation
+`Session.version == 5`; unknown schema versions are rejected. `Session::migrate` upgrades
+schemas 1–4 without changing tracks, slots, times or expression. Missing articulation
 means Block; version-2 data containing strum settings or algorithm-2 harmony origins is rejected. Engine construction and the
 host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. Missing learned-bank entries default to seven empty degrees. Schemas 1–3 reject learned
 banks, harmony algorithm 3 and pattern algorithm 2, including nested origins/followers.
+Schemas 1–4 reject repeating arpeggio settings, harmony algorithm 4 and pattern algorithm 3,
+including nested origins and followers. Earlier rendered material keeps its original
+algorithm labels and exact events. Adding the Arpeggio enum variant requires API 5; hosts
+must handle it deliberately. No automatic regeneration occurs during migration.
 The schema contains tracks,
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 4.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 5.
 
-This development package is `0.2.0-dev`, API 4, schema 4. The accepted `v0.1.0` release
+This development package is `0.2.0-dev`, API 5, schema 5. The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
@@ -230,7 +234,7 @@ using it is rejected. Every generated voice has a fresh ID and a retained trigge
 NoteKey. Repeated input pitches remain independent. Chord attacks, expression fan-out and
 releases preflight the whole batch against voice/output/recording limits. No partial chord
 is emitted on rejection. Recording captures rendered notes and lossless expression, plus
-bounded `harmony_origin` source gestures, settings and algorithm version 3. Existing
+bounded `harmony_origin` source gestures, settings and algorithm version 4. Existing
 algorithm-1 Block and algorithm-2 strum origins remain valid without rewriting; neither
 older algorithm accepts a learned bank.
 
@@ -341,3 +345,27 @@ missing and unknown destinations fail before replacement. Legacy plain library s
 remain readable and explicitly receive lower-MPE defaults. The independent core session
 contains no MIDI backend types. Core `storage::save_session` remains available for fixtures;
 the standalone application's Save uses `save_document`. Both retain atomic 8 MB-bounded I/O.
+
+## Repeating chord arpeggios
+
+`Articulation::Arpeggio` has ascending/descending direction, an interval from one tick
+through one beat, and a gate from one tick through that interval. One trigger cycles
+through its fixed voiced chord. Bass is sustained from the trigger attack. Strumplate
+remains immediate and does not repeat. Changing settings, a learned bank or the selected
+degree affects future triggers; held cycles retain their pitches, timing and expression policy.
+
+The engine reserves one ownership slot per chord tone for the trigger's lifetime. Each
+repeat gets a fresh output voice and recorded note identity, even for unisons. Automatic
+gate releases precede attacks at the same timestamp; live input follows scheduled events
+at its timestamp. Expression during silence updates the next attack without emitting an
+orphan control. AllVoices applies it to each tone; TopVoice only applies it to the highest
+voicing position, independent of direction. A trigger release, Stop, mode change or source
+disconnect cancels every future cycle and releases sounding notes.
+
+Arpeggio scheduling uses the same bounded output and host clock as clip playback. On queue
+pressure, drain and retry the same target. Recording reserves the release of each accepted
+attack, but does not reserve an unbounded future performance. A full take rejects a later
+attack; already accepted releases remain available, and the host can finish or cancel.
+Time/identity exhaustion rejects before a new attack; a sounding gate release does not
+allocate its next identity. Recording and retrospective capture store rendered gates and
+curves plus source gestures/settings. Playback uses those exact events without regenerating.

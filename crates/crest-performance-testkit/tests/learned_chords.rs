@@ -186,7 +186,10 @@ fn learned_chord_recording_reopens_and_plays_with_independent_live_expression() 
     let session: Session = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(session, *e.session());
     let clip = session.slots[0].clip.as_ref().unwrap();
-    assert_eq!(clip.harmony_origin[0].algorithm_version, 3);
+    assert_eq!(
+        clip.harmony_origin[0].algorithm_version,
+        HARMONY_ALGORITHM_VERSION
+    );
     assert_eq!(
         clip.harmony_origin[0].settings.learned[0],
         e.session().harmony.learned[0]
@@ -274,7 +277,10 @@ fn learned_chord_parser_and_schema_migration_reject_false_legacy_claims() {
     let mut pattern = PatternSettings::default()
         .render(settings(&[60, 65], 60), TrackId(1))
         .unwrap();
-    assert_eq!(pattern.pattern_origin[0].algorithm_version, 2);
+    assert_eq!(
+        pattern.pattern_origin[0].algorithm_version,
+        PATTERN_ALGORITHM_VERSION
+    );
     let mut false_legacy = Session {
         version: 3,
         ..Session::default()

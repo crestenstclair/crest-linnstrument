@@ -356,6 +356,71 @@ def learn_played_voicing(app):
     app.capture('learned-chord-bank')
 
 
+def record_repeating_arpeggio(app):
+    app.switch('host')
+    app.click('[name="articulation"] option[value="arpeggio_ascending"]')
+    app.click('[name="strum_interval"] option[value="240000"]')
+    app.click('[name="arpeggio_gate"] option[value="120000"]')
+    app.click('#harmony-form button[type="submit"]')
+    settings = {'type': 'arpeggio', 'direction': 'ascending', 'interval': 240000, 'gate': 120000}
+    app.state(lambda s: s['host']['performance']['harmony']['articulation'] == settings,
+              'arpeggio settings accepted')
+    app.click('#chords')
+    app.click('#record')
+    app.state(lambda s: s['host']['performance']['slots'][0] == 'recording', 'arpeggio record armed')
+    app.switch('instrument')
+    app.click('#latch')
+    app.touch(1, 0)
+    state = app.state(lambda s: s['host']['performance']['active_voices'] == 3,
+                      'one firmware finger owns repeating learned chord')
+    start = state['host']['performance']['at']
+    app.press('Right')
+    app.press('Up')
+    app.press('bracketright')
+    app.state(lambda s: s['host']['performance']['at'] >= start + 1100000,
+              'native clock reaches second arpeggio cycle')
+    app.click('#release')
+    app.click('#latch')
+    app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
+              'arpeggio trigger release cancels future notes')
+    app.switch('host')
+    app.click('#finish')
+    state = app.state(lambda s: s['host']['performance']['slots'][0] == 'recorded', 'arpeggio stored')
+    clip = state['host']['clips'][0]
+    verify_desktop_arpeggio(clip)
+    path = ARTIFACTS / 'desktop-arpeggio-session.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'saved arpeggio session')
+    app.click('#open')
+    app.state(lambda s: s['host']['clips'][0] == clip and
+              s['host']['performance']['harmony']['articulation'] == settings,
+              'arpeggio settings and exact rendered notes reopened')
+    app.capture('repeating-arpeggio')
+
+
+def verify_desktop_arpeggio(clip):
+    attacks = [e for e in clip['events'] if e['gesture']['type'] == 'on']
+    assert len(attacks) >= 4, attacks
+    start = attacks[0]['at']
+    assert [e['gesture']['key'] for e in attacks] == [[41, 45, 48][i % 3] for i in range(len(attacks))]
+    assert [e['at'] - start for e in attacks] == [i * 240000 for i in range(len(attacks))]
+    releases = {json.dumps(e['note'], sort_keys=True): e['at'] for e in clip['events'] if e['gesture']['type'] == 'off'}
+    assert len(releases) == len(attacks)
+    for index, attack in enumerate(attacks):
+        duration = releases[json.dumps(attack['note'], sort_keys=True)] - attack['at']
+        expected = 120000 if index + 1 < len(attacks) else duration
+        assert duration == expected and 0 <= duration <= 120000
+    expressions = [e['gesture']['expression'] for e in clip['events'] if 'expression' in e['gesture']]
+    for dimension in ['pitch', 'timbre', 'pressure']:
+        assert expression_varies(expressions, dimension), dimension
+
+
+def expression_varies(expressions, dimension):
+    return len({expression[dimension] for expression in expressions}) > 1
+
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -374,7 +439,8 @@ def main():
             record_timed_strum(app)
             capture_held_phrase(app)
             learn_played_voicing(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank')
+            record_repeating_arpeggio(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

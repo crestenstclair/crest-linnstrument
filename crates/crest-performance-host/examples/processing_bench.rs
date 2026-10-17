@@ -24,19 +24,19 @@ fn expression(frame: u64, index: u64) -> Expression {
         timbre: ((frame * 211 + index * 79) % 65_536) as u16,
     }
 }
-fn input_frame(engine: &mut Engine, frame: u64, strum: bool) -> Result<()> {
+fn input_frame(engine: &mut Engine, frame: u64, chord_triggers: bool) -> Result<()> {
     let at = BeatTime(frame * FRAME_TICKS);
     engine.advance(at)?;
-    if strum && frame % 100 > 80 {
+    if chord_triggers && frame % 100 > 80 {
         return Ok(());
     }
-    for index in 0..if strum { 3 } else { NOTES } {
+    for index in 0..if chord_triggers { 3 } else { NOTES } {
         let expression = expression(frame, index);
-        let gesture = if strum && frame % 100 == 80 {
+        let gesture = if chord_triggers && frame % 100 == 80 {
             Gesture::Off { velocity: 64 }
-        } else if frame == 0 || (strum && frame.is_multiple_of(100)) {
+        } else if frame == 0 || (chord_triggers && frame.is_multiple_of(100)) {
             Gesture::On {
-                key: if strum { 30 } else { 60 } + index as u8,
+                key: if chord_triggers { 30 } else { 60 } + index as u8,
                 velocity: 100,
                 expression,
             }
@@ -47,7 +47,7 @@ fn input_frame(engine: &mut Engine, frame: u64, strum: bool) -> Result<()> {
             at,
             note: note(
                 2,
-                if strum {
+                if chord_triggers {
                     frame / 100 * 3 + index
                 } else {
                     index
@@ -150,10 +150,18 @@ struct Report {
 }
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    let strum = match args.as_slice() {
-        [] => false,
-        [arg] if arg == "--strum" => true,
-        _ => return Err("usage: processing_bench [--strum]".into()),
+    let articulation = match args.as_slice() {
+        [] => None,
+        [arg] if arg == "--strum" => Some(Articulation::Strum {
+            direction: StrumDirection::Ascending,
+            interval: BeatTime(FRAME_TICKS * 3),
+        }),
+        [arg] if arg == "--arpeggio" => Some(Articulation::Arpeggio {
+            direction: StrumDirection::Ascending,
+            interval: BeatTime(FRAME_TICKS * 3),
+            gate: BeatTime(FRAME_TICKS * 2),
+        }),
+        _ => return Err("usage: processing_bench [--strum | --arpeggio]".into()),
     };
     let mut engine = Engine::new(
         API_VERSION,
@@ -166,12 +174,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let mut output = MpeOutput::new(DestinationId(1), MpeZone::lower());
     let mut capture = Capture::default();
     let mut samples = Vec::with_capacity(RUN_FRAMES as usize);
-    if strum {
+    if let Some(articulation) = articulation {
         engine.command(Command::SetHarmony(HarmonySettings {
-            articulation: Articulation::Strum {
-                direction: StrumDirection::Ascending,
-                interval: BeatTime(FRAME_TICKS * 3),
-            },
+            articulation,
             ..HarmonySettings::default()
         }))?;
         engine.command(Command::SetMode(SurfaceMode::Chords))?;
@@ -182,7 +187,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })?;
     for frame in 0..RUN_FRAMES {
         let started = Instant::now();
-        input_frame(&mut engine, frame, strum)?;
+        input_frame(&mut engine, frame, articulation.is_some())?;
         capture.collect(&mut engine, &mut output)?;
         let elapsed = started.elapsed().as_nanos();
         if frame >= 100 {
@@ -201,7 +206,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,
         debug_assertions: cfg!(debug_assertions),
-        workload: if strum {
+        workload: if articulation.is_some_and(Articulation::is_repeating) {
+            "3 expressive arpeggio triggers (9 reserved voices) + 6 looping notes, 30 ms steps/20 ms gates, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
+        } else if articulation.is_some() {
             "3 repeating expressive strum triggers (9 voices) + 6 looping notes, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
         } else {
             "6 live + 6 looping notes, overlapping pitches, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"

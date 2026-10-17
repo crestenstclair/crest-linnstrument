@@ -214,8 +214,18 @@ impl Default for Session {
     }
 }
 impl Session {
-    /// Lossless upgrades of pre-harmony, pre-articulation and pre-bank sessions.
+    /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=4).contains(&self.version)
+            && (self.harmony.articulation.is_repeating()
+                || self
+                    .slots
+                    .iter()
+                    .filter_map(|slot| slot.clip.as_ref())
+                    .any(Clip::requires_arpeggio_schema))
+        {
+            return Err(Error::Invalid("older session contains v5 arpeggio fields"));
+        }
         if (1..=3).contains(&self.version)
             && (self.harmony.has_learned_chords()
                 || self
@@ -254,7 +264,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if self.version == 3 {
+        if matches!(self.version, 3 | 4) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;
@@ -316,6 +326,15 @@ pub(crate) fn validate_lifecycle(
 }
 
 impl Clip {
+    fn requires_arpeggio_schema(&self) -> bool {
+        self.harmony_origin.iter().any(|origin| {
+            origin.algorithm_version >= 4 || origin.settings.articulation.is_repeating()
+        }) || self.pattern_origin.iter().any(|origin| {
+            origin.algorithm_version >= 3 || origin.harmony.articulation.is_repeating()
+        }) || self
+            .follow
+            .is_some_and(|follow| follow.reference.articulation.is_repeating())
+    }
     fn requires_learned_chord_schema(&self) -> bool {
         self.harmony_origin
             .iter()

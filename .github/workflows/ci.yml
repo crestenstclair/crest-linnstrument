@@ -21,6 +21,7 @@ jobs:
       - run: cargo run -p crest-performance-host --locked -- demo
       - run: cargo run -p crest-performance-host --example processing_bench --release --locked > target/processing-bench.json
       - run: cargo run -p crest-performance-host --example processing_bench --release --locked -- --strum > target/processing-bench-strum.json
+      - run: cargo run -p crest-performance-host --example processing_bench --release --locked -- --arpeggio > target/processing-bench-arpeggio.json
       - uses: actions/upload-artifact@v4
         with:
           name: processing-benchmark-linux

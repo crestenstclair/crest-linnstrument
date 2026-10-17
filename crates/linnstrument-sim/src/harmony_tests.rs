@@ -766,3 +766,125 @@ fn verify_learned_voicing(model: u16) {
     r.command(BridgeCommand::Stop {}).unwrap();
     assert_eq!(r.host.engine.snapshot().active_voices, 0);
 }
+
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn firmware_three_finger_arpeggios_record_exact_gates_and_replay_on_both_geometries() {
+    for model in [128, 200] {
+        verify_firmware_arpeggio(model);
+    }
+}
+
+fn verify_firmware_arpeggio(model: u16) {
+    use crest_performance_core::{API_VERSION, Articulation, Engine, Limits, StrumDirection};
+    let mut r = runtime(model);
+    r.command(BridgeCommand::Harmony {
+        settings: HarmonySettings {
+            articulation: Articulation::Arpeggio {
+                direction: StrumDirection::Ascending,
+                interval: BeatTime(120_000),
+                gate: BeatTime(90_000),
+            },
+            ..HarmonySettings::default()
+        },
+    })
+    .unwrap();
+    r.command(BridgeCommand::Surface {
+        mode: SurfaceMode::Chords,
+    })
+    .unwrap();
+    r.command(BridgeCommand::BeginRecord { slot: 0 }).unwrap();
+    r.command(BridgeCommand::PlayExample {}).unwrap();
+    r.advance(1_000_000).unwrap();
+    r.command(BridgeCommand::FinishRecord {}).unwrap();
+    assert!(r.firmware.sensor_reads > 1000);
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+    let session = r.host.engine.save_session().unwrap();
+    let clip = session.slots[0].clip.as_ref().unwrap();
+    assert_arpeggio_gates(clip);
+    let notes = clip.notes().unwrap();
+    assert!(
+        notes.len() > 9,
+        "firmware triggers must survive through repeated cycles"
+    );
+    assert!(notes.iter().any(|note| {
+        note.expression
+            .points
+            .iter()
+            .any(|point| point.value.pitch > 200_000)
+    }));
+    let reopened: Session = serde_json::from_slice(&serde_json::to_vec(&session).unwrap()).unwrap();
+    assert_eq!(reopened, session);
+    let mut replay = Engine::new(API_VERSION, reopened, Limits::default()).unwrap();
+    replay
+        .command(Command::Launch {
+            slot: 0,
+            quantum: BeatTime(0),
+        })
+        .unwrap();
+    replay.advance(BeatTime(clip.length.0 - 1)).unwrap();
+    let played: Vec<_> = replay
+        .drain_output()
+        .map(|event| (event.at, event.gesture))
+        .collect();
+    assert_eq!(
+        played,
+        clip.events
+            .iter()
+            .map(|event| (event.at, event.gesture))
+            .collect::<Vec<_>>()
+    );
+    r.host.disconnect().unwrap();
+}
+
+fn assert_arpeggio_gates(clip: &crest_performance_core::Clip) {
+    let triggers: Vec<_> = clip
+        .harmony_origin
+        .iter()
+        .filter(|origin| matches!(origin.input.gesture, Gesture::On { .. }))
+        .collect();
+    assert_eq!(triggers.len(), 3, "exactly three actual firmware triggers");
+    let mut expected = Vec::new();
+    for trigger in triggers {
+        expected.extend(expected_arpeggio_notes(clip, trigger.input));
+    }
+    expected.sort();
+    let mut actual: Vec<_> = clip
+        .notes()
+        .unwrap()
+        .iter()
+        .map(|note| (note.start.0, note.key, note.duration.0))
+        .collect();
+    actual.sort();
+    assert_eq!(actual, expected);
+}
+
+fn expected_arpeggio_notes(
+    clip: &crest_performance_core::Clip,
+    input: crest_performance_core::InputEvent,
+) -> Vec<(u64, u8, u64)> {
+    let Gesture::On { key, .. } = input.gesture else {
+        unreachable!()
+    };
+    let pitches = match key {
+        43 => [71, 74, 77],
+        53 => [64, 67, 71],
+        63 => [69, 72, 76],
+        _ => panic!("unexpected firmware pitch {key}"),
+    };
+    let release = clip
+        .harmony_origin
+        .iter()
+        .find(|origin| {
+            origin.input.note == input.note && matches!(origin.input.gesture, Gesture::Off { .. })
+        })
+        .unwrap()
+        .input
+        .at
+        .0;
+    (input.at.0..=release)
+        .step_by(120_000)
+        .enumerate()
+        .map(|(step, at)| (at, pitches[step % 3], 90_000.min(release - at)))
+        .collect()
+}
