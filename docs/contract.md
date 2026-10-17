@@ -75,6 +75,13 @@ loop end. Commit releases the old playback and queues the merged clip at the nex
 relative to the overdub's origin. Finishing mid-cycle can therefore create a short gap.
 The prior complete clip remains available to one-step Undo. Cancel keeps the original loop.
 
+`TestHost::launch` applies the host's live `launch_quantum` preference to GUI, CLI and
+user-mode controller launches. Zero is immediate. Nonzero schedules on the next multiple
+of that many ticks, or immediately if already on the boundary. The scheduled timestamp
+is fixed at launch; changing the preference never moves an already queued clip. Stop and
+queued cancellation are immediate. The host retains this preference across device reset
+and session replacement; it is not stored in the musical session or host document.
+
 Duplicate retargets the copied clip's track. Editing requires a stopped slot. Moving a note
 preserves expression offsets; shortening explicitly trims points past its new end. All
 edits validate bounds before replacing a clip and retain the previous clip for Undo.

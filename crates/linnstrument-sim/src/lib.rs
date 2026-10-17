@@ -90,6 +90,9 @@ pub enum BridgeCommand {
     Launch {
         slot: usize,
     },
+    LaunchQuantum {
+        ticks: u64,
+    },
     Stop {},
     Mode {
         clips: bool,
@@ -372,7 +375,10 @@ impl Runtime {
         self.scenario = None;
         self.worker = worker;
         self.firmware = firmware;
-        self.host = TestHost::from_document(document, self.geometry).map_err(|e| e.to_string())?;
+        let mut host =
+            TestHost::from_document(document, self.geometry).map_err(|e| e.to_string())?;
+        host.launch_quantum = self.host.launch_quantum;
+        self.host = host;
         self.contacts.clear();
         self.ramps.clear();
         self.paused = false;
@@ -604,10 +610,19 @@ impl Runtime {
             BridgeCommand::Undo {} => self.host_command(Command::Undo),
             BridgeCommand::FinishRecord {} => self.host_command(Command::FinishRecord),
             BridgeCommand::CancelRecord {} => self.host_command(Command::CancelRecord),
-            BridgeCommand::Launch { slot } => self.host_command(Command::Launch {
-                slot,
-                quantum: BeatTime(0),
-            }),
+            BridgeCommand::Launch { slot } => {
+                if self.external() {
+                    return Err("OS MIDI mode: launch in the connected external host".into());
+                }
+                self.host.launch(slot).map_err(|e| e.to_string())
+            }
+            BridgeCommand::LaunchQuantum { ticks } => {
+                if self.external() {
+                    return Err("OS MIDI mode: configure the connected external host".into());
+                }
+                self.host.launch_quantum = BeatTime(ticks);
+                Ok(())
+            }
             BridgeCommand::Stop {} => self.host_command(Command::Stop),
             BridgeCommand::Mode { clips } => self.set_surface(if clips {
                 SurfaceMode::Clips
@@ -720,6 +735,7 @@ impl Runtime {
         let document = crest_performance_host::storage::load_document(Path::new(path))?;
         let mut host =
             TestHost::from_document(document, self.geometry).map_err(|e| e.to_string())?;
+        host.launch_quantum = self.host.launch_quantum;
         self.scenario = None;
         self.request("release_all")?;
         self.advance(100_000)?;

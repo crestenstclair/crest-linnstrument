@@ -35,6 +35,90 @@ fn runtime(model: u16) -> Runtime {
     runtime.advance(1_000_000).unwrap();
     runtime
 }
+
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn quantized_host_and_firmware_pad_launches_show_queued_then_playing_leds() {
+    for model in [128, 200] {
+        verify_quantized_launch(model);
+    }
+}
+
+fn verify_quantized_launch(model: u16) {
+    use crest_performance_core::{PatternSettings, TICKS_PER_BEAT};
+    let mut r = runtime(model);
+    r.command(BridgeCommand::Generate {
+        slot: 0,
+        settings: PatternSettings::default(),
+    })
+    .unwrap();
+    r.command(BridgeCommand::Mode { clips: true }).unwrap();
+    let boundary = (r.host.engine.position().0 / TICKS_PER_BEAT + 4) * TICKS_PER_BEAT;
+    r.command(BridgeCommand::LaunchQuantum { ticks: boundary })
+        .unwrap();
+    r.command(BridgeCommand::Launch { slot: 0 }).unwrap();
+    assert_eq!(r.host.engine.snapshot().slots[0], SlotState::Queued);
+    r.command(BridgeCommand::StopSlot { slot: 0 }).unwrap();
+    assert_eq!(r.host.engine.snapshot().slots[0], SlotState::Recorded);
+    let captured = r.host.output_count();
+    r.set_contact(Contact {
+        id: 1,
+        x: 1.0,
+        y: 0.0,
+        z: 0.5,
+        latched: false,
+    })
+    .unwrap();
+    r.advance(100_000).unwrap();
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    r.advance(50_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().slots[0], SlotState::Queued);
+    assert_eq!(
+        r.host.output_count(),
+        captured,
+        "queued clips must remain silent"
+    );
+    let [red, green, blue] = r.firmware.leds[8];
+    assert!(
+        red > 200 && green > 200 && blue < 50,
+        "queued firmware LED must be yellow"
+    );
+    r.command(BridgeCommand::LaunchQuantum { ticks: 0 })
+        .unwrap();
+    // A preference change applies only to future launches, not this queued clip.
+    while r.host.engine.position().0 < boundary {
+        r.advance(25_000).unwrap();
+    }
+    r.advance(50_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().slots[0], SlotState::Playing);
+    let first_attack = r
+        .host
+        .output_since(captured)
+        .unwrap()
+        .iter()
+        .find(|m| m.message.bytes()[0] & 0xf0 == 0x90)
+        .unwrap();
+    assert_eq!(first_attack.at, BeatTime(boundary));
+    let [red, green, blue] = r.firmware.leds[8];
+    assert!(
+        green > 200 && red < 50 && blue < 50,
+        "playing firmware LED must be green"
+    );
+    r.set_contact(Contact {
+        id: 2,
+        x: 1.0,
+        y: 0.0,
+        z: 0.5,
+        latched: false,
+    })
+    .unwrap();
+    r.advance(100_000).unwrap();
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    r.advance(50_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().slots[0], SlotState::Recorded);
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+}
+
 #[test]
 #[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
 fn queue_overflow_cannot_lose_a_release_or_replay_stale_gestures_after_reset() {

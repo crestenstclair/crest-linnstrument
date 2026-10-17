@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 
 #[derive(Serialize)]
 pub struct HostSnapshot {
+    pub launch_quantum: BeatTime,
     pub outputs: Vec<OutputRoute>,
     pub performance: PerformanceSnapshot,
     pub clips: Vec<Option<Clip>>,
@@ -27,6 +28,9 @@ pub struct OutputRoute {
 }
 pub struct TestHost {
     pub engine: Engine,
+    /// Live host launch preference, in ticks; zero launches immediately.
+    /// Applies to future GUI/CLI/controller launches, never moves queued clips.
+    pub launch_quantum: BeatTime,
     input: NoteInput,
     parser: MidiParser,
     outputs: BTreeMap<DestinationId, MidiOutput>,
@@ -62,6 +66,7 @@ impl TestHost {
                 },
             )?,
             input: NoteInput::mpe(MpeZone::lower(), SourceId(1), input_track),
+            launch_quantum: BeatTime(0),
             parser: MidiParser::default(),
             outputs,
             clock: ClockMapping::new(0, BeatTime(0), 120_000)?,
@@ -169,10 +174,7 @@ impl TestHost {
                     SlotState::Playing | SlotState::Queued => {
                         self.engine.command(Command::StopSlot { slot })?
                     }
-                    SlotState::Recorded => self.engine.command(Command::Launch {
-                        slot,
-                        quantum: BeatTime(0),
-                    })?,
+                    SlotState::Recorded => self.launch(slot)?,
                     _ => {}
                 }
             }
@@ -186,6 +188,12 @@ impl TestHost {
     }
     pub fn advance_micros(&mut self, micros: u64) -> Result<()> {
         self.advance(self.clock.at_micros(micros)?)
+    }
+    pub fn launch(&mut self, slot: usize) -> Result<()> {
+        self.command(Command::Launch {
+            slot,
+            quantum: self.launch_quantum,
+        })
     }
     fn advance(&mut self, at: BeatTime) -> Result<()> {
         self.engine.advance(at)?;
@@ -242,6 +250,7 @@ impl TestHost {
     }
     pub fn snapshot(&self) -> HostSnapshot {
         HostSnapshot {
+            launch_quantum: self.launch_quantum,
             outputs: self.output_routes(),
             performance: self.engine.snapshot(),
             tracks: self.engine.session().tracks.clone(),

@@ -36,6 +36,10 @@ Select a host slot, choose **Record selected**, play the instrument, then **Fini
 Click the selected recorded slot to launch. **Clip pads** switches stock firmware into
 User Firmware Mode: bottom-row pads 1–8 launch or stop slots. **Play mode** restores stock
 MPE playing while loops continue. Save and reopen through the host's session path field.
+**Launch grid** selects immediate, next-beat or next-four-beat launches for both host buttons
+and controller pads. Queued pads show yellow, playing pads green. A second press cancels a
+queued launch or stops playback immediately. This live host preference applies to future
+launches, survives device reset/session open, and starts at Off on application restart.
 
 **Chord pads** keeps stock MPE input and renders diatonic chords in the Rust library.
 The Harmony panel selects scale, sevenths/ninths, suspensions, borrowed harmony, inversion,
@@ -120,7 +124,9 @@ Use IDs printed by `ports`: **LinnStrument Simulator performance** is host input
 output port ID to audition an MPE instrument. Physical devices use the same CLI and adapter;
 configure lower MPE, channels 2–16 and ±48 semitones first. No automatic MIDI thru is added.
 The CLI accepts `record 1`, `finish`, `launch 1`, `clips`, `play`, `stop`, `save PATH`,
-`open PATH`, `chords`, `harmony JSON`, `profile JSON`, and `quit`. Ctrl-C/termination, EOF, overflow and detected removal attempt
+`open PATH`, `chords`, `harmony JSON`, `profile JSON`, `quantum TICKS`, and `quit`. Use
+`quantum 960000` for next-beat launches or `quantum 0` for immediate launches.
+Ctrl-C/termination, EOF, overflow and detected removal attempt
 voice cleanup. Reconnect by reopening the current port IDs. OS round-trip tests ran on
 CoreMIDI; Linux runtime and physical USB qualification remain separate.
 

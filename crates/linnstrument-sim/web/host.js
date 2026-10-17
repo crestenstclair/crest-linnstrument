@@ -3,6 +3,7 @@ const commands={play:{type:'mode',clips:false},clips:{type:'mode',clips:true},ch
 for(const [id,command]of Object.entries(commands))document.getElementById(id).onclick=()=>send(command);
 document.querySelector('#stop-slot').onclick=()=>send({type:'stop_slot',slot:selected});
 document.querySelector('#record').onclick=()=>send({type:'begin_record',slot:selected});
+document.querySelector('#launch-quantum').onchange=event=>send({type:'launch_quantum',ticks:Number(event.target.value)});
 for(const type of ['save','open'])document.getElementById(type).onclick=()=>send({type,path:document.querySelector('#path').value});
 document.querySelector('#overdub').onclick=()=>send({type:'begin_overdub',slot:selected});
 document.querySelector('#retro').onclick=()=>send({type:'capture_recent',slot:selected,ticks:3840000});
@@ -69,6 +70,7 @@ function renderClips(states){
 subscribers.push(snapshot=>{
   if(snapshot.external_host){document.querySelector('#transport').textContent='OS MIDI DEVICE MODE · Connect external host to Simulator performance / feedback ports';for(const element of document.querySelectorAll('button,input,select'))element.disabled=true;return;}
   const state=snapshot.host.performance;
+  document.querySelector('#launch-quantum').value=String(snapshot.host.launch_quantum);
   renderNotes(snapshot.host.clips[selected]);
   renderHarmony(state,snapshot.host.tracks);
   renderOutputs(snapshot.host);
