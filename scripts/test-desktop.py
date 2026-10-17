@@ -528,6 +528,49 @@ def record_humanized_chord(app):
     app.capture('humanized-chord')
 
 
+def play_showcase_bank(app):
+    app.switch('host')
+    packaged = BINARY.parent / 'examples/performance-showcase.json'
+    path = packaged if packaged.is_file() else ROOT / 'examples/performance-showcase.json'
+    app.fill('#path', str(path))
+    app.click('#open')
+    state = app.state(lambda s: len(s['host']['tracks']) == 3 and
+                      s['host']['performance']['slots'][:3] == ['recorded'] * 3,
+                      'showcase bank reopened')
+    assert [route['destination'] for route in state['host']['outputs']] == [1, 2, 3]
+    app.click('#clips')
+    app.state(lambda s: s['host']['performance']['mode'] == 'clips', 'showcase clip pad mode')
+    app.switch('instrument')
+    for column in [1, 2, 3]:
+        app.touch(column, 0)
+    state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing'] * 3 and
+                      all(s['firmware']['leds'][column * 8][1] > 200 for column in [1, 2, 3]),
+                      'three independent clips launched by firmware pads')
+    assert not any(m['destination'] == 3 for m in state['host']['recent_midi'])
+    app.capture('showcase-three-clips', state)
+    app.switch('host')
+    app.click('#fill')
+    app.native('keydown', 'space')
+    app.state(lambda s: s['host']['performance']['fill'] and any(
+        m['destination'] == 3 and m['message']['bytes'][0] & 0xf0 == 0x90
+        for m in s['host']['recent_midi']), 'showcase Fill reaches independent destination')
+    app.native('keyup', 'space')
+    app.state(lambda s: not s['host']['performance']['fill'], 'showcase Fill released')
+    app.switch('instrument')
+    app.touch(2, 0)
+    state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing', 'recorded', 'playing'] and
+                      s['firmware']['leds'][16][2] > 200 and
+                      s['firmware']['leds'][8][1] > 200 and s['firmware']['leds'][24][1] > 200,
+                      'stopping bass preserves other clips and independent firmware LEDs')
+    app.capture('showcase-independent-stop', state)
+    app.switch('host')
+    app.click('#stop')
+    app.click('#play')
+    app.state(lambda s: s['host']['performance']['active_voices'] == 0 and
+              s['host']['performance']['slots'][:3] == ['recorded'] * 3 and
+              s['host']['performance']['mode'] == 'play', 'showcase restored stock playing mode')
+
+
 
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
@@ -550,7 +593,8 @@ def main():
             record_repeating_arpeggio(app)
             edit_conditions_and_hold_fill(app)
             record_humanized_chord(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord')
+            play_showcase_bank(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank, repeating arpeggio, conditions and Fill, humanized chord, three-route showcase')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')
