@@ -1,7 +1,7 @@
-# Public host contract, API 12 (development)
+# Public host contract, API 12
 
-Stable v0.2.0 exposes API 9/session 8. Development `0.3.0-dev.3` adds per-note parameter
-locks in API 12/session 10, following A/B morphing in API 11/session 9. Tracker remains independently pinned to tested API-10
+Release v0.3.0 exposes API 12/session 10/host envelope 2. It adds per-note parameter
+locks after A/B morphing in API 11/session 9. The earlier v0.2.0 remains API 9/session 8. Tracker remains independently pinned to tested API-10
 commit `6c37aa5e695dd6968d69b693137f0f9bee16b67f`; upgrading is a separate decision.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
@@ -13,8 +13,8 @@ An application outside this workspace consumes the current standalone release by
 
 ```toml
 [dependencies]
-crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.2.0" }
-crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.2.0" }
+crest-performance-core = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.3.0" }
+crest-linnstrument = { git = "https://github.com/crestenstclair/crest-linnstrument", tag = "v0.3.0" }
 ```
 
 A fresh external Cargo application verified engine creation, clock advance, session save,
@@ -167,8 +167,8 @@ conditions, follower references, and historical generating intent/settings do no
 Reused note identities reject explicitly because the editing projection requires one
 lifetime per identity. Invalid grids, malformed clips or unavailable slots reject before
 replacement. Changed edits preserve the entire old clip for Undo; no-op quantization
-preserves existing Undo. No schema change is needed: readers already understand the
-resulting raw notes and expression, including stable v0.2.0 readers.
+preserves existing Undo. Quantization itself adds no persistence fields; the current writer
+uses schema 10 for the complete session, which older readers reject.
 
 Changing Play/Chords/Clips mode releases live ownership and preserves running clips. It requires
 finishing/cancelling any recording first. Device disconnect releases that source's live
@@ -311,9 +311,10 @@ The source command and effective/source snapshot fields require API 8. The schem
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with this development checkout writes schema 10.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save with v0.3.0 writes schema 10.
 
-The stable release package is `0.2.0`, API 9, schema 8. Development package
+The current release package is `0.3.0`, API 12, schema 10, host envelope 2. The previous
+`0.2.0` release remains API 9/schema 8. Development package
 `0.3.0-dev.1` introduced API 10 for explicit quantization with schema 8.
 `0.3.0-dev.2` adds API 11/session 9 for scene morphing; the host envelope stays at 2.
 The accepted `v0.1.0` release
@@ -529,8 +530,8 @@ Host save/open/reset preserve this configuration. Version 1 migrates in memory w
 120,000 milli-BPM; it must not carry a tempo value. New-version files with missing/invalid
 tempo, unknown versions or unknown fields reject. Reading never rewrites the source;
 explicit Save writes version 2. Stable v0.2 host readers reject version 2, so retain the
-original files to roll back. The embedded schema-8 session remains independently readable
-by v0.2; its host tempo is not part of the core session. Reopening starts stopped with the
+original files to roll back. The embedded core session now uses schema 10; host tempo is
+not part of that core session. Reopening starts stopped with the
 saved current tempo, not a history of tempo changes. Every session destination needs
 exactly one validated profile; duplicate,
 missing and unknown destinations fail before replacement. Legacy plain library sessions

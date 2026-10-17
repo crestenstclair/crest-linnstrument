@@ -5,19 +5,18 @@ The workspace is named `crest-performance`; it currently lives in the existing
 `crest-linnstrument` repository. No Crest Tracker checkout, application code, sound engine,
 physical controller, MIDI device, or sound card is needed for the development path.
 
-**Standalone release: `0.2.0`, public API 9, session schema 8.**
-Development on this branch is `0.3.0-dev.3`, API 12/session 10/host envelope 2;
-the release tag remains unchanged.
+**Standalone release: `0.3.0`, public API 12, session schema 10, host envelope 2.**
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
-The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
+The matching [v0.3.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.3.0)
 defines this contract; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Version 0.2 adds timed strumming, humanized chords, learned chord banks, repeating arpeggios,
+Version 0.3 adds firmware-pad harmony controls, local tempo changes, explicit attack
+quantization, A/B morph capture and voice-scoped parameter locks. Version 0.2 added timed strumming, humanized chords, learned chord banks, repeating arpeggios,
 per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
 [v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
 API 2/session 2. Crest Tracker's independent integration branch pins tested API-10 commit
-`6c37aa5`; this API-12 development work does not change that dependency.
+`6c37aa5`; this API-12 release does not change that dependency.
 Schemas 1–9 load losslessly; saving with this checkout writes schema 10, rejected by
 older readers. Keep the original session to return to its previous library version.
 
@@ -109,7 +108,7 @@ New host files use envelope 2; envelope-1 and plain sessions load at 120 BPM wit
 rewriting the source. Stable v0.2 rejects envelope 2, so keep original files for rollback.
 The embedded core session uses schema 10 and can still be consumed independently.
 
-In this development checkout, **Clip pads** also uses top-row pads 1–7 for I–VII.
+**Clip pads** also uses top-row pads 1–7 for I–VII.
 Pressing one selects that degree using the configured harmony settings and takes over
 follower harmony from any recorded leader. The active effective degree is green; the
 other selectors are blue. A running chord source moves that indicator until a degree is
@@ -207,13 +206,13 @@ last-held-note priority. Host sessions retain profiles; plain library sessions r
 readable with lower-MPE defaults. Independent expressive playback requires MPE. These are initial M4/M5 slices, not completion
 of the full harmony/generator backlog.
 
-The development note editor offers **Quantize clip attacks** as an explicit stopped-clip
+The note editor offers **Quantize clip attacks** as an explicit stopped-clip
 edit. It chooses the nearest feasible beat-grid position for each attack, with halfway
 ties moving later. The whole note moves: duration, velocity and all X/Y/Z samples stay
 exact. Near a loop boundary, a note moves earlier if necessary to fit its complete curve.
 Undo restores the exact original performance, and recording remains unquantized. The
-library exposes the same operation through `Command::QuantizeClip` in API 10. Session
-schema 8 is unchanged, so stable v0.2 readers can replay the edited raw performance.
+library exposes the same operation through `Command::QuantizeClip`, introduced in API 10.
+Quantization only moves raw events; current saved sessions still require a schema-10 reader.
 
 **Play scripted phrase** drives three independently expressive contacts through the native
 scheduler. Start host recording first to capture it, then finish and launch the clip. The

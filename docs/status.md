@@ -1,7 +1,7 @@
 # Delivery status — October 17, 2026, Pacific
 
-Stable version `0.2.0` carries API 9, session schema 8 and host document envelope 1.
-Development version `0.3.0-dev.3` uses API 12, schema 10 and host envelope 2; its additions are not yet tagged.
+Version `0.3.0` carries API 12, session schema 10 and host document envelope 2.
+The previous `v0.2.0` tag remains API 9/session 8/host envelope 1.
 The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
 the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
@@ -521,5 +521,20 @@ light to blue with zero active voices. Local evidence is
 `target/dev/firmware-note-parameters.json`, SHA-256
 `7edf5a92eb3fa91e5287c55fdba3c0c4b1fe2b2a38368a67abef5b55015f1189`.
 The Linux desktop acceptance script now performs the same edit/Undo/reopen/pad capture checks;
-CI and extracted-package evidence for this candidate are pending. Parameter automation
+Source CI [39032135703](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39032135703)
+and extracted Linux package [39032197841](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39032197841)
+both passed at `1867f4a`. The preceding docs-only run exposed a test race between separate
+firmware/pixel observations; the test now compares exact RGB values from one rendered frame.
+A separate Git-pinned API-12 consumer replayed the desktop evidence with exact voice-2 lock
+and balanced releases, without simulator or Tracker dependencies. Parameter automation
 recording, audible parameter DSP, Deck and physical qualification remain separate work.
+
+
+## v0.3 release preparation
+
+Version 0.3 promotes the tested controller, timing, quantization and parameter-capture
+contracts to an independently consumable release. API 12, schema 10 and host envelope 2
+are explicit upgrades from v0.2; keep original files for rollback and validate host upgrades
+with shared fixtures. Tagged source/package gates are repeated after the version change.
+This release does not claim production parameter DSP, Linux MIDI/audio clock correlation,
+Steam Deck or physical-device qualification. Tracker remains on its tested API-10 pin.
