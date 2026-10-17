@@ -24,14 +24,19 @@ fn expression(frame: u64, index: u64) -> Expression {
         timbre: ((frame * 211 + index * 79) % 65_536) as u16,
     }
 }
-fn input_frame(engine: &mut Engine, frame: u64) -> Result<()> {
+fn input_frame(engine: &mut Engine, frame: u64, strum: bool) -> Result<()> {
     let at = BeatTime(frame * FRAME_TICKS);
     engine.advance(at)?;
-    for index in 0..NOTES {
+    if strum && frame % 100 > 80 {
+        return Ok(());
+    }
+    for index in 0..if strum { 3 } else { NOTES } {
         let expression = expression(frame, index);
-        let gesture = if frame == 0 {
+        let gesture = if strum && frame % 100 == 80 {
+            Gesture::Off { velocity: 64 }
+        } else if frame == 0 || (strum && frame.is_multiple_of(100)) {
             Gesture::On {
-                key: 60 + index as u8,
+                key: if strum { 30 } else { 60 } + index as u8,
                 velocity: 100,
                 expression,
             }
@@ -40,7 +45,14 @@ fn input_frame(engine: &mut Engine, frame: u64) -> Result<()> {
         };
         engine.input(InputEvent {
             at,
-            note: note(2, index),
+            note: note(
+                2,
+                if strum {
+                    frame / 100 * 3 + index
+                } else {
+                    index
+                },
+            ),
             gesture,
         })?;
     }
@@ -137,6 +149,12 @@ struct Report {
     batches_over_1ms: usize,
 }
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    let strum = match args.as_slice() {
+        [] => false,
+        [arg] if arg == "--strum" => true,
+        _ => return Err("usage: processing_bench [--strum]".into()),
+    };
     let mut engine = Engine::new(
         API_VERSION,
         session(),
@@ -148,13 +166,23 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let mut output = MpeOutput::new(DestinationId(1), MpeZone::lower());
     let mut capture = Capture::default();
     let mut samples = Vec::with_capacity(RUN_FRAMES as usize);
+    if strum {
+        engine.command(Command::SetHarmony(HarmonySettings {
+            articulation: Articulation::Strum {
+                direction: StrumDirection::Ascending,
+                interval: BeatTime(FRAME_TICKS * 3),
+            },
+            ..HarmonySettings::default()
+        }))?;
+        engine.command(Command::SetMode(SurfaceMode::Chords))?;
+    }
     engine.command(Command::Launch {
         slot: 0,
         quantum: BeatTime(0),
     })?;
     for frame in 0..RUN_FRAMES {
         let started = Instant::now();
-        input_frame(&mut engine, frame)?;
+        input_frame(&mut engine, frame, strum)?;
         capture.collect(&mut engine, &mut output)?;
         let elapsed = started.elapsed().as_nanos();
         if frame >= 100 {
@@ -173,7 +201,11 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,
         debug_assertions: cfg!(debug_assertions),
-        workload: "6 live + 6 looping notes, overlapping pitches, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches",
+        workload: if strum {
+            "3 repeating expressive strum triggers (9 voices) + 6 looping notes, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
+        } else {
+            "6 live + 6 looping notes, overlapping pitches, XYZ at 100 Hz; advance/input/MPE allocation/capture validation; no UI, files, sensor, OS MIDI or audio in timed batches"
+        },
         virtual_seconds: RUN_FRAMES / 100,
         measured_batches: samples.len(),
         events: capture.events,

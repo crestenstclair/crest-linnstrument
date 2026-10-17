@@ -11,6 +11,11 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
+Current development is **0.2.0-dev, API 3, session schema 3**. Timed strumming is a
+versioned library expansion; Crest Tracker remains pinned to its accepted API-2 commit.
+Schemas 1 and 2 load losslessly; saving with this checkout writes schema 3, rejected by
+older readers. Keep the original session to return to the baseline release.
+
 ## Run
 
 Install Rust 1.96.0, Python 3, Git, and a C++17 compiler. The desktop uses Tauri 2.12.4,
@@ -51,6 +56,11 @@ attacks to selected chord tones across octaves. Slides retain stock firmware not
 and bend the held note; they do not synthesize extra harp attacks. Held voices keep their
 original pitches when controls change. Record/save/reopen preserves their rendered curves
 and source gestures. A separate bass track can be chosen from tracks present in a session.
+**Articulation** adds low-to-high or high-to-low timed strums with beat-based spacing.
+Release the trigger to cancel remaining tones. Expression updates sounding voices and the
+initial state of upcoming tones, respecting the selected all/top-voice policy. Bass sounds
+immediately; manually picked Strumplate notes retain immediate attacks. Capture stores the
+rendered timing, expression and source gestures for exact replay without regeneration.
 
 Expand **Accompaniment** to generate a selected stopped slot. Euclidean pulses, seed,
 pitch-cycle length, chord-tone range and bounded timing/velocity variation are independent

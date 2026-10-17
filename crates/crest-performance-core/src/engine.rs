@@ -1,3 +1,4 @@
+mod articulation;
 mod harmony;
 use crate::*;
 use serde::{Deserialize, Serialize};
@@ -106,6 +107,7 @@ struct ActiveVoice {
     destination: DestinationId,
     rendered_note: NoteKey,
     expressive: bool,
+    pending_attack: Option<InputEvent>,
 }
 #[derive(Debug)]
 struct Player {
@@ -307,7 +309,22 @@ impl Engine {
         if target < self.at {
             return Err(Error::TimeOrder);
         }
-        while let Some((player_index, mut event)) = self.next_playback_event(target)? {
+        loop {
+            let playback = self.next_playback_event(target)?;
+            let pending = self.next_harmony_attack(target);
+            if let Some((index, event)) = pending
+                && playback.is_none_or(|(_, played)| {
+                    (event.at, release_order(event.gesture))
+                        < (played.at, release_order(played.gesture))
+                })
+            {
+                self.sound_pending_chord_voice(index, event)?;
+                self.at = event.at;
+                continue;
+            }
+            let Some((player_index, mut event)) = playback else {
+                break;
+            };
             let slot = self.players[player_index].slot;
             let clip = self.session.slots[slot]
                 .clip
@@ -437,6 +454,7 @@ impl Engine {
                 Owner::Live(note) | Owner::Clip(_, note) | Owner::Harmony(note) => note,
             },
             expressive: true,
+            pending_attack: None,
         };
         self.next_voice = next;
         self.active.push(voice);
@@ -458,7 +476,9 @@ impl Engine {
             Gesture::Off { .. } if recording.held.contains(&event.note) => held - 1,
             _ => held,
         };
-        if recording.events.len() + 1 + reserved > self.limits.recorded_events {
+        if recording.events.len() + 1 + reserved + self.pending_record_cost(Some(event.note))
+            > self.limits.recorded_events
+        {
             return Err(Error::Capacity("recording; finish or cancel take"));
         }
         Ok(())
@@ -564,6 +584,18 @@ impl Engine {
         }
         if self.recording.is_some() || self.players.iter().any(|p| p.slot == slot) {
             return Err(Error::State("slot must be stopped and recorder idle"));
+        }
+        let pending = self
+            .active
+            .iter()
+            .filter(|voice| {
+                voice.pending_attack.is_some() && voice.track == self.session.slots[slot].track
+            })
+            .count();
+        if 2 * pending > self.limits.recorded_events {
+            return Err(Error::Capacity(
+                "recording cannot reserve pending strum notes",
+            ));
         }
         self.recording = Some(Recording {
             previous: None,
@@ -708,7 +740,11 @@ impl Engine {
         Ok(())
     }
     fn release_matching(&mut self, matches: impl Fn(Owner) -> bool) -> Result<()> {
-        let count = self.active.iter().filter(|v| matches(v.owner)).count();
+        let count = self
+            .active
+            .iter()
+            .filter(|v| matches(v.owner) && v.pending_attack.is_none())
+            .count();
         if self.output.len() + count > self.limits.output_events {
             return Err(Error::Capacity("output; drain before stop"));
         }
@@ -716,6 +752,9 @@ impl Engine {
         while index < self.active.len() {
             if matches(self.active[index].owner) {
                 let voice = self.active.remove(index);
+                if voice.pending_attack.is_some() {
+                    continue;
+                }
                 if matches!(voice.owner, Owner::Live(_) | Owner::Harmony(_)) {
                     let note = voice.rendered_note;
                     self.remember(InputEvent {

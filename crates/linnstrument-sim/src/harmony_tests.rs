@@ -505,3 +505,99 @@ fn firmware_strumplate_and_top_voice_policy_use_stock_mpe() {
     r.advance(100_000).unwrap();
     assert_eq!(r.host.engine.snapshot().active_voices, 0);
 }
+
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn firmware_three_finger_phrase_records_timed_strums_for_both_geometries() {
+    for model in [128, 200] {
+        verify_timed_strum(model);
+    }
+}
+
+fn verify_timed_strum(model: u16) {
+    use crest_performance_core::{API_VERSION, Articulation, Engine, Limits, StrumDirection};
+    let mut r = runtime(model);
+    r.command(BridgeCommand::Harmony {
+        settings: HarmonySettings {
+            articulation: Articulation::Strum {
+                direction: StrumDirection::Ascending,
+                interval: BeatTime(120_000),
+            },
+            ..HarmonySettings::default()
+        },
+    })
+    .unwrap();
+    r.command(BridgeCommand::Surface {
+        mode: SurfaceMode::Chords,
+    })
+    .unwrap();
+    r.command(BridgeCommand::BeginRecord { slot: 0 }).unwrap();
+    r.command(BridgeCommand::PlayExample {}).unwrap();
+    r.advance(1_000_000).unwrap();
+    r.command(BridgeCommand::FinishRecord {}).unwrap();
+    assert!(r.firmware.sensor_reads > 1000);
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+    let session = r.host.engine.save_session().unwrap();
+    let clip = session.slots[0].clip.as_ref().unwrap();
+    let notes = clip.notes().unwrap();
+    assert_eq!(notes.len(), 9);
+    let triggers: Vec<_> = clip
+        .harmony_origin
+        .iter()
+        .filter_map(|origin| match origin.input.gesture {
+            Gesture::On { key, .. } => Some((origin.input.at, key)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        triggers.len(),
+        3,
+        "Three actual firmware attacks must produce nine library voices"
+    );
+    for (at, key) in triggers {
+        let pitches = match key {
+            43 => [71, 74, 77],
+            53 => [64, 67, 71],
+            63 => [69, 72, 76],
+            _ => panic!("Unexpected firmware pitch {key}"),
+        };
+        for (step, key) in pitches.into_iter().enumerate() {
+            let start = BeatTime(at.0 + step as u64 * 120_000);
+            assert_eq!(
+                notes
+                    .iter()
+                    .filter(|note| note.key == key && note.start == start)
+                    .count(),
+                1
+            );
+        }
+    }
+    assert!(notes.iter().any(|note| {
+        note.expression
+            .points
+            .iter()
+            .any(|point| point.value.pitch > 200_000)
+    }));
+    let reopened: Session = serde_json::from_slice(&serde_json::to_vec(&session).unwrap()).unwrap();
+    assert_eq!(reopened, session);
+    let mut replay = Engine::new(API_VERSION, reopened, Limits::default()).unwrap();
+    replay
+        .command(Command::Launch {
+            slot: 0,
+            quantum: BeatTime(0),
+        })
+        .unwrap();
+    replay.advance(BeatTime(clip.length.0 - 1)).unwrap();
+    let played: Vec<_> = replay.drain_output().collect();
+    assert_eq!(
+        played
+            .iter()
+            .map(|event| (event.at, event.gesture))
+            .collect::<Vec<_>>(),
+        clip.events
+            .iter()
+            .map(|event| (event.at, event.gesture))
+            .collect::<Vec<_>>()
+    );
+    r.host.disconnect().unwrap();
+}

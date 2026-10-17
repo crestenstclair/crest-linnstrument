@@ -28,6 +28,7 @@ function sendHarmony(degree){
   for(const name of ['scale','playing','extension','suspension','expression'])settings[name]=fields.get(name);
   for(const name of ['borrowed','spread','voice_leading'])settings[name]=fields.has(name);
   settings.bass_track=fields.get('bass_track')===''?null:Number(fields.get('bass_track'));
+  settings.articulation=fields.get('articulation')==='block'?{type:'block'}:{type:'strum',direction:fields.get('articulation'),interval:Number(fields.get('strum_interval'))};
   send({type:'harmony',settings});
 }
 harmonyForm.onsubmit=event=>{event.preventDefault();sendHarmony();};
@@ -40,7 +41,14 @@ function renderHarmony(state,tracks){
   const key=JSON.stringify({...state.harmony,degree:0});
   if(key!==renderedHarmony){
     for(const [name,value]of Object.entries(state.harmony)){const field=harmonyForm.elements[name];if(!field)continue;if(field.type==='checkbox')field.checked=value;else field.value=value??'';}
-
+    const articulation=state.harmony.articulation;
+    harmonyForm.elements.articulation.value=articulation.type==='block'?'block':articulation.direction;
+    if(articulation.type==='strum'){
+      const spacing=harmonyForm.elements.strum_interval,value=String(articulation.interval);
+      for(const option of [...spacing.options])if(option.dataset.session)option.remove();
+      if(![...spacing.options].some(option=>option.value===value)){const option=new Option(`${value}/960000 beat (session)`,value);option.dataset.session='true';spacing.add(option);}
+      spacing.value=value;
+    }
     renderedHarmony=key;
   }
   for(const [degree,button]of degreeButtons.entries())button.setAttribute('aria-pressed',String(degree===state.harmony.degree));

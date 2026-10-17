@@ -87,6 +87,13 @@ impl Engine {
             expressive,
         } = self.prepare_chord(trigger, key, velocity, expression)?;
         self.check_harmony_capacity(&events, true)?;
+        let records_trigger = self.recording.as_ref().is_some_and(|recording| {
+            events
+                .iter()
+                .flatten()
+                .any(|event| event.note.track == self.session.slots[recording.slot].track)
+        });
+        self.check_harmony_origin_capacity(owner, trigger.gesture, records_trigger)?;
         let mut captured = false;
         for (index, event) in events
             .into_iter()
@@ -96,8 +103,11 @@ impl Engine {
             let mut voice = self.allocate_voice(owner, event.note.track)?;
             voice.rendered_note = event.note;
             voice.expressive = expressive[index];
+            voice.pending_attack = (event.at > trigger.at).then_some(event);
             *self.active.last_mut().expect("allocated voice") = voice;
-            captured |= self.emit_harmony(voice, event);
+            if voice.pending_attack.is_none() {
+                captured |= self.emit_harmony(voice, event);
+            }
         }
         self.session.harmony.degree = degree;
         self.last_voicing = Some(voicing);
@@ -149,7 +159,11 @@ impl Engine {
                 .checked_add(index as u64)
                 .ok_or(Error::Capacity("voice identities"))?;
             events[index] = Some(InputEvent {
-                at: trigger.at,
+                at: trigger.at.checked_add(if is_bass {
+                    BeatTime(0)
+                } else {
+                    settings.articulation.delay(index, count)
+                })?,
                 note: NoteKey {
                     source: GENERATED_SOURCE,
                     track: if is_bass {
@@ -179,12 +193,17 @@ impl Engine {
     }
     fn update_chord(&mut self, trigger: InputEvent) -> Result<()> {
         let owner = Owner::Harmony(trigger.note);
+        let records_trigger = self.recording_chord(owner);
+        self.check_harmony_origin_capacity(owner, trigger.gesture, records_trigger)?;
         let mut events = [None; MAX_CHORD_VOICES];
         let mut voices = [None; MAX_CHORD_VOICES];
         let mut found = false;
         let mut count = 0;
         for voice in self.active.iter().filter(|v| v.owner == owner) {
             found = true;
+            if voice.pending_attack.is_some() {
+                continue;
+            }
             if matches!(trigger.gesture, Gesture::Expression { .. }) && !voice.expressive {
                 continue;
             }
@@ -199,7 +218,8 @@ impl Engine {
             return Err(Error::UnknownNote);
         }
         self.check_harmony_capacity(&events, false)?;
-        let mut captured = false;
+        self.update_pending_chord(owner, trigger.gesture);
+        let mut captured = records_trigger;
         for (voice, event) in voices.into_iter().zip(events).filter_map(|(v, e)| v.zip(e)) {
             captured |= self.emit_harmony(voice, event);
         }
@@ -246,12 +266,14 @@ impl Engine {
             }
             captured += 1;
         }
-        if recording.events.len() + captured + held > self.limits.recorded_events {
+        if recording.events.len() + captured + held + self.pending_record_cost(None)
+            > self.limits.recorded_events
+        {
             return Err(Error::Capacity("recording; finish or cancel take"));
         }
         Ok(())
     }
-    fn emit_harmony(&mut self, voice: ActiveVoice, event: InputEvent) -> bool {
+    pub(super) fn emit_harmony(&mut self, voice: ActiveVoice, event: InputEvent) -> bool {
         self.output.push_back(OutputEvent {
             at: event.at,
             destination: voice.destination,
@@ -278,8 +300,8 @@ impl Engine {
         }
         self.recent_harmony.push_back(origin);
         if captured && let Some(recording) = &mut self.recording {
-            // Each retained intent has at least one rendered event, so the
-            // rendered-event limit also bounds this preallocated metadata.
+            // Pending-tone expression is retained too. Its independent bound
+            // is preflighted before any output or cached expression changes.
             debug_assert!(recording.harmony_origin.len() < self.limits.recorded_events);
             let mut origin = origin;
             origin.input.at.0 -= recording.start.0;

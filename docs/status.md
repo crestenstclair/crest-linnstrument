@@ -74,10 +74,35 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: live strum/arpeggio articulation, custom chord capture, chord-clip leaders, conditions,
+open: repeating arpeggio articulation, custom chord capture, chord-clip leaders, conditions,
 parameter locks, momentary transforms and scene morphing remain future work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
 is Rust, so a direct dependency is available; no speculative FFI wrapper was added. Tracker
 owns its adapter, engine capability changes, production UI, project mapping and later Deck
 package. M4/M5 can continue here while Tracker remains pinned to its accepted version.
+
+## Post-baseline timed strum candidate
+
+Development 0.2.0-dev uses API 3/session 3; Tracker continues to consume its separately
+pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
+unplayed tones on release, apply independent expression and capture exact rendered timing.
+Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
+bass, manual strumplate, equal-time ordering, overflow, recovery snapshots and migration.
+The pinned firmware's three-finger phrase produces three raw attacks and nine precisely
+spaced library notes on both 128- and 200-pad models, then survives save/replay. This is
+native simulation evidence, not physical-device qualification or a new tagged release.
+
+The macOS desktop candidate was exercised through native UI controls: select descending
+1/16-beat strum, record the firmware's three-finger phrase, finish, save and reopen. The
+saved schema-3 session contains nine attacks exactly 60,000 ticks apart within each chord,
+36 expression events and 20 original gestures. The Linux desktop CI also exercises strum
+controls, mouse input, exact rendered spacing and session reopening.
+
+On this macOS/aarch64 development machine, the release processing benchmark ran three
+repeating strum triggers (nine voices) alongside six looping notes, with expression at
+100 Hz for three virtual minutes. Of 17,900 measured batches after warmup, p50 was 500 ns,
+p95 667 ns, p99 1,334 ns and maximum 12,208 ns; none exceeded 1 ms. All 2,160 attacks had
+matching releases. The timed work includes clock advancement, input, MPE allocation and
+capture validation; sensing, UI, files, OS MIDI and audio are excluded. This is local
+software-cost evidence, not total instrument latency or Steam Deck qualification.

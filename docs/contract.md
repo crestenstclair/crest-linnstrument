@@ -1,4 +1,4 @@
-# Public host contract, API 2
+# Public host contract, API 3
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -23,7 +23,7 @@ Keep the consumer's Cargo.lock and upgrade deliberately using the shared contrac
 ## Interrupted-take checkpoints
 
 `Engine::checkpoint_session()` is an additive control-thread API after v0.1.0. It returns
-an ordinary schema-2 session containing the captured prefix of an active take, with held
+an ordinary current-schema session containing the captured prefix of an active take, with held
 recorded notes released one tick after the current engine position. It does not advance
 the engine, stop recording, emit or drain output, or change live voice ownership. Reopening
 the snapshot starts stopped; the prefix is a committed clip that can be played or edited.
@@ -159,15 +159,18 @@ These control transitions are explicit input gaps, not musical scheduling interv
 
 ## Persistence and compatibility
 
-`Session.version == 2`; unknown schema versions are rejected. `Session::migrate` upgrades
-schema 1 without changing tracks, slots, times or expression. Engine construction and the
+`Session.version == 3`; unknown schema versions are rejected. `Session::migrate` upgrades
+schemas 1 and 2 without changing tracks, slots, times or expression. Missing articulation
+means Block; version-2 data containing strum settings or algorithm-2 harmony origins is rejected. Engine construction and the
 host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. The schema contains tracks,
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 2.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 3.
 
-The package is `0.1.0`, API 2, schema 2. No ABI version exists. Before 1.0, public or
+This development package is `0.2.0-dev`, API 3, schema 3. The accepted `v0.1.0` release
+remains API 2/schema 2. Adding `HarmonySettings.articulation` is an explicit Rust source
+compatibility change; consumers using struct literals must include it or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
 The accepted M3 tag `v0.1.0` defines the first integration baseline. Consumers should pin it;
 a local path override is only a development convenience.
@@ -192,7 +195,7 @@ a consumer that falls behind the bounded history gets an error. The visible capt
 is diagnostic history, not an unlimited recording. A successful send is never inferred
 from a drawn LED or from firmware intent.
 
-## Harmony and accompaniment (API 2)
+## Harmony and accompaniment
 
 `SetMode(Chords)` transforms stock MPE input in the deterministic core. It does not enable
 User Firmware Mode. Source ID `u32::MAX` is reserved for rendered notes; external input
@@ -200,7 +203,8 @@ using it is rejected. Every generated voice has a fresh ID and a retained trigge
 NoteKey. Repeated input pitches remain independent. Chord attacks, expression fan-out and
 releases preflight the whole batch against voice/output/recording limits. No partial chord
 is emitted on rejection. Recording captures rendered notes and lossless expression, plus
-bounded `harmony_origin` source gestures, settings and algorithm version 1.
+bounded `harmony_origin` source gestures, settings and algorithm version 2. Existing
+algorithm-1 Block origins remain valid and are preserved without rewriting.
 
 `HarmonySettings` defines tonic MIDI note, major/natural-minor/Dorian/Mixolydian scale,
 degree (zero-based I–VII), triad/seventh/ninth, sus2/sus4, borrowed parallel scale, inversion,
@@ -218,6 +222,25 @@ hardware regions. Continuous firmware slides retain ownership and per-note bends
 All-voices/top-voice expression policy is frozen at attack. Unselected voices start neutral
 and ignore expression; every voice still receives its release. Settings changes affect
 future attacks only. Mode change/disconnect releases generated voices as well as live ones.
+
+`Articulation::Strum` schedules a finite ascending or descending sweep through the final
+voicing. Spacing is 1–960,000 ticks (up to one beat); zero uses explicit Block instead.
+Bass and manually picked Strumplate notes attack immediately. Voicing, timing and expression
+policy are frozen at trigger attack. TopVoice always means highest chord pitch, including
+when descending. Pending tones cache the latest trigger expression as their initial state.
+Releasing the trigger cancels unsounded tones and releases only voices already heard.
+Stop, disconnect and mode changes cancel pending tones too, without phantom note-offs.
+
+All tones reserve voice identities at the trigger; snapshot `active_voices` includes those
+reservations. Delayed attacks share `advance` with clips, ordered by timestamp. Same-tick
+clip events precede strum attacks, with clip releases first; equal-time strum voices retain
+trigger/voice reservation order. The caller then supplies live input, so a release exactly
+at a scheduled tone's tick follows that attack. Overflow is rejected before reserving voices.
+Output pressure leaves the pending attack intact and time at the last completed event;
+drain and retry. Recording reserves both attack and release space for pending tones, and
+source-gesture metadata independently reserves each trigger's release. No allocation occurs
+in strum input, scheduling or cancellation. Checkpoints include only sounded notes, closing
+those held at the requested cutoff; they do not invent future strum attacks.
 
 `Generate` renders a bounded (1–128 step) Euclidean lane into a stopped slot, with Undo.
 The algorithm uses modular evenly spaced pulses and rotation. Pitch cycle, chord-tone

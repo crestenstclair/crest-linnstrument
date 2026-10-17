@@ -214,7 +214,7 @@ impl Default for Session {
     }
 }
 impl Session {
-    /// Lossless upgrade of the pre-harmony schema. Unknown versions fail closed.
+    /// Lossless upgrades of pre-harmony and pre-articulation sessions.
     pub fn migrate(mut self) -> Result<Self> {
         if self.version == 1 {
             if self.harmony != HarmonySettings::default()
@@ -227,6 +227,18 @@ impl Session {
                 })
             {
                 return Err(Error::Invalid("v1 session contains v2 harmony fields"));
+            }
+            self.version = SESSION_VERSION;
+        }
+        if self.version == 2 {
+            if self.harmony.articulation != crate::Articulation::Block
+                || self
+                    .slots
+                    .iter()
+                    .filter_map(|slot| slot.clip.as_ref())
+                    .any(Clip::requires_articulation_schema)
+            {
+                return Err(Error::Invalid("v2 session contains v3 articulation fields"));
             }
             self.version = SESSION_VERSION;
         }
@@ -285,5 +297,20 @@ pub(crate) fn validate_lifecycle(
         }
         (Gesture::Expression { .. }, Some(_)) => Ok(()),
         (_, None) => Err(Error::UnknownNote),
+    }
+}
+
+impl Clip {
+    fn requires_articulation_schema(&self) -> bool {
+        self.harmony_origin.iter().any(|origin| {
+            origin.algorithm_version != 1
+                || origin.settings.articulation != crate::Articulation::Block
+        }) || self
+            .pattern_origin
+            .iter()
+            .any(|origin| origin.harmony.articulation != crate::Articulation::Block)
+            || self
+                .follow
+                .is_some_and(|follow| follow.reference.articulation != crate::Articulation::Block)
     }
 }

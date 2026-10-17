@@ -314,7 +314,7 @@ fn truncates_record_end_and_undo_preserves_previous_clip() {
 fn versions_invalid_sessions_and_clock_boundaries() {
     assert!(matches!(
         Engine::new(API_VERSION + 1, Session::default(), Limits::default()),
-        Err(Error::Version(3))
+        Err(Error::Version(version)) if version == API_VERSION + 1
     ));
     let mut session = Session {
         version: 7,

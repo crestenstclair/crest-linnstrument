@@ -229,6 +229,49 @@ def focus_recovery(app):
     app.capture('focus-recovered')
 
 
+def record_timed_strum(app):
+    app.switch('host')
+    app.click('[name="articulation"] option[value="descending"]')
+    app.click('[name="strum_interval"] option[value="120000"]')
+    app.click('#harmony-form button[type="submit"]')
+    settings = {'type': 'strum', 'direction': 'descending', 'interval': 120000}
+    app.state(lambda s: s['host']['performance']['harmony']['articulation'] == settings,
+              'strum settings accepted')
+    app.click('#chords')
+    app.click('#record')
+    app.state(lambda s: s['host']['performance']['slots'][0] == 'recording', 'strum record armed')
+    app.switch('instrument')
+    app.click('#latch')
+    app.touch(1, 0)
+    state = app.state(lambda s: len(s['contacts']) == 1 and
+                      s['host']['performance']['active_voices'] == 3, 'one trigger owns three voices')
+    start = state['host']['performance']['at']
+    app.press('bracketright')
+    app.state(lambda s: s['host']['performance']['at'] >= start + 300000, 'native strum clock')
+    app.click('#release')
+    app.state(lambda s: not s['contacts'] and s['host']['performance']['active_voices'] == 0,
+              'strum release cleanup')
+    app.click('#latch')
+    app.switch('host')
+    app.click('#finish')
+    state = app.state(lambda s: s['host']['performance']['slots'][0] == 'recorded', 'strum stored')
+    clip = state['host']['clips'][0]
+    attacks = [event for event in clip['events'] if event['gesture']['type'] == 'on']
+    assert [event['gesture']['key'] for event in attacks] == [67, 64, 60], attacks
+    first = attacks[0]['at']
+    assert [event['at'] - first for event in attacks] == [0, 120000, 240000], attacks
+    assert len([event for event in clip['events'] if event['gesture']['type'] == 'off']) == 3
+    path = ARTIFACTS / 'desktop-strum-session.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'saved strum session')
+    app.click('#open')
+    app.state(lambda s: s['host']['clips'][0] == clip and
+              s['host']['performance']['harmony']['articulation'] == settings,
+              'strum settings and rendered notes reopened')
+    app.capture('timed-strum')
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -244,7 +287,8 @@ def main():
             record_expressive_keyboard_phrase(app)
             launch_with_firmware_pad(app)
             focus_recovery(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, rendered firmware LEDs, focus recovery')
+            record_timed_strum(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

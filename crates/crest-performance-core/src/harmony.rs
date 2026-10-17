@@ -1,9 +1,9 @@
 //! Deterministic diatonic harmony. Pitches are rendered at attack; later settings
 //! changes never retune held voices. No MIDI channel or device geometry is used.
-use crate::{Error, InputEvent, Result, TrackId};
+use crate::{BeatTime, Error, InputEvent, Result, TICKS_PER_BEAT, TrackId};
 use serde::{Deserialize, Serialize};
 
-pub const HARMONY_ALGORITHM_VERSION: u32 = 1;
+pub const HARMONY_ALGORITHM_VERSION: u32 = 2;
 pub const MAX_CHORD_VOICES: usize = 6;
 /// Reserved for engine-rendered notes. External input must use another source.
 pub const GENERATED_SOURCE: crate::SourceId = crate::SourceId(u32::MAX);
@@ -61,6 +61,53 @@ pub enum HarmonyPlaying {
     Strumplate,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StrumDirection {
+    Ascending,
+    Descending,
+}
+
+/// A finite sweep of the held chord. Releasing its trigger cancels tones that
+/// have not sounded. Bass and manually picked strumplate notes attack immediately.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Articulation {
+    #[default]
+    Block,
+    Strum {
+        direction: StrumDirection,
+        interval: BeatTime,
+    },
+}
+impl Articulation {
+    pub fn validate(self) -> Result<()> {
+        if let Self::Strum { interval, .. } = self
+            && !(1..=TICKS_PER_BEAT).contains(&interval.0)
+        {
+            return Err(Error::Invalid(
+                "strum interval must be 1 tick through 1 beat",
+            ));
+        }
+        Ok(())
+    }
+    pub(crate) fn delay(self, index: usize, count: usize) -> BeatTime {
+        match self {
+            Self::Block => BeatTime(0),
+            Self::Strum {
+                direction,
+                interval,
+            } => {
+                let step = match direction {
+                    StrumDirection::Ascending => index,
+                    StrumDirection::Descending => count - 1 - index,
+                };
+                BeatTime(interval.0 * step as u64)
+            }
+        }
+    }
+}
+
 /// `tonic` is a MIDI note, not only a pitch class. Seven adjacent chromatic
 /// input keys beginning at `input_anchor` select degrees I–VII, repeating.
 /// Strumplate maps those input steps to successive voiced chord tones instead.
@@ -79,6 +126,8 @@ pub struct HarmonySettings {
     pub voice_leading: bool,
     pub expression: ExpressionPolicy,
     pub playing: HarmonyPlaying,
+    #[serde(default)]
+    pub articulation: Articulation,
     pub input_anchor: u8,
     pub bass_track: Option<TrackId>,
 }
@@ -97,6 +146,7 @@ impl Default for HarmonySettings {
             voice_leading: false,
             expression: ExpressionPolicy::AllVoices,
             playing: HarmonyPlaying::ChordPads,
+            articulation: Articulation::Block,
             input_anchor: 30,
             bass_track: None,
         }
@@ -104,6 +154,7 @@ impl Default for HarmonySettings {
 }
 impl HarmonySettings {
     pub fn validate(self) -> Result<()> {
+        self.articulation.validate()?;
         if self.tonic > 127
             || self.input_anchor > 127
             || self.degree >= 7
@@ -186,7 +237,9 @@ pub struct HarmonyGesture {
 }
 impl HarmonyGesture {
     pub fn validate(&self) -> Result<()> {
-        if self.algorithm_version != HARMONY_ALGORITHM_VERSION {
+        if self.algorithm_version != HARMONY_ALGORITHM_VERSION
+            && !(self.algorithm_version == 1 && self.settings.articulation == Articulation::Block)
+        {
             return Err(Error::Version(self.algorithm_version));
         }
         self.input.gesture.validate()?;
