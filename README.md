@@ -159,8 +159,10 @@ and [delivery status](docs/status.md). The original implementation plan remains 
 ## CI and candidates
 
 Independent CI checks Rust without the firmware checkout, native firmware on Linux/macOS,
-the original ARM build/layout, and the Linux desktop build. `candidate-artifacts` creates
-manually requested development artifacts; it does not tag or publish an unqualified v0.1.
+the original ARM build/layout, and Linux desktop mouse/keyboard record/reopen/launch tests.
+`candidate-artifacts` creates relocatable development archives with checksums, provenance
+and dependency notices, then exercises the extracted application. See [package usage](docs/package.md).
+It does not tag or publish an unqualified v0.1.
 Crest Tracker will consume an accepted tag or commit in its own repository after M3.
 
 Licensed Apache-2.0. Upstream firmware is copyright Roger Linn Design, Roger Linn and

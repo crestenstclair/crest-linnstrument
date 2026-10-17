@@ -16,7 +16,8 @@ import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-ARTIFACTS = ROOT / 'target/desktop-acceptance'
+ARTIFACTS = pathlib.Path(os.environ.get('LINNSTRUMENT_DESKTOP_ARTIFACTS', ROOT / 'target/desktop-acceptance')).resolve()
+BINARY = pathlib.Path(os.environ.get('LINNSTRUMENT_DESKTOP_BINARY', ROOT / 'target/debug/linnstrument-sim')).resolve()
 ELEMENT = 'element-6066-11e4-a52e-4f735466cecf'
 
 
@@ -59,7 +60,7 @@ class Desktop:
                 return None
         wait_for(ready, lambda status: status and status.get('ready'), 'WebDriver startup')
         result = self.request('POST', '/session', {'capabilities': {'alwaysMatch': {
-            'webkitgtk:browserOptions': {'binary': str(ROOT / 'target/debug/linnstrument-sim')}
+            'webkitgtk:browserOptions': {'binary': str(BINARY)}
         }}})
         self.session = result['sessionId']
         self.command('POST', '/timeouts', {'implicit': 5000, 'script': 5000, 'pageLoad': 15000})
@@ -235,7 +236,7 @@ def main():
         # Linux's native driver owns the protocol. Tauri's proxy only maps this
         # capability and environment flag; omitting it also avoids its pooled
         # HTTP connection-reset failure between otherwise valid commands.
-        driver = subprocess.Popen(['WebKitWebDriver', '--port=4444'], cwd=ROOT,
+        driver = subprocess.Popen(['WebKitWebDriver', '--port=4444'], cwd=BINARY.parent,
                                   env={**os.environ, 'TAURI_WEBVIEW_AUTOMATION': 'true', 'GDK_BACKEND': 'x11'},
                                   stdout=log, stderr=subprocess.STDOUT)
         try:

@@ -1,6 +1,10 @@
 name: candidate-artifacts
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/package-candidate.py'
 permissions:
   contents: read
 jobs:
@@ -11,11 +15,31 @@ jobs:
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@1.96.0
-      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libasound2-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libasound2-dev webkit2gtk-driver xvfb xdotool
       - run: scripts/build-native.sh && python3 scripts/test-firmware.py
       - run: cargo test --workspace --locked && cargo test -p linnstrument-sim --locked --lib -- --ignored
       - run: cargo build -p crest-performance-host --features midi --release --locked && cargo build -p linnstrument-sim --features desktop --release --locked
-      - run: scripts/package-candidate.sh
+      - run: python3 scripts/package-candidate.py
+      - name: Exercise extracted package without checkout assets
+        shell: bash
+        run: |
+          package_test_dir=$(mktemp -d)
+          tar -xzf target/candidate/*.tar.gz -C "$package_test_dir"
+          package_roots=("$package_test_dir"/*)
+          package_root=${package_roots[0]}
+          (cd "$package_root" && sha256sum --quiet -c SHA256SUMS && ./crest-performance-host inspect examples/expressive-phrase.json)
+          mv target/firmware-native target/firmware-native-hidden
+          LINNSTRUMENT_DESKTOP_BINARY="$package_root/linnstrument-sim" \
+            LINNSTRUMENT_DESKTOP_ARTIFACTS="$PWD/target/package-acceptance" \
+            dbus-run-session -- xvfb-run -a python3 scripts/test-desktop.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: package-acceptance-linux
+          path: target/package-acceptance/
       - uses: actions/upload-artifact@v4
         with:
           name: development-candidate-linux-x86_64
