@@ -305,6 +305,57 @@ def capture_held_phrase(app):
               'original captured input releases normally')
 
 
+def learn_played_voicing(app):
+    app.switch('instrument')
+    app.click('#latch')
+    for x in [2, 6, 9]:
+        app.touch(x, 2)
+    app.state(lambda s: s['host']['performance']['active_voices'] == 3, 'three held source notes')
+    app.switch('host')
+    app.click('#degrees button:first-child')
+    app.click('#learn-chord')
+    learned = {'notes': [41, 45, 48], 'root': 41}
+    app.state(lambda s: s['host']['performance']['harmony']['learned'][0] == learned,
+              'played voicing learned through public command')
+    app.switch('instrument')
+    app.click('#release')
+    app.click('#latch')
+    app.state(lambda s: s['host']['performance']['active_voices'] == 0, 'learned source released')
+    app.switch('host')
+    app.click('[name="articulation"] option[value="block"]')
+    app.click('#harmony-form button[type="submit"]')
+    app.click('#chords')
+    app.state(lambda s: s['host']['performance']['mode'] == 'chords', 'learned chord playing mode')
+    app.click('#record')
+    app.state(lambda s: s['host']['performance']['slots'][0] == 'recording', 'learned chord recording')
+    app.switch('instrument')
+    app.click('#latch')
+    app.touch(1, 0)
+    app.state(lambda s: s['host']['performance']['active_voices'] == 3, 'one firmware finger plays learned voicing')
+    app.press('bracketright')
+    app.click('#release')
+    app.click('#latch')
+    app.state(lambda s: s['host']['performance']['active_voices'] == 0, 'learned voices release')
+    app.switch('host')
+    app.click('#finish')
+    state = app.state(lambda s: s['host']['performance']['slots'][0] == 'recorded', 'learned take committed')
+    clip = state['host']['clips'][0]
+    pitches = [e['gesture']['key'] for e in clip['events'] if e['gesture']['type'] == 'on']
+    assert pitches == [41, 45, 48], pitches
+    path = ARTIFACTS / 'desktop-learned-chord.json'
+    app.fill('#path', str(path))
+    app.click('#save')
+    wait_for(path.exists, bool, 'saved learned bank')
+    app.click('#clear-chord')
+    app.state(lambda s: s['host']['performance']['harmony']['learned'][0] is None, 'bank entry cleared')
+    app.click('#undo')
+    app.state(lambda s: s['host']['performance']['harmony']['learned'][0] == learned, 'bank Undo')
+    app.click('#open')
+    app.state(lambda s: s['host']['performance']['harmony']['learned'][0] == learned and
+              s['host']['clips'][0] == clip, 'bank and rendered performance reopened')
+    app.capture('learned-chord-bank')
+
+
 def main():
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     app = Desktop()
@@ -322,7 +373,8 @@ def main():
             focus_recovery(app)
             record_timed_strum(app)
             capture_held_phrase(app)
-            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture')
+            learn_played_voicing(app)
+            print('Desktop PASS: keyboard XYZ, record/reopen, mouse pad launch/stop, firmware LEDs, focus recovery, timed strum, retrospective capture, learned chord bank')
         except Exception:
             if app.session:
                 events = app.observe('return window.desktopInputTrace || []')

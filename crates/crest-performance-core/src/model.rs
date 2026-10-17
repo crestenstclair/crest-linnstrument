@@ -214,8 +214,20 @@ impl Default for Session {
     }
 }
 impl Session {
-    /// Lossless upgrades of pre-harmony and pre-articulation sessions.
+    /// Lossless upgrades of pre-harmony, pre-articulation and pre-bank sessions.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=3).contains(&self.version)
+            && (self.harmony.has_learned_chords()
+                || self
+                    .slots
+                    .iter()
+                    .filter_map(|slot| slot.clip.as_ref())
+                    .any(Clip::requires_learned_chord_schema))
+        {
+            return Err(Error::Invalid(
+                "older session contains v4 learned chord fields",
+            ));
+        }
         if self.version == 1 {
             if self.harmony != HarmonySettings::default()
                 || self.slots.iter().any(|s| {
@@ -240,6 +252,9 @@ impl Session {
             {
                 return Err(Error::Invalid("v2 session contains v3 articulation fields"));
             }
+            self.version = SESSION_VERSION;
+        }
+        if self.version == 3 {
             self.version = SESSION_VERSION;
         }
         self.validate()?;
@@ -301,6 +316,18 @@ pub(crate) fn validate_lifecycle(
 }
 
 impl Clip {
+    fn requires_learned_chord_schema(&self) -> bool {
+        self.harmony_origin
+            .iter()
+            .any(|origin| origin.algorithm_version >= 3 || origin.settings.has_learned_chords())
+            || self
+                .pattern_origin
+                .iter()
+                .any(|origin| origin.algorithm_version >= 2 || origin.harmony.has_learned_chords())
+            || self
+                .follow
+                .is_some_and(|follow| follow.reference.has_learned_chords())
+    }
     fn requires_articulation_schema(&self) -> bool {
         self.harmony_origin.iter().any(|origin| {
             origin.algorithm_version != 1

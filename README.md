@@ -11,9 +11,9 @@ The matching [release tag](https://github.com/crestenstclair/crest-linnstrument/
 establishes the accepted baseline; an untagged checkout remains a candidate. See
 [qualification evidence and limits](docs/status.md).
 
-Current development is **0.2.0-dev, API 3, session schema 3**. Timed strumming is a
-versioned library expansion; Crest Tracker remains pinned to its accepted API-2 commit.
-Schemas 1 and 2 load losslessly; saving with this checkout writes schema 3, rejected by
+Current development is **0.2.0-dev, API 4, session schema 4**. Timed strumming and learned chord banks are
+versioned library expansions; Crest Tracker remains pinned to its accepted API-2 commit.
+Schemas 1–3 load losslessly; saving with this checkout writes schema 4, rejected by
 older readers. Keep the original session to return to the baseline release.
 
 ## Run
@@ -57,6 +57,13 @@ and bend the held note; they do not synthesize extra harp attacks. Held voices k
 original pitches when controls change. Record/save/reopen preserves their rendered curves
 and source gestures. A separate bass track can be chosen from tracks present in a session.
 **Articulation** adds low-to-high or high-to-low timed strums with beat-based spacing.
+To learn a voicing, use Play mode, latch 1–5 notes, select a degree in the host and click
+**Learn held notes**. The bank preserves fixed MIDI pitches and unisons; it ignores bends
+when learning. An optional root supports rootless voicings and routed bass. Release fingers,
+then select Chord pads to play the learned voicing from one pad. Inversion, spread, register,
+voice leading, strum and expression still apply. Empty entries use diatonic chords.
+**Restore selected degree to diatonic** clears one entry; both bank edits support Undo.
+
 Release the trigger to cancel remaining tones. Expression updates sounding voices and the
 initial state of upcoming tones, respecting the selected all/top-voice policy. Bass sounds
 immediately; manually picked Strumplate notes retain immediate attacks. Capture stores the

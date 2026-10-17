@@ -64,6 +64,15 @@ pub enum Command {
     Stop,
     SetMode(SurfaceMode),
     SetHarmony(HarmonySettings),
+    LearnChord {
+        source: SourceId,
+        track: TrackId,
+        degree: u8,
+        root: Option<u8>,
+    },
+    ClearLearnedChord {
+        degree: u8,
+    },
     Generate {
         slot: usize,
         settings: PatternSettings,
@@ -109,6 +118,7 @@ struct ActiveVoice {
     owner: Owner,
     id: VoiceId,
     track: TrackId,
+    key: u8,
     destination: DestinationId,
     rendered_note: NoteKey,
     expressive: bool,
@@ -129,6 +139,17 @@ struct Recording {
     events: Vec<InputEvent>,
     held: Vec<NoteKey>,
     harmony_origin: Vec<HarmonyGesture>,
+}
+
+enum UndoState {
+    Clip {
+        slot: usize,
+        clip: Option<Clip>,
+    },
+    LearnedChord {
+        degree: u8,
+        chord: Option<LearnedChord>,
+    },
 }
 
 impl Recording {
@@ -181,7 +202,7 @@ pub struct Engine {
     players: Vec<Player>,
     output: VecDeque<OutputEvent>,
     recording: Option<Recording>,
-    undo: Option<(usize, Option<Clip>)>,
+    undo: Option<UndoState>,
     recent: VecDeque<InputEvent>,
     history_floor: BeatTime,
     recent_harmony: VecDeque<HarmonyGesture>,
@@ -420,7 +441,7 @@ impl Engine {
         let position = self.active.iter().position(|voice| voice.owner == owner);
         let voice = match (event.gesture, position) {
             (Gesture::On { .. }, Some(_)) => return Err(Error::DuplicateNote),
-            (Gesture::On { .. }, None) => self.allocate_voice(owner, event.note.track)?,
+            (Gesture::On { key, .. }, None) => self.allocate_voice(owner, event.note.track, key)?,
             (Gesture::Off { .. }, Some(index)) => self.active.remove(index),
             (Gesture::Expression { .. }, Some(index)) => self.active[index],
             (_, None) => return Err(Error::UnknownNote),
@@ -434,7 +455,7 @@ impl Engine {
         });
         Ok(())
     }
-    fn allocate_voice(&mut self, owner: Owner, track: TrackId) -> Result<ActiveVoice> {
+    fn allocate_voice(&mut self, owner: Owner, track: TrackId, key: u8) -> Result<ActiveVoice> {
         if self.active.len() == self.limits.voices {
             return Err(Error::Capacity("voices; new notes rejected"));
         }
@@ -454,6 +475,7 @@ impl Engine {
             owner,
             id: VoiceId(self.next_voice),
             track,
+            key,
             destination,
             rendered_note: match owner {
                 Owner::Live(note) | Owner::Clip(_, note) | Owner::Harmony(note) => note,
@@ -543,6 +565,13 @@ impl Engine {
                 Ok(())
             }
             Command::SetHarmony(settings) => self.set_harmony(settings),
+            Command::LearnChord {
+                source,
+                track,
+                degree,
+                root,
+            } => self.learn_chord(source, track, degree, root),
+            Command::ClearLearnedChord { degree } => self.replace_learned_chord(degree, None),
             Command::Generate { slot, settings } => self.generate(slot, settings),
             Command::FollowHarmony { slot, enabled } => self.follow_harmony(slot, enabled),
             Command::FreezeHarmony { slot } => self.freeze_harmony(slot),
@@ -592,7 +621,10 @@ impl Engine {
         if clip.events.is_empty() {
             return Err(Error::State("no recent notes in requested range"));
         }
-        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot,
+            clip: self.session.slots[slot].clip.replace(clip),
+        });
         Ok(())
     }
     fn begin_record(&mut self, slot: usize) -> Result<()> {
@@ -643,7 +675,10 @@ impl Engine {
         };
         self.stop_slot(slot)?;
         self.recording = None;
-        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot,
+            clip: self.session.slots[slot].clip.replace(clip),
+        });
         if let Some(loop_start) = resume {
             self.players.push(Player {
                 slot,
@@ -705,7 +740,10 @@ impl Engine {
         for event in &mut clip.events {
             event.note.track = self.session.slots[to].track;
         }
-        self.undo = Some((to, self.session.slots[to].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot: to,
+            clip: self.session.slots[to].clip.replace(clip),
+        });
         Ok(())
     }
     fn edit_note(&mut self, slot: usize, note: NoteKey, edit: NoteEdit) -> Result<()> {
@@ -715,7 +753,10 @@ impl Engine {
             .as_ref()
             .ok_or(Error::NotFound)?
             .edit_note(note, edit)?;
-        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot,
+            clip: self.session.slots[slot].clip.replace(clip),
+        });
         Ok(())
     }
     fn launch(&mut self, slot: usize, quantum: BeatTime) -> Result<()> {
@@ -805,10 +846,18 @@ impl Engine {
         if self.recording.is_some() {
             return Err(Error::State("recorder must be idle"));
         }
-        let slot = self.undo.as_ref().ok_or(Error::State("nothing to undo"))?.0;
-        self.stop_slot(slot)?;
-        let (_, clip) = self.undo.take().ok_or(Error::State("nothing to undo"))?;
-        self.session.slots[slot].clip = clip;
+        if let Some(UndoState::Clip { slot, .. }) = &self.undo {
+            self.stop_slot(*slot)?;
+        }
+        if let Some(UndoState::LearnedChord { degree, chord }) = &self.undo {
+            self.harmony_with_learned_chord(*degree, *chord)?;
+        }
+        match self.undo.take().ok_or(Error::State("nothing to undo"))? {
+            UndoState::Clip { slot, clip } => self.session.slots[slot].clip = clip,
+            UndoState::LearnedChord { degree, chord } => {
+                self.session.harmony.learned[usize::from(degree)] = chord
+            }
+        }
         Ok(())
     }
     /// Device disconnect releases only this source's live voices; clip playback

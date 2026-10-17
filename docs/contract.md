@@ -1,4 +1,4 @@
-# Public host contract, API 3
+# Public host contract, API 4
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.
@@ -178,18 +178,20 @@ These control transitions are explicit input gaps, not musical scheduling interv
 
 ## Persistence and compatibility
 
-`Session.version == 3`; unknown schema versions are rejected. `Session::migrate` upgrades
-schemas 1 and 2 without changing tracks, slots, times or expression. Missing articulation
+`Session.version == 4`; unknown schema versions are rejected. `Session::migrate` upgrades
+schemas 1–3 without changing tracks, slots, times or expression. Missing articulation
 means Block; version-2 data containing strum settings or algorithm-2 harmony origins is rejected. Engine construction and the
-host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. The schema contains tracks,
+host loader invoke it. Version-1 data carrying nondefault version-2 fields is rejected. Missing learned-bank entries default to seven empty degrees. Schemas 1–3 reject learned
+banks, harmony algorithm 3 and pattern algorithm 2, including nested origins/followers.
+The schema contains tracks,
 instrument references and slots, not host documents or transient playback state. JSON uses
 integer times and expression; save/reopen preserves them exactly. The host limits files to
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
-Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 3.
+Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 4.
 
-This development package is `0.2.0-dev`, API 3, schema 3. The accepted `v0.1.0` release
-remains API 2/schema 2. Adding `HarmonySettings.articulation` is an explicit Rust source
-compatibility change; consumers using struct literals must include it or use Default. No ABI version exists. Before 1.0, public or
+This development package is `0.2.0-dev`, API 4, schema 4. The accepted `v0.1.0` release
+remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
+compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
 The accepted M3 tag `v0.1.0` defines the first integration baseline. Consumers should pin it;
 a local path override is only a development convenience.
@@ -222,8 +224,9 @@ using it is rejected. Every generated voice has a fresh ID and a retained trigge
 NoteKey. Repeated input pitches remain independent. Chord attacks, expression fan-out and
 releases preflight the whole batch against voice/output/recording limits. No partial chord
 is emitted on rejection. Recording captures rendered notes and lossless expression, plus
-bounded `harmony_origin` source gestures, settings and algorithm version 2. Existing
-algorithm-1 Block origins remain valid and are preserved without rewriting.
+bounded `harmony_origin` source gestures, settings and algorithm version 3. Existing
+algorithm-1 Block and algorithm-2 strum origins remain valid without rewriting; neither
+older algorithm accepts a learned bank.
 
 `HarmonySettings` defines tonic MIDI note, major/natural-minor/Dorian/Mixolydian scale,
 degree (zero-based I–VII), triad/seventh/ninth, sus2/sus4, borrowed parallel scale, inversion,
@@ -241,6 +244,25 @@ hardware regions. Continuous firmware slides retain ownership and per-note bends
 All-voices/top-voice expression policy is frozen at attack. Unselected voices start neutral
 and ignore expression; every voice still receives its release. Settings changes affect
 future attacks only. Mode change/disconnect releases generated voices as well as live ones.
+
+`LearnChord { source, track, degree, root }` learns the currently held live notes of one
+source and track in Play mode while recording is idle. It does not read retrospective
+history or include clip/generated voices. It stores their MIDI attack pitches, preserving
+unisons and sorting low to high; bends, velocity and other expression are not baked into
+the voicing. The current voicing capacity is 1–5 tones plus an optional separate bass.
+Empty or oversized input rejects atomically instead of truncating. Root defaults to the
+lowest note, or may be specified independently for rootless voicings. The command emits
+nothing and leaves original note ownership intact. `ClearLearnedChord { degree }` restores
+the diatonic entry. Successful changed bank edits share the existing one-step Undo with
+clip edits; invalid/no-op edits preserve Undo. Undo changes future attacks only.
+
+`HarmonySettings.learned` contains seven optional validated `LearnedChord` values. Their
+pitches replace tonic/scale/quality construction for the assigned degree; inversion,
+register, spread, voice leading, expression policy, articulation and bass routing remain
+active. One-note voicings ignore spread. Invalid transformed pitches reject without clamp.
+Learned entries also supply Strumplate tones, generated accompaniment and harmony following.
+Held and delayed voices retain their original pitches and expression policy when a bank
+changes. Session state and historical gesture/pattern settings retain complete bank data.
 
 `Articulation::Strum` schedules a finite ascending or descending sweep through the final
 voicing. Spacing is 1–960,000 ticks (up to one beat); zero uses explicit Block instead.
@@ -264,8 +286,9 @@ those held at the requested cutoff; they do not invent future strum attacks.
 `Generate` renders a bounded (1–128 step) Euclidean lane into a stopped slot, with Undo.
 The algorithm uses modular evenly spaced pulses and rotation. Pitch cycle, chord-tone
 range, seed, velocity and timing variation are independent settings. SplitMix64 recurrence
-with fixed lane salts is pattern algorithm 1; changing density does not advance the pitch
-random stream. Timing jitter is nonnegative and cannot extend a note beyond its step.
+with fixed lane salts is unchanged from pattern algorithm 1; algorithm 2 adds learned
+voicings. Algorithm-1 provenance remains valid only without a learned bank. Changing density
+does not advance the pitch random stream. Timing jitter is nonnegative and cannot extend a note beyond its step.
 Velocity jitter clamps explicitly to MIDI 1–127. All generated pitches are validated before
 replacement. `pattern_origin` retains seed/settings/harmonic intent; raw notes remain
 playback truth. No generator runs during ordinary fixed-clip replay.

@@ -192,7 +192,7 @@ fn three_strums_keep_each_triggers_expression_independent_and_replay_exactly() {
     assert!(
         clip.harmony_origin
             .iter()
-            .all(|origin| origin.algorithm_version == 2)
+            .all(|origin| origin.algorithm_version == HARMONY_ALGORITHM_VERSION)
     );
     let reopened: Session = serde_json::from_str(&serde_json::to_string(&saved).unwrap()).unwrap();
     let mut replay = Engine::new(API_VERSION, reopened, Limits::default()).unwrap();

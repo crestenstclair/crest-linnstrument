@@ -1,10 +1,12 @@
 //! Deterministic diatonic harmony. Pitches are rendered at attack; later settings
 //! changes never retune held voices. No MIDI channel or device geometry is used.
-use crate::{BeatTime, Error, InputEvent, Result, TICKS_PER_BEAT, TrackId};
+use crate::{
+    BeatTime, Error, InputEvent, LearnedChord, MAX_VOICING_NOTES, Result, TICKS_PER_BEAT, TrackId,
+};
 use serde::{Deserialize, Serialize};
 
-pub const HARMONY_ALGORITHM_VERSION: u32 = 2;
-pub const MAX_CHORD_VOICES: usize = 6;
+pub const HARMONY_ALGORITHM_VERSION: u32 = 3;
+pub const MAX_CHORD_VOICES: usize = MAX_VOICING_NOTES + 1;
 /// Reserved for engine-rendered notes. External input must use another source.
 pub const GENERATED_SOURCE: crate::SourceId = crate::SourceId(u32::MAX);
 
@@ -128,6 +130,10 @@ pub struct HarmonySettings {
     pub playing: HarmonyPlaying,
     #[serde(default)]
     pub articulation: Articulation,
+    /// A learned entry replaces the diatonic pitches of that degree. Tonic,
+    /// scale, extension, suspension and borrowing apply only to empty entries.
+    #[serde(default)]
+    pub learned: [Option<LearnedChord>; 7],
     pub input_anchor: u8,
     pub bass_track: Option<TrackId>,
 }
@@ -147,12 +153,16 @@ impl Default for HarmonySettings {
             expression: ExpressionPolicy::AllVoices,
             playing: HarmonyPlaying::ChordPads,
             articulation: Articulation::Block,
+            learned: [None; 7],
             input_anchor: 30,
             bass_track: None,
         }
     }
 }
 impl HarmonySettings {
+    pub fn has_learned_chords(self) -> bool {
+        self.learned.iter().any(Option::is_some)
+    }
     pub fn validate(self) -> Result<()> {
         self.articulation.validate()?;
         if self.tonic > 127
@@ -178,6 +188,40 @@ impl HarmonySettings {
         {
             return Err(Error::Invalid("chord degree or register"));
         }
+        let (mut notes, count, root) = self.chord_pitches(degree);
+        invert(&mut notes[..count], self.inversion);
+        if self.spread && count > 1 {
+            notes[1] += 12;
+            notes[..count].sort_unstable();
+        }
+        if self.voice_leading
+            && let Some(previous) = previous.filter(|p| p.notes().len() == count)
+        {
+            notes = nearest_voicing(notes, count, previous);
+        }
+        let mut result = Voicing {
+            notes: [0; MAX_VOICING_NOTES],
+            count: count as u8,
+            root: midi_pitch(root)?,
+        };
+        for (target, pitch) in result.notes.iter_mut().zip(notes).take(count) {
+            *target = midi_pitch(pitch)?;
+        }
+        Ok(result)
+    }
+    fn chord_pitches(self, degree: u8) -> ([i16; MAX_VOICING_NOTES], usize, i16) {
+        let register = 12 * i16::from(self.register);
+        if let Some(chord) = self.learned[usize::from(degree)] {
+            let mut notes = [0; MAX_VOICING_NOTES];
+            for (target, pitch) in notes.iter_mut().zip(chord.notes()) {
+                *target = i16::from(*pitch) + register;
+            }
+            return (
+                notes,
+                chord.notes().len(),
+                i16::from(chord.root()) + register,
+            );
+        }
         let scale = if self.borrowed {
             if self.scale == Scale::NaturalMinor {
                 Scale::Major
@@ -187,13 +231,13 @@ impl HarmonySettings {
         } else {
             self.scale
         };
-        let root = i16::from(self.tonic) + 12 * i16::from(self.register);
+        let root = i16::from(self.tonic) + register;
         let count = match self.extension {
             ChordExtension::Triad => 3,
             ChordExtension::Seventh => 4,
             ChordExtension::Ninth => 5,
         };
-        let mut notes = [0i16; 5];
+        let mut notes = [0i16; MAX_VOICING_NOTES];
         for (index, note) in notes.iter_mut().take(count).enumerate() {
             let step = if index == 1 {
                 match self.suspension {
@@ -206,26 +250,7 @@ impl HarmonySettings {
             };
             *note = root + scale.tone(i16::from(degree) + step);
         }
-        invert(&mut notes[..count], self.inversion);
-        if self.spread {
-            notes[1] += 12;
-            notes[..count].sort_unstable();
-        }
-        if self.voice_leading
-            && let Some(previous) = previous.filter(|p| p.notes().len() == count)
-        {
-            notes = nearest_voicing(notes, count, previous);
-        }
-        let mut result = Voicing {
-            notes: [0; 5],
-            count: count as u8,
-            root: 0,
-        };
-        for (target, pitch) in result.notes.iter_mut().zip(notes).take(count) {
-            *target = midi_pitch(pitch)?;
-        }
-        result.root = midi_pitch(root + scale.tone(i16::from(degree)))?;
-        Ok(result)
+        (notes, count, root + scale.tone(i16::from(degree)))
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -237,9 +262,16 @@ pub struct HarmonyGesture {
 }
 impl HarmonyGesture {
     pub fn validate(&self) -> Result<()> {
-        if self.algorithm_version != HARMONY_ALGORITHM_VERSION
-            && !(self.algorithm_version == 1 && self.settings.articulation == Articulation::Block)
-        {
+        let supported = match self.algorithm_version {
+            1 => {
+                !self.settings.has_learned_chords()
+                    && self.settings.articulation == Articulation::Block
+            }
+            2 => !self.settings.has_learned_chords(),
+            HARMONY_ALGORITHM_VERSION => true,
+            _ => false,
+        };
+        if !supported {
             return Err(Error::Version(self.algorithm_version));
         }
         self.input.gesture.validate()?;
@@ -248,7 +280,7 @@ impl HarmonyGesture {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Voicing {
-    notes: [u8; 5],
+    notes: [u8; MAX_VOICING_NOTES],
     count: u8,
     root: u8,
 }
@@ -289,7 +321,11 @@ fn movement(notes: &[i16], previous: &Voicing) -> u16 {
         .map(|(a, b)| (a - i16::from(*b)).unsigned_abs())
         .sum()
 }
-fn nearest_voicing(original: [i16; 5], count: usize, previous: &Voicing) -> [i16; 5] {
+fn nearest_voicing(
+    original: [i16; MAX_VOICING_NOTES],
+    count: usize,
+    previous: &Voicing,
+) -> [i16; MAX_VOICING_NOTES] {
     let mut best = original;
     let mut cost = u16::MAX;
     if original[..count].iter().all(|p| (0..=127).contains(p)) {

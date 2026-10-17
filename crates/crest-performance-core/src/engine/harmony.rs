@@ -1,13 +1,91 @@
 use super::*;
 
 impl Engine {
+    /// Learns only this source's live notes in Play mode. Clip and generated
+    /// voices never enter the learned voicing. Pitch bend is not baked in.
+    pub(super) fn learn_chord(
+        &mut self,
+        source: SourceId,
+        track: TrackId,
+        degree: u8,
+        root: Option<u8>,
+    ) -> Result<()> {
+        if self.mode != SurfaceMode::Play {
+            return Err(Error::State(
+                "learn a chord while holding notes in Play mode",
+            ));
+        }
+        if !self
+            .session
+            .tracks
+            .iter()
+            .any(|candidate| candidate.id == track)
+        {
+            return Err(Error::NotFound);
+        }
+        let mut notes = [0; MAX_VOICING_NOTES];
+        let mut count = 0;
+        for voice in self.active.iter().filter(|voice| {
+            matches!(voice.owner, Owner::Live(note) if note.source == source && note.track == track)
+        }) {
+            if count == notes.len() {
+                return Err(Error::Capacity("learned chord supports at most five notes"));
+            }
+            notes[count] = voice.key;
+            count += 1;
+        }
+        let root = root
+            .or_else(|| notes[..count].iter().copied().min())
+            .ok_or(Error::State("hold at least one live note to learn"))?;
+        let chord = LearnedChord::new(&notes[..count], root)?;
+        self.replace_learned_chord(degree, Some(chord))
+    }
+
+    pub(super) fn replace_learned_chord(
+        &mut self,
+        degree: u8,
+        chord: Option<LearnedChord>,
+    ) -> Result<()> {
+        if self.recording.is_some() {
+            return Err(Error::State("recorder must be idle"));
+        }
+        let settings = self.harmony_with_learned_chord(degree, chord)?;
+        let previous = self.session.harmony.learned[usize::from(degree)];
+        if previous == chord {
+            return Ok(());
+        }
+        self.undo = Some(UndoState::LearnedChord {
+            degree,
+            chord: previous,
+        });
+        self.session.harmony = settings;
+        Ok(())
+    }
+    pub(super) fn harmony_with_learned_chord(
+        &self,
+        degree: u8,
+        chord: Option<LearnedChord>,
+    ) -> Result<HarmonySettings> {
+        let mut settings = self.session.harmony;
+        let entry = settings
+            .learned
+            .get_mut(usize::from(degree))
+            .ok_or(Error::Invalid("chord degree"))?;
+        *entry = chord;
+        settings.validate()?;
+        settings.voicing(degree, None)?;
+        Ok(settings)
+    }
     pub(super) fn generate(&mut self, slot: usize, settings: PatternSettings) -> Result<()> {
         self.ensure_editable(slot)?;
         let clip = settings.render(self.session.harmony, self.session.slots[slot].track)?;
         if clip.events.len() > self.limits.recorded_events {
             return Err(Error::Capacity("generated clip events"));
         }
-        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot,
+            clip: self.session.slots[slot].clip.replace(clip),
+        });
         Ok(())
     }
     pub(super) fn follow_harmony(&mut self, slot: usize, enabled: bool) -> Result<()> {
@@ -23,7 +101,10 @@ impl Engine {
         } else if !enabled {
             clip.follow = None;
         }
-        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot,
+            clip: self.session.slots[slot].clip.replace(clip),
+        });
         Ok(())
     }
     pub(super) fn freeze_harmony(&mut self, slot: usize) -> Result<()> {
@@ -42,7 +123,10 @@ impl Engine {
         }
         clip.follow = None;
         clip.validate(self.session.slots[slot].track)?;
-        self.undo = Some((slot, self.session.slots[slot].clip.replace(clip)));
+        self.undo = Some(UndoState::Clip {
+            slot,
+            clip: self.session.slots[slot].clip.replace(clip),
+        });
         Ok(())
     }
     pub(super) fn set_harmony(&mut self, settings: HarmonySettings) -> Result<()> {
@@ -100,7 +184,10 @@ impl Engine {
             .enumerate()
             .filter_map(|(i, e)| e.map(|e| (i, e)))
         {
-            let mut voice = self.allocate_voice(owner, event.note.track)?;
+            let Gesture::On { key, .. } = event.gesture else {
+                unreachable!("prepared chord attack")
+            };
+            let mut voice = self.allocate_voice(owner, event.note.track, key)?;
             voice.rendered_note = event.note;
             voice.expressive = expressive[index];
             voice.pending_attack = (event.at > trigger.at).then_some(event);

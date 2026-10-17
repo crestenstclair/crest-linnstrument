@@ -74,7 +74,7 @@ borrowing, inversion/spread/register, bounded voice leading, bass routing, all/t
 expression, selected-chord strumplate, seeded Euclidean accompaniment, independent pitch
 cycles, bounded humanization, live/selected harmony following and freeze. Rendered performance,
 source gestures, settings, seed and algorithm versions persist. Full M4/M5 acceptance remains
-open: repeating arpeggio articulation, custom chord capture, chord-clip leaders, conditions,
+open: repeating arpeggio articulation, chord-clip leaders, conditions,
 parameter locks, momentary transforms and scene morphing remain future work.
 
 M6 starts in Crest Tracker's own repository against the accepted M3 tag. Its native backend
@@ -84,7 +84,7 @@ package. M4/M5 can continue here while Tracker remains pinned to its accepted ve
 
 ## Post-baseline timed strum candidate
 
-Development 0.2.0-dev uses API 3/session 3; Tracker continues to consume its separately
+Development 0.2.0-dev now uses API 4/session 4; Tracker continues to consume its separately
 pinned API-2 baseline. Timed ascending/descending strums retain trigger ownership, cancel
 unplayed tones on release, apply independent expression and capture exact rendered timing.
 Core tests cover queue pressure, recording reservations, stop/disconnect, top-voice policy,
@@ -112,3 +112,20 @@ input time. A firmware test captures three held contacts with independent pitch,
 pressure, verifies no output/clock/ownership changes, then continues and releases the original
 contacts. The standalone Capture button uses this boundary. Expired source-gesture history
 cannot become available again when the rendered-event ring later evicts an older event.
+
+
+## Post-baseline learned chord bank candidate
+
+Seven pad degrees now accept learned live voicings. The existing voicing capacity is five
+notes plus separate bass; unisons survive and overflow rejects the whole learn operation.
+Learning is scoped to one source/track, leaves live ownership untouched and has Undo.
+Bank entries use the existing voicing, articulation, expression, follower and generator paths.
+Schema 4 loads schemas 1–3 losslessly and rejects falsely downgraded learned provenance.
+Tracker's API-2 dependency remains unchanged.
+
+Core tests cover fixed-pitch learning, source isolation, unisons, rootless bass intent,
+transforms, pending strum ownership, live-plus-clip expression, Undo and malformed persistence.
+The firmware scenario learns three sensor-generated notes, records the learned chord with
+X/Y/Z expression, reopens its session and launches it from a firmware pad on both geometries.
+Linux desktop acceptance includes three mouse-latched notes, Learn, expressive chord capture,
+Undo and session reopening. These are virtual-development scenarios, not hardware qualification.

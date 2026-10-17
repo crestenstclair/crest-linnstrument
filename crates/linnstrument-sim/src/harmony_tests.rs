@@ -669,3 +669,100 @@ fn firmware_retrospective_capture_keeps_three_held_inputs_live() {
     assert_eq!(r.host.engine.snapshot().active_voices, 0);
     assert_eq!(r.host.engine.session().slots[0].clip.as_ref(), Some(&clip));
 }
+
+#[test]
+#[ignore = "requires scripts/build-native.sh; explicitly run by firmware CI"]
+fn firmware_played_voicing_learns_records_and_launches_on_both_geometries() {
+    for model in [128, 200] {
+        verify_learned_voicing(model);
+    }
+}
+
+fn verify_learned_voicing(model: u16) {
+    let mut r = runtime(model);
+    for (id, x) in [(1, 2.0), (2, 6.0), (3, 9.0)] {
+        r.set_contact(Contact {
+            id,
+            x,
+            y: 2.0,
+            z: 0.5,
+            latched: true,
+        })
+        .unwrap();
+    }
+    r.advance(300_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 3);
+    r.command(BridgeCommand::LearnChord {
+        slot: 0,
+        degree: 0,
+        root: None,
+    })
+    .unwrap();
+    let learned = r.host.engine.session().harmony.learned[0].unwrap();
+    assert_eq!(learned.notes(), [41, 45, 48]);
+    assert_eq!(learned.root(), 41);
+    assert!(r.firmware.sensor_reads > 1000);
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    r.advance(100_000).unwrap();
+    r.command(BridgeCommand::Surface {
+        mode: SurfaceMode::Chords,
+    })
+    .unwrap();
+    r.command(BridgeCommand::BeginRecord { slot: 0 }).unwrap();
+    r.set_contact(Contact {
+        id: 4,
+        x: 1.0,
+        y: 0.0,
+        z: 0.5,
+        latched: true,
+    })
+    .unwrap();
+    r.advance(200_000).unwrap();
+    r.set_contact(Contact {
+        id: 4,
+        x: 1.3,
+        y: 0.3,
+        z: 0.8,
+        latched: true,
+    })
+    .unwrap();
+    r.advance(300_000).unwrap();
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    r.advance(100_000).unwrap();
+    r.command(BridgeCommand::FinishRecord {}).unwrap();
+    let saved = r.host.engine.save_session().unwrap();
+    let reopened: Session = serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
+    assert_eq!(reopened, saved);
+    let notes = saved.slots[0].clip.as_ref().unwrap().notes().unwrap();
+    assert_eq!(
+        notes.iter().map(|n| n.key).collect::<Vec<_>>(),
+        [41, 45, 48]
+    );
+    for note in &notes {
+        assert!(
+            note.expression
+                .points
+                .iter()
+                .any(|p| p.value.pitch > 200_000
+                    && p.value.timbre > 40_000
+                    && p.value.pressure > 40_000)
+        );
+    }
+    r.command(BridgeCommand::Mode { clips: true }).unwrap();
+    r.set_contact(Contact {
+        id: 5,
+        x: 1.0,
+        y: 0.0,
+        z: 0.5,
+        latched: false,
+    })
+    .unwrap();
+    r.advance(150_000).unwrap();
+    r.command(BridgeCommand::ReleaseAll {}).unwrap();
+    r.advance(50_000).unwrap();
+    assert_eq!(r.host.engine.snapshot().slots[0], SlotState::Playing);
+    let [red, green, blue] = r.firmware.leds[8];
+    assert!(green > 200 && red < 50 && blue < 50, "{red} {green} {blue}");
+    r.command(BridgeCommand::Stop {}).unwrap();
+    assert_eq!(r.host.engine.snapshot().active_voices, 0);
+}

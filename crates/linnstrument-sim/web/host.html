@@ -6,7 +6,7 @@
 <form id="harmony-form" class="harmony-fields">
 <label>Tonic MIDI <input name="tonic" type="number" min="0" max="127" value="60" required></label>
 <label>Scale <select name="scale"><option value="major">Major</option><option value="natural_minor">Natural minor</option><option value="dorian">Dorian</option><option value="mixolydian">Mixolydian</option></select></label>
-<label>Playing <select name="playing"><option value="chord_pads">Diatonic chord pads</option><option value="strumplate">Strumplate</option></select></label>
+<label>Playing <select name="playing"><option value="chord_pads">Chord pads</option><option value="strumplate">Strumplate</option></select></label>
 <label>Articulation <select name="articulation"><option value="block">Together</option><option value="ascending">Strum low to high</option><option value="descending">Strum high to low</option></select></label>
 <label>Strum spacing <select name="strum_interval"><option value="30000">1/32 beat</option><option value="60000" selected>1/16 beat</option><option value="120000">1/8 beat</option><option value="240000">1/4 beat</option><option value="480000">1/2 beat</option><option value="960000">1 beat</option></select></label>
 <label>Chord <select name="extension"><option value="triad">Triad</option><option value="seventh">Seventh</option><option value="ninth">Ninth</option></select></label>
@@ -22,6 +22,9 @@
 <button type="submit">Apply harmony</button>
 </form><div id="degrees" class="degree-strip" aria-label="Selected chord degree"></div>
 <p id="voicing" class="note" aria-live="polite"></p>
+<div class="degree-strip"><label>Learned root MIDI <input id="learned-root" type="number" min="0" max="127" placeholder="Lowest held note"></label><button id="learn-chord">Learn held notes to selected degree</button><button id="clear-chord">Restore selected degree to diatonic</button></div>
+<p id="learned-state" class="note" aria-live="polite"></p>
+<p class="note">In Play mode, latch 1–5 notes, select a degree, then Learn. Uses live notes on the selected slot's track; preserves unisons. Release fingers before switching to Chord pads. Learned pitches stay fixed when tonic, scale or chord quality changes; inversion, register, spread, voice leading and articulation still apply. Root defaults to the lowest note. Learning and restoring support Undo; recording must be idle.</p>
 <p class="note">Chord pads: seven adjacent input pitches select I–VII, repeating. Timed strum sweeps a held chord; release cancels tones not yet played. Bass attacks immediately. Strumplate: select a degree here, then manually pick successive pads for chord tones across octaves. Input anchor 30 matches stock bottom-left pad. Held voices keep their pitch and timing; changes affect new attacks. Both use stock firmware MPE. Play mode returns to ordinary notes.</p></details>
 <details id="pattern-panel"><summary>ACCOMPANIMENT · Euclidean rhythm and seeded pitch lane</summary>
 <form id="pattern-form" class="harmony-fields">

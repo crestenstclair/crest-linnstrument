@@ -103,6 +103,14 @@ pub enum BridgeCommand {
     Harmony {
         settings: HarmonySettings,
     },
+    LearnChord {
+        slot: usize,
+        degree: u8,
+        root: Option<u8>,
+    },
+    ClearLearnedChord {
+        degree: u8,
+    },
     Generate {
         slot: usize,
         settings: PatternSettings,
@@ -638,6 +646,25 @@ impl Runtime {
             }),
             BridgeCommand::Surface { mode } => self.set_surface(mode),
             BridgeCommand::Harmony { settings } => self.host_command(Command::SetHarmony(settings)),
+            BridgeCommand::LearnChord { slot, degree, root } => {
+                let track = self
+                    .host
+                    .engine
+                    .session()
+                    .slots
+                    .get(slot)
+                    .ok_or("unknown clip slot")?
+                    .track;
+                self.host_command(Command::LearnChord {
+                    source: crest_performance_core::SourceId(1),
+                    track,
+                    degree,
+                    root,
+                })
+            }
+            BridgeCommand::ClearLearnedChord { degree } => {
+                self.host_command(Command::ClearLearnedChord { degree })
+            }
             BridgeCommand::Generate { slot, settings } => {
                 self.host_command(Command::Generate { slot, settings })
             }

@@ -34,6 +34,12 @@ function sendHarmony(degree){
 harmonyForm.onsubmit=event=>{event.preventDefault();sendHarmony();};
 const degreeButtons=['I','II','III','IV','V','VI','VII'].map((label,degree)=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>sendHarmony(degree);return button;});
 document.querySelector('#degrees').replaceChildren(...degreeButtons);
+document.querySelector('#learn-chord').onclick=()=>{
+  const root=document.querySelector('#learned-root');
+  if(!harmonySettings||!root.reportValidity())return;
+  send({type:'learn_chord',slot:selected,degree:harmonySettings.degree,root:root.value===''?null:Number(root.value)});
+};
+document.querySelector('#clear-chord').onclick=()=>{if(harmonySettings)send({type:'clear_learned_chord',degree:harmonySettings.degree});};
 function renderHarmony(state,tracks){
   harmonySettings=state.harmony;
   const trackKey=JSON.stringify(tracks);
@@ -51,7 +57,14 @@ function renderHarmony(state,tracks){
     }
     renderedHarmony=key;
   }
-  for(const [degree,button]of degreeButtons.entries())button.setAttribute('aria-pressed',String(degree===state.harmony.degree));
+  for(const [degree,button]of degreeButtons.entries()){
+    button.setAttribute('aria-pressed',String(degree===state.harmony.degree));
+    button.textContent=['I','II','III','IV','V','VI','VII'][degree]+(state.harmony.learned[degree]?' · learned':'');
+  }
+  const learned=state.harmony.learned[state.harmony.degree];
+  document.querySelector('#learned-state').textContent=learned?`Learned pitches: ${learned.notes.join(' · ')} · root ${learned.root}`:'Selected degree uses diatonic harmony.';
+  document.querySelector('#learn-chord').disabled=state.mode!=='play';
+  document.querySelector('#clear-chord').disabled=!learned;
   const notes=state.last_voicing?state.last_voicing.notes.slice(0,state.last_voicing.count).join(' · '):'Play a chord';
   document.querySelector('#voicing').textContent=`Last rendered chord: ${notes} · selected degree ${state.harmony.degree+1}`;
 }
