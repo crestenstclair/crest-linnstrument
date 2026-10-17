@@ -345,6 +345,33 @@ adapter contracts and local lint pass, including raw MIDI editing and project re
 for the same boundary. [Full integration CI 39021936850](https://github.com/crestenstclair/crest-tracker/actions/runs/39021936850)
 passed, including native audio witnesses and the macOS bundle. This is not M6 completion.
 
+## Independent Tracker clip playback (integration branch)
+
+Tracker at `4f43505279e90594009259ea3dfc75b34822ed01` still consumes the API-2
+`0288b407` library pin. Multiple disposable clip players now merge timestamped output into
+one native schedule. Each player owns a Synth voice-cancellation group; stopping it invalidates
+pending attacks and silences only its held/sustained voices. Group capacity is preallocated and
+configurable, identities cannot revive after storage reuse, and unsupported engines reject
+grouped attacks before mutation. Synth remains behind its MIDI/owned-note boundary.
+
+Adding a clip preserves other players and live input. A committed playback copy can be taken
+while another slot records without finishing or serializing the unfinished take. The recording
+slot itself rejects launch. Workspace rows and controller LEDs distinguish all active slots;
+editing stops only the selected player. Tempo/graph/rate changes still stop explicitly, and
+Song-arrangement playback remains separate. Later launches respect published lookahead, adding
+up to about 100 ms local scheduling lead rather than moving another clip's phase.
+
+Local checks passed: library adapter contracts, Tracker application tests, scoped lint, native
+scheduled rendering, and all eleven performance witnesses. Braids spectral evidence proves
+surviving per-note pitch/timbre/pressure after another group stops; Sample proves simultaneous
+clips, pending-launch cancellation and nine voices across two clips plus live input. Callback
+allocation/deallocation, routing failures and scheduled lateness remained zero in these fixtures.
+The macOS bundle verifies independently. Desktop mouse actions on the actual firmware replica
+launched two reopened clips, showed both firmware LEDs green, stopped one to blue while the
+other remained green/looping, then stopped the bank and restored stock Play with firmware
+acknowledgement. Full CI for this integration commit is pending; this is not full M6, Linux
+clock-correlation, Steam Deck or physical-hardware qualification.
+
 ## Local tempo control (development)
 
 The standalone host now applies 1–999 BPM changes at native timestamps through its public
