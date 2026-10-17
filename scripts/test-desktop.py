@@ -134,6 +134,24 @@ class Desktop:
             ]
         }]})
 
+    def assert_green_firmware_pixel(self, column, row):
+        # Firmware integrates multiplexed exposure. A later frame may have a
+        # different brightness from the frame that satisfied a prior state wait.
+        # Observe the decoded LED and its rendered pixel in one JS task, then
+        # require exact equality; the UI must not substitute an intended color.
+        def rendered():
+            return self.observe("""const canvas=document.querySelector('#surface');
+                const columns=latest.firmware.model===128?17:26;
+                const x=Math.floor((arguments[0]+.5)*canvas.width/columns);
+                const y=Math.floor((7.5-arguments[1])*canvas.height/8);
+                return {led:latest.firmware.leds[arguments[0]*8+arguments[1]],
+                    pixel:Array.from(canvas.getContext('2d').getImageData(x,y,1,1).data),
+                    at_us:latest.firmware.at_us};""", column, row)
+        sample = wait_for(rendered,
+                          lambda value: value['led'][0] < 50 and value['led'][1] > 200
+                          and value['led'][2] < 50, 'green firmware frame rendered')
+        assert sample['pixel'] == sample['led'] + [255], sample
+
     def state(self, predicate, label):
         return wait_for(lambda: self.observe('return typeof latest === "undefined" ? null : latest'),
                         lambda value: value and not value['error'] and predicate(value), label)
@@ -291,8 +309,7 @@ def launch_with_firmware_pad(app):
     red, green, blue = state['firmware']['leds'][8]
     assert green > red and green > blue
     # Center pixels must show the decoded firmware frame, not only an intent snapshot.
-    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(63,315,1,1).data)")
-    assert pixel[1] > 200 and pixel[1] > pixel[0] and pixel[1] > pixel[2], pixel
+    app.assert_green_firmware_pixel(1, 0)
     app.capture('firmware-pad-playing', state)
     state = app.state(lambda s: s['host']['parameter_capture_count'] > 0, 'pad launch emits note lock')
     assert all(event['voice'] is not None and event['address']['parameter'] == 4
@@ -711,8 +728,7 @@ def change_showcase_voicing(app):
     state = app.state(lambda s: all(s['firmware']['leds'][column * 8 + 6][1] > 200 and
                                    s['firmware']['leds'][column * 8 + 6][2] < 50 for column in [6, 7]),
                       'enabled spread and voice-leading firmware LEDs are green')
-    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(273,63,1,1).data)")
-    assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
+    app.assert_green_firmware_pixel(6, 6)
     app.capture('showcase-controller-voicing', state)
     app.switch('host')
     assert app.observe("return document.querySelector('#harmony-form [name=spread]').checked")
@@ -791,8 +807,7 @@ def play_showcase_bank(app):
                            m['message']['bytes'][1] == 55
                            for m in s['host']['recent_midi']),
               'following bass changes to G after top-row V')
-    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(231,21,1,1).data)")
-    assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
+    app.assert_green_firmware_pixel(5, 7)
     app.capture('showcase-controller-harmony', state)
     change_showcase_voicing(app)
     hold_showcase_pads(app)
@@ -876,8 +891,7 @@ def record_controller_modifiers(app):
     state = app.state(lambda s: s['firmware']['leds'][21][1] > 200 and
                       s['firmware']['leds'][45][1] > 200 and s['firmware']['leds'][13][2] > 200,
                       'ninth and borrowing enabled, seventh disabled in firmware LEDs')
-    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(105,105,1,1).data)")
-    assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
+    app.assert_green_firmware_pixel(2, 5)
     app.capture('controller-modifier-leds', state)
     app.switch('host')
     assert app.observe("return document.querySelector('#harmony-form [name=extension]').value") == 'ninth'
