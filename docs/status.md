@@ -93,7 +93,7 @@ The core suite, 270 app tests, 17 native performance witnesses, scoped lint and 
 passed locally. Desktop testing reopened the previous firmware-recorded Sample/arpeggio
 project, looped two clips, saved a schema-10 copy and reopened it with every performance field
 unchanged except version. The old API-10 reader rejects that save without rewriting it.
-[Upgrade CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39033542214) is pending.
+[Upgrade CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39033542214) passed at `4506510`.
 The preceding native-clock articulation integration passed
 [full CI](https://github.com/crestenstclair/crest-tracker/actions/runs/39031168510).
 Debug desktop stalls remain explicitly rejected with the take retained.
@@ -564,7 +564,9 @@ both geometries' real firmware contacts, independent source holds and decoded ma
 LEDs. Real macOS desktop mouse contacts exercised up, opposing cancellation, down after one
 finger released, Release All, Stop and return to ordinary Play with zero voices. Workspace
 and desktop lint pass. Linux desktop acceptance now includes keyboard holds and focus loss;
-its CI result is pending. The unchanged three-virtual-minute processing workload retained
+[source CI](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39034820381) and
+[extracted-package acceptance](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39034865919)
+passed at `3b04f84` after the observation correction described below. The unchanged three-virtual-minute processing workload retained
 216,546 events, 651,276 MIDI messages and 546 balanced attacks/releases. On this macOS/aarch64
 machine, p50/p95/p99 were 708/1,084/1,875 ns, maximum 75,458 ns; no batch reached 1 ms. This
 excludes sensors, transport, UI and audio and is not Deck qualification. Session schema 10
