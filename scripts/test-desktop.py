@@ -559,6 +559,50 @@ def hold_showcase_mute(app):
         'released mute resumes future attacks')
 
 
+def hold_showcase_pads(app):
+    app.click('details:has(#keyboard-form) > summary')
+    app.fill('#keyboard-settings', json.dumps({
+        'pads': {'q': {'x': 1, 'y': 6}, 'w': {'x': 1, 'y': 1}},
+        'pressure_down': '[', 'pressure_up': ']'
+    }))
+    app.click('#keyboard-form button[type="submit"]')
+    wait_for(lambda: app.observe("return document.querySelector('#keyboard-status').textContent"),
+             lambda text: text == 'Keyboard settings saved.', 'controller keyboard mapping saved')
+    app.click('#release')
+    app.native('keydown', 'q')
+    app.state(lambda s: s['host']['performance']['fill'] and
+              s['firmware']['leds'][14][0] > 200 and s['firmware']['leds'][14][2] > 200,
+              'keyboard contact holds firmware Fill pad')
+    app.native('keydown', 'w')
+    state = app.state(lambda s: s['host']['performance']['muted_slots'][0] and
+                      s['host']['performance']['fill'] and len(s['contacts']) == 2 and
+                      s['firmware']['leds'][9][1] > 200 and s['firmware']['leds'][9][2] > 200,
+                      'second contact mutes only the source clip')
+    app.state(lambda s: not any(m['destination'] == 1 for m in s['host']['recent_midi']) and
+              any(m['destination'] == 3 and m['message']['bytes'][0] & 0xf0 == 0x90
+                  for m in s['host']['recent_midi']), 'Fill accompaniment continues under pad mute')
+    app.capture('showcase-multifinger-holds', state)
+    app.native('keyup', 'q')
+    app.state(lambda s: not s['host']['performance']['fill'] and
+              s['host']['performance']['muted_slots'][0], 'Fill release preserves mute contact')
+    app.native('keyup', 'w')
+    app.state(lambda s: not s['host']['performance']['muted_slots'][0] and
+              s['firmware']['leds'][8][1] > 200 and s['firmware']['leds'][8][2] < 50,
+              'mute contact release restores future source attacks')
+    app.native('keydown', 'q', 'w')
+    app.state(lambda s: s['host']['performance']['fill'] and s['host']['performance']['muted_slots'][0],
+              'both holds active before focus recovery')
+    app.switch('host')
+    app.native('keyup', 'q', 'w')
+    app.state(lambda s: not s['host']['performance']['fill'] and
+              not s['host']['performance']['muted_slots'][0] and not s['contacts'],
+              'focus loss releases both momentary controller contacts')
+    app.switch('instrument')
+    app.click('#keyboard-defaults')
+    app.click('#keyboard-form button[type="submit"]')
+    app.click('details:has(#keyboard-form) > summary')
+
+
 def play_showcase_bank(app):
     app.switch('host')
     packaged = BINARY.parent / 'examples/performance-showcase.json'
@@ -629,6 +673,7 @@ def play_showcase_bank(app):
     pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(231,21,1,1).data)")
     assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
     app.capture('showcase-controller-harmony', state)
+    hold_showcase_pads(app)
     app.touch(2, 0)
     state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing', 'recorded', 'playing'] and
                       s['firmware']['leds'][16][2] > 200 and

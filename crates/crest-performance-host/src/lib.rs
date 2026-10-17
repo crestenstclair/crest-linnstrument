@@ -1,5 +1,6 @@
 //! Standalone host orchestration. Uses only public library contracts.
 mod clip_surface;
+mod holds;
 #[cfg(feature = "midi")]
 pub mod midi_ports;
 #[cfg(feature = "midi")]
@@ -8,6 +9,7 @@ pub mod storage;
 use crest_linnstrument::*;
 use crest_performance_core::*;
 use crest_performance_testkit::CapturedMidi;
+use holds::{ControlSource, Holds};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -41,6 +43,7 @@ pub struct TestHost {
     pub device_commands: Vec<MidiMessage>,
     leds: LedRenderer,
     mode: SurfaceMode,
+    holds: Holds,
 }
 impl TestHost {
     pub fn new(session: Session, geometry: Geometry) -> Result<Self> {
@@ -58,6 +61,7 @@ impl TestHost {
             })
             .collect::<Result<BTreeMap<_, _>>>()?;
         Ok(Self {
+            holds: Holds::new(session.slots.len()),
             engine: Engine::new(
                 API_VERSION,
                 session,
@@ -189,7 +193,14 @@ impl TestHost {
         self.capture_output()
     }
     pub fn command(&mut self, command: Command) -> Result<()> {
-        self.engine.command(command)?;
+        match command {
+            Command::SetFill(held) => self.set_fill(ControlSource::Host, held)?,
+            Command::SetClipMuted { slot, muted } => {
+                self.set_muted(ControlSource::Host, slot, muted)?;
+            }
+            _ => self.engine.command(command)?,
+        }
+        self.holds.reconcile(&self.engine.snapshot());
         if matches!(command, Command::Stop) {
             self.input.reset();
         }
@@ -285,6 +296,7 @@ impl TestHost {
         // cleanup of unrelated sounding voices with UnknownNote errors.
         self.engine.drain_output().for_each(drop);
         self.engine.command(Command::Stop)?;
+        self.holds.reconcile(&self.engine.snapshot());
         self.engine.drain_output().for_each(drop);
         self.input.reset();
         self.parser = MidiParser::default();

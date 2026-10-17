@@ -3,6 +3,8 @@
 mod condition_tests;
 mod contact_envelope;
 #[cfg(test)]
+mod controller_hold_tests;
+#[cfg(test)]
 mod harmony_source_tests;
 #[cfg(test)]
 mod harmony_tests;

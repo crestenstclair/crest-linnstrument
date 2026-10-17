@@ -4,21 +4,28 @@ use super::*;
 
 impl TestHost {
     pub(super) fn accept_clip_pad(&mut self, pad: PadEvent) -> Result<()> {
-        if !pad.pressed || pad.column == 0 {
+        if pad.column == 0 {
             return Ok(());
         }
         let index = usize::from(pad.column - 1);
         match pad.row {
-            0 if index < self.engine.session().slots.len() => {
+            0 if pad.pressed && index < self.engine.session().slots.len() => {
                 match self.engine.snapshot().slots[index] {
                     SlotState::Playing | SlotState::Queued => {
-                        self.engine.command(Command::StopSlot { slot: index })?
+                        self.command(Command::StopSlot { slot: index })?
                     }
                     SlotState::Recorded => self.launch(index)?,
                     _ => {}
                 }
             }
-            7 if index < 7 => {
+            1 if index < self.engine.session().slots.len() => {
+                let state = self.engine.snapshot().slots[index];
+                if !pad.pressed || matches!(state, SlotState::Playing | SlotState::Queued) {
+                    self.set_muted(ControlSource::Pad, index, pad.pressed)?;
+                }
+            }
+            6 if index == 0 => self.set_fill(ControlSource::Pad, pad.pressed)?,
+            7 if pad.pressed && index < 7 => {
                 let settings = HarmonySettings {
                     degree: index as u8,
                     ..self.engine.session().harmony
@@ -43,6 +50,13 @@ pub(super) fn frame(state: &PerformanceSnapshot) -> [[u8; 8]; 26] {
         } else {
             slot_color(*status)
         };
+        if matches!(status, SlotState::Playing | SlotState::Queued) {
+            frame[slot + 1][1] = if state.muted_slots[slot] {
+                MUTED_SLOT_COLOR
+            } else {
+                5 // blue: available hold-to-mute
+            };
+        }
     }
     for degree in 0..7 {
         // Show actual follower intent, including a running recorded leader.
@@ -52,5 +66,6 @@ pub(super) fn frame(state: &PerformanceSnapshot) -> [[u8; 8]; 26] {
             5 // blue: other degree selectors
         };
     }
+    frame[1][6] = if state.fill { 6 } else { 2 }; // magenta held; yellow ready
     frame
 }

@@ -83,6 +83,14 @@ pressed. Held notes and fixed clips keep their pitches; future follower attacks 
 selection. The selection persists with the session. All pad input still crosses the
 firmware sensor path, and the displayed LEDs still come from firmware output.
 
+Hold the pad directly above a running/queued clip to mute it; both pads turn cyan.
+Release resumes future attacks at the existing loop phase. Dark mute pads are inactive.
+The pad directly below degree I holds **Fill**, yellow when ready and magenta while held.
+Independent fingers can hold Fill and several clip mutes concurrently. Host controls and
+controller contacts combine: releasing one leaves the other active. Stop, mode changes,
+disconnect and replacement players retire their old hold ownership. Simulator focus loss
+releases momentary contacts; visibly latched contacts continue until released explicitly.
+
 For the expansion demo, enter the absolute path to `examples/performance-showcase.json`
 in the host's session field and choose **Reopen**. The first three slots contain:
 

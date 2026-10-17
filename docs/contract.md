@@ -353,6 +353,18 @@ The shared diff renderer bounds updates; firmware parses the resulting MIDI comm
 and owns the rendered RGB frame. Physical OS MIDI and the native simulator use this
 same host mapping. Ordinary Play and Chords continue through the stock MPE parser.
 
+Row 1, directly above each clip slot, is hold-to-mute for playing/queued slots. Both the
+slot and its mute pad show cyan while muted; an available mute pad is blue and an inactive
+one is dark. Row 6, column 1, holds Fill and shows yellow ready/magenta held. These pads
+consume both attacks and releases, including Note On with zero velocity. A single cell's
+duplicate attacks are idempotent. Different cells and the host UI own independent holds;
+the engine sees the union of host and controller ownership for each effect. Releasing one
+source cannot cancel the other. Rejection does not commit hold ownership. Engine safety
+transitions and player replacement retire corresponding host bookkeeping, so a stale
+release cannot clear another source's new hold. The holds are transient and do not change
+session files or Undo. A freshly launched player starts unmuted even if an old contact
+has not yet been physically released; a new pad attack is required to mute it again.
+
 `LearnChord { source, track, degree, root }` learns the currently held live notes of one
 source and track in Play mode while recording is idle. It does not read retrospective
 history or include clip/generated voices. It stores their MIDI attack pitches, preserving

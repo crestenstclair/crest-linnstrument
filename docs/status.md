@@ -299,5 +299,17 @@ performances. Firmware LEDs show the effective degree in green and other degrees
 Three protocol fixtures check ownership, persistence, unused/released pads and atomic
 rejection. Both native firmware geometries exercise all seven degrees through actual
 sensor input while source/follower clips run, with independent pitch and decoded LED
-expectations. The desktop suite adds a real mouse selection and canvas-pixel check;
-that updated desktop scenario still requires its CI result before qualification.
+expectations. [Full CI 39020491399](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39020491399)
+passed Rust, both native firmware platforms, the ARM baseline and a real desktop mouse
+selection with independently checked follower pitch and canvas pixels.
+
+## Controller Fill and mute holds (development)
+
+The pad directly above each running/queued clip now holds its mute; the pad directly
+below I holds Fill. Independent contacts and host controls combine without canceling
+each other's ownership. Three protocol fixtures cover duplicate/late releases, shared
+holds, player replacement, safety cleanup, persistence and output-pressure retry. A new
+native scenario on both geometries holds Fill and mute with separate sensor contacts,
+checks exact conditional notes and decoded LEDs, releases each independently and tests
+focus recovery without altering the saved bank. The desktop suite adds simultaneous
+real keyboard contacts and cross-window focus cleanup; its updated CI is pending.
