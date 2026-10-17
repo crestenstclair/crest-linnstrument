@@ -363,7 +363,8 @@ recording, pad launch, tempo changes, decoded LEDs, reopen and firmware reset. D
 acceptance also checks native clock rate, unchanged clips and saved/restored tempo.
 [Full CI 39023083887](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39023083887)
 passed Rust, both native firmware platforms, the ARM baseline and Linux desktop tempo
-changes, rate checks, save/reopen and reset. Extracted-package verification is pending.
+changes, rate checks, save/reopen and reset. Extracted-package verification also passed
+in [run 39024099123](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39024099123).
 A separate consumer pinned to unchanged v0.2.0 verified rejection of both new firmware
 host documents without rewriting them, while accepting their identical embedded schema-8
 sessions. Its own envelope-1 round trip remains intact.
@@ -400,4 +401,8 @@ Both firmware sizes drive ten combinations through sensor pads, record independe
 specified chord pitches, reopen and launch the result with decoded LED checks. They
 also prove learned entries stay unchanged under every modifier. Desktop acceptance
 adds real modifier clicks, field/LED updates, five-voice borrowed-ninth recording,
-save/reopen and firmware-pad launch. Full CI and package checks are pending for this change.
+save/reopen and firmware-pad launch.
+[Full CI 39023872803](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39023872803)
+and [extracted-package checks 39024099123](https://github.com/crestenstclair/crest-linnstrument/actions/runs/39024099123)
+passed at `6c37aa5e695dd6968d69b693137f0f9bee16b67f`. These development checks do not
+move the stable v0.2.0 release or certify physical hardware.
