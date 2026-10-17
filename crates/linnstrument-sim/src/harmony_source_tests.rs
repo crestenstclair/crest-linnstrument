@@ -9,10 +9,13 @@ fn firmware_chord_clip_drives_independent_follower_and_stopping_restores_selecte
     }
 }
 fn touch(r: &mut Runtime, column: f64) {
+    touch_at(r, column, 0.0);
+}
+fn touch_at(r: &mut Runtime, column: f64, row: f64) {
     r.set_contact(Contact {
         id: 1,
         x: column,
-        y: 0.0,
+        y: row,
         z: 0.55,
         latched: false,
     })
@@ -78,6 +81,7 @@ fn verify_source(model: u16) {
     );
     assert!(r.firmware.leds[8][1] > 200 && r.firmware.leds[16][1] > 200);
     verify_muted_leader(&mut r);
+    verify_controller_harmony(&mut r);
     touch(&mut r, 1.0);
     assert_eq!(
         &r.host.engine.snapshot().slots[..2],
@@ -91,6 +95,48 @@ fn verify_source(model: u16) {
     assert!(r.firmware.leds[8][2] > 200 && r.firmware.leds[16][1] > 200);
     r.command(BridgeCommand::Stop {}).unwrap();
     assert_eq!(r.host.engine.snapshot().active_voices, 0);
+}
+fn verify_controller_harmony(r: &mut Runtime) {
+    let original = r.host.engine.session().slots.clone();
+    let sensor_reads = r.firmware.sensor_reads;
+    for (degree, expected) in [60, 62, 64, 65, 67, 69, 71].into_iter().enumerate() {
+        touch_at(r, degree as f64 + 1.0, 7.0);
+        let state = r.host.engine.snapshot();
+        assert_eq!(state.harmony_source, HarmonySource::Selected {});
+        assert_eq!(state.effective_harmony.degree, degree as u8);
+        assert_eq!(&state.slots[..2], &[SlotState::Playing; 2]);
+        let before = r.host.output_count();
+        r.advance(200_000).unwrap();
+        let notes = follower_notes(r, before);
+        assert!(!notes.is_empty());
+        assert!(notes.iter().all(|(_, key)| *key == expected));
+        verify_degree_leds(r, degree);
+    }
+    assert!(r.firmware.sensor_reads > sensor_reads + 1000);
+    assert_eq!(r.host.engine.session().slots, original);
+    // Restore the recorded source to exercise its independent stop/fallback.
+    r.command(BridgeCommand::Harmony {
+        settings: HarmonySettings {
+            degree: 1,
+            ..HarmonySettings::default()
+        },
+    })
+    .unwrap();
+    r.command(BridgeCommand::HarmonySource {
+        source: HarmonySource::Clip { slot: 0 },
+    })
+    .unwrap();
+}
+fn verify_degree_leds(r: &Runtime, active: usize) {
+    for degree in 0..7 {
+        let [red, green, blue] = r.firmware.leds[(degree + 1) * 8 + 7];
+        assert!(red < 50);
+        if degree == active {
+            assert!(green > 200 && blue < 50, "selected degree is green");
+        } else {
+            assert!(green < 50 && blue > 200, "other degrees are blue");
+        }
+    }
 }
 fn verify_muted_leader(r: &mut Runtime) {
     let harmony = r.host.engine.snapshot().effective_harmony;

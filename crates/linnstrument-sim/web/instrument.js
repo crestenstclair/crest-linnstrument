@@ -76,6 +76,7 @@ subscribers.push(snapshot=>{
   document.querySelector('#model').textContent=snapshot.firmware.model;
   document.querySelector('#revision').textContent=`54bb1c9 · sensor SPI / native C++`;
   document.querySelector('#mode').textContent=snapshot.external_host?'EXTERNAL HOST CONTROLS MODE':snapshot.host.performance.mode==='clips'?'CLIPS · USER FIRMWARE MODE':snapshot.host.performance.mode==='chords'?'CHORDS · FIRMWARE MPE ±48 ST':'PLAY · MPE ±48 ST';
+  document.querySelector('#clip-layout').hidden=snapshot.external_host||snapshot.host.performance.mode!=='clips';
   document.querySelector('#fingers').textContent=`${snapshot.contacts.length} FINGERS`;
   document.querySelector('#pause').textContent=snapshot.paused?'Resume':'Pause';document.querySelector('#step').disabled=!snapshot.paused;
   draw(snapshot);

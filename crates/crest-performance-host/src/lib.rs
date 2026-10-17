@@ -1,4 +1,5 @@
 //! Standalone host orchestration. Uses only public library contracts.
+mod clip_surface;
 #[cfg(feature = "midi")]
 pub mod midi_ports;
 #[cfg(feature = "midi")]
@@ -163,20 +164,8 @@ impl TestHost {
             return Ok(());
         };
         if self.mode == SurfaceMode::Clips {
-            if let Some(pad) = user_pad(message, geometry)?
-                && pad.pressed
-                && pad.row == 0
-                && pad.column >= 1
-                && usize::from(pad.column) <= self.engine.session().slots.len()
-            {
-                let slot = usize::from(pad.column - 1);
-                match self.engine.snapshot().slots[slot] {
-                    SlotState::Playing | SlotState::Queued => {
-                        self.engine.command(Command::StopSlot { slot })?
-                    }
-                    SlotState::Recorded => self.launch(slot)?,
-                    _ => {}
-                }
+            if let Some(pad) = user_pad(message, geometry)? {
+                self.accept_clip_pad(pad)?;
             }
         } else {
             for event in self.input.accept(at, message)? {
@@ -219,15 +208,7 @@ impl TestHost {
         if self.mode != SurfaceMode::Clips {
             return Ok(());
         }
-        let mut frame = [[0; 8]; 26];
-        let state = self.engine.snapshot();
-        for (slot, status) in state.slots.iter().take(25).enumerate() {
-            frame[slot + 1][0] = if state.muted_slots[slot] {
-                MUTED_SLOT_COLOR
-            } else {
-                slot_color(*status)
-            };
-        }
+        let frame = clip_surface::frame(&self.engine.snapshot());
         // Firmware owns the global-settings control-column indicator.
         self.device_commands.extend(self.leds.diff(&frame, 16)?);
         Ok(())

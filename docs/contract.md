@@ -279,7 +279,9 @@ integer times and expression; save/reopen preserves them exactly. The host limit
 8 MB, validates before replacement, and writes through a new sibling file plus sync/rename.
 Saving an uncommitted take is rejected. Migration never overwrites the input file; explicit save writes schema 8.
 
-This release package is `0.2.0`, API 9, schema 8. The accepted `v0.1.0` release
+The stable release package is `0.2.0`, API 9, schema 8. Development package
+`0.3.0-dev.1` retains API 9/schema 8 while adding standalone controller mappings.
+The accepted `v0.1.0` release
 remains API 2/schema 2. Adding `HarmonySettings.articulation` and `HarmonySettings.learned` is an explicit Rust source
 compatibility change; consumers using struct literals must include them or use Default. No ABI version exists. Before 1.0, public or
 persistence breaks require a deliberate version change and updated contract fixtures.
@@ -335,6 +337,21 @@ hardware regions. Continuous firmware slides retain ownership and per-note bends
 All-voices/top-voice expression policy is frozen at attack. Unselected voices start neutral
 and ignore expression; every voice still receives its release. Settings changes affect
 future attacks only. Mode change/disconnect releases generated voices as well as live ones.
+
+The standalone host's Clips layout assigns row 0, columns 1–25 (bounded by geometry
+and slot count), to launch/stop. Row 7, columns 1–7, selects I–VII from the configured
+selected harmony and switches `HarmonySource` to `Selected`. The setting is validated
+before changing the source; rejection leaves both unchanged. Releases, column 0 and
+unused pads do not select degrees. This is host control policy using existing public
+commands, not an additional core input mode or direct UI-to-MIDI shortcut. Selection
+does not attack, release, retune or replace stored notes. Scheduled events at an input
+timestamp run before that input, under the existing ordering contract.
+
+Top-row LEDs show `effective_harmony.degree` (green, other degrees blue), including
+changes from a recorded leader. Bottom-row clip state/mute feedback is independent.
+The shared diff renderer bounds updates; firmware parses the resulting MIDI commands
+and owns the rendered RGB frame. Physical OS MIDI and the native simulator use this
+same host mapping. Ordinary Play and Chords continue through the stock MPE parser.
 
 `LearnChord { source, track, degree, root }` learns the currently held live notes of one
 source and track in Play mode while recording is idle. It does not read retrospective

@@ -6,6 +6,7 @@ The workspace is named `crest-performance`; it currently lives in the existing
 physical controller, MIDI device, or sound card is needed for the development path.
 
 **Standalone release: `0.2.0`, public API 9, session schema 8.**
+Development on this branch is `0.3.0-dev.1`; the release tag remains unchanged.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.2.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.2.0)
 defines this contract; an untagged checkout remains a candidate. See
@@ -73,6 +74,14 @@ MPE playing while loops continue. Save and reopen through the host's session pat
 and controller pads. Queued pads show yellow, playing pads green. A second press cancels a
 queued launch or stops playback immediately. This live host preference applies to future
 launches, survives device reset/session open, and starts at Off on application restart.
+
+In this development checkout, **Clip pads** also uses top-row pads 1–7 for I–VII.
+Pressing one selects that degree using the configured harmony settings and takes over
+follower harmony from any recorded leader. The active effective degree is green; the
+other selectors are blue. A running chord source moves that indicator until a degree is
+pressed. Held notes and fixed clips keep their pitches; future follower attacks use the
+selection. The selection persists with the session. All pad input still crosses the
+firmware sensor path, and the displayed LEDs still come from firmware output.
 
 For the expansion demo, enter the absolute path to `examples/performance-showcase.json`
 in the host's session field and choose **Reopen**. The first three slots contain:

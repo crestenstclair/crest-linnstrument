@@ -614,6 +614,21 @@ def play_showcase_bank(app):
               'running followers resume clip harmony')
     hold_showcase_mute(app)
     app.switch('instrument')
+    app.touch(5, 7)
+    state = app.state(lambda s: s['host']['performance']['harmony_source']['type'] == 'selected' and
+                      s['host']['performance']['effective_harmony']['degree'] == 4 and
+                      s['host']['performance']['slots'][:3] == ['playing'] * 3 and
+                      s['firmware']['leds'][47][1] > 200 and
+                      s['firmware']['leds'][31][2] > 200,
+                      'top-row V takes over harmony without stopping clips')
+    app.state(lambda s: any(m['destination'] == 2 and
+                           m['message']['bytes'][0] & 0xf0 == 0x90 and
+                           m['message']['bytes'][1] == 55
+                           for m in s['host']['recent_midi']),
+              'following bass changes to G after top-row V')
+    pixel = app.observe("return Array.from(document.querySelector('#surface').getContext('2d').getImageData(231,21,1,1).data)")
+    assert pixel[0] < 50 and pixel[1] > 200 and pixel[2] < 50, pixel
+    app.capture('showcase-controller-harmony', state)
     app.touch(2, 0)
     state = app.state(lambda s: s['host']['performance']['slots'][:3] == ['playing', 'recorded', 'playing'] and
                       s['firmware']['leds'][16][2] > 200 and

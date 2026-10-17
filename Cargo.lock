@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "crest-linnstrument"
-version = "0.2.0"
+version = "0.3.0-dev.1"
 dependencies = [
  "crest-performance-core",
  "serde",
@@ -477,7 +477,7 @@ dependencies = [
 
 [[package]]
 name = "crest-performance-core"
-version = "0.2.0"
+version = "0.3.0-dev.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -486,7 +486,7 @@ dependencies = [
 
 [[package]]
 name = "crest-performance-host"
-version = "0.2.0"
+version = "0.3.0-dev.1"
 dependencies = [
  "crest-linnstrument",
  "crest-performance-core",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "crest-performance-testkit"
-version = "0.2.0"
+version = "0.3.0-dev.1"
 dependencies = [
  "crest-linnstrument",
  "crest-performance-core",
@@ -1856,7 +1856,7 @@ dependencies = [
 
 [[package]]
 name = "linnstrument-sim"
-version = "0.2.0"
+version = "0.3.0-dev.1"
 dependencies = [
  "crest-linnstrument",
  "crest-performance-core",

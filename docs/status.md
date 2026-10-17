@@ -1,6 +1,8 @@
 # Delivery status — October 17, 2026, Pacific
 
-Version `0.2.0` carries API 9, session schema 8 and host document envelope 1. The first
+Stable version `0.2.0` carries API 9, session schema 8 and host document envelope 1.
+Development version `0.3.0-dev.1` retains those versions; its additions are not yet tagged.
+The first
 standalone integration baseline, `v0.1.0`, remains API 2/session 2. Acceptance belongs to
 the corresponding release tag and commit; an untagged checkout remains a candidate. There is no dependency on Crest Tracker and
 no Tracker application code was copied. Its current framework versions were confirmed
@@ -287,3 +289,15 @@ p95 959 ns, p99 1,334 ns, max 28,375 ns), and 2,160 for humanized chords plus lo
 (p50 542 ns, p95 1,000 ns, p99 1,417 ns, max 15,833 ns). Neither macOS/aarch64 run had a
 batch at or above 1 ms. These measure the existing expressive workload after the change,
 not total latency, Deck performance or a dedicated mute-toggle workload.
+
+## Controller harmony selection (development)
+
+The standalone Clips layout now keeps launch/stop on the bottom row and assigns I–VII
+to the first seven top-row pads. Selection uses existing harmony commands, takes over
+from a recorded leader, and preserves held notes, clip phase, fixed pitches and saved
+performances. Firmware LEDs show the effective degree in green and other degrees in blue.
+Three protocol fixtures check ownership, persistence, unused/released pads and atomic
+rejection. Both native firmware geometries exercise all seven degrees through actual
+sensor input while source/follower clips run, with independent pitch and decoded LED
+expectations. The desktop suite adds a real mouse selection and canvas-pixel check;
+that updated desktop scenario still requires its CI result before qualification.
