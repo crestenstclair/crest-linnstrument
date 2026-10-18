@@ -1,0 +1,52 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:12.333
+Chords: the left hand uses compact control rows, grouped like Crest Flower. The right hand plays one I–VII bank across seven octave rows. One dark column separates the hands; extra outer pads are unused.
+
+00:00:12.333 --> 00:00:21.667
+Enable Latch, then press I in octave 4 with the right hand: C4–E4–G4. A numbered ring marks the held contact; firmware supplies the light underneath.
+
+00:00:21.667 --> 00:00:33.333
+Press Right twice and ] once while the finger is selected. X movement bends its three voices; the pressure key changes their pressure. These keys move the virtual contact before firmware processing.
+
+00:00:33.333 --> 00:00:45.000
+Release all, then press I one row lower: C3–E3–G3. Playing rows change octave. With C selected and register zero, root octaves run from C0 at the bottom to C6 at the top.
+
+00:00:45.000 --> 00:00:55.667
+Press II in C major: D4–F4–A4. Diatonic mode derives each quality from the selected scale. Keep the right hand on this bank while the left changes the nearby controls.
+
+00:00:55.667 --> 00:01:06.333
+Press Inv+ in the second control row. Inversion becomes 1. Inv−, Inv0, Inv+ and Lead are adjacent, following Crest Flower’s voicing group. Controls change future attacks without sounding notes.
+
+00:01:06.333 --> 00:01:17.000
+Press Spread at the end of the same row. Green means enabled: the second voiced tone moves up one octave. Oct−, Oct0 and Oct+ beside it change chord register.
+
+00:01:17.000 --> 00:01:28.667
+Press Add9 directly above Spread. The top row groups Dim, Min, Maj, Sus4, 6, m7, Maj7 and Add9. Add9 adds the ninth without a seventh; 9 in the third row includes both.
+
+00:01:28.667 --> 00:01:36.333
+Press I again: E4–C5–D5–G5, MIDI 64, 72, 74, 79. Inversion, spread and Add9 combine. Hover help lists the resulting pitches.
+
+00:01:36.333 --> 00:01:45.667
+Release all. Press Inv0, Spread and Triad to restore root position, close spacing and a three-note chord. These controls are adjacent within the left-hand block.
+
+00:01:45.667 --> 00:01:56.000
+Press Chrom in the third control row. Chromatic mode uses the same scale-degree roots with an explicit quality; Major is selected initially. Diat sits immediately to its left.
+
+00:01:56.000 --> 00:02:04.333
+Press II: D4–F♯4–A4. Chromatic Major produces D major where Diatonic produced D minor. Degree and octave positions stay in the same bank.
+
+00:02:04.333 --> 00:02:16.667
+Press Min and Maj7 on the same top row. Quality and extension are separate: this selects a minor-major seventh chord. Extensions remain exclusive in this library; the Flower grouping does not change that behavior.
+
+00:02:16.667 --> 00:02:25.000
+Press I: C4–E♭4–G4–B4. Four output voices follow the selected quality and seventh. This demonstration captures MIDI; sound belongs to the downstream instrument.
+
+00:02:25.000 --> 00:02:35.667
+Choose D in the Root selector above the instrument. Root and scale stay in the application UI. The chord-pad labels update without using any performance pads for key selection.
+
+00:02:35.667 --> 00:02:46.000
+Focus the surface, then press K for I in octave 4: D4–F4–A4–C♯5. The keyboard contact follows the new D root. A contact on the dark separator is silent.
+
+00:02:46.000 --> 00:02:57.000
+Release all leaves zero contacts and active notes. Default keys A–J trigger I–VII in octave 3; K triggers I in octave 4. Custom keyboard coordinate maps retain their physical assignments.

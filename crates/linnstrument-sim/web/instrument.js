@@ -1,5 +1,5 @@
 'use strict';
-import {defaultBindings,parseBindings} from './keyboard.js';
+import {defaultBindings,parseBindings,layoutBindings} from './keyboard.js';
 const canvas=document.querySelector('#surface'), ctx=canvas.getContext('2d');
 const pressure=document.querySelector('#pressure'), latch=document.querySelector('#latch');
 const contacts=new Map(), pointers=new Map(), keys=new Map();
@@ -35,7 +35,9 @@ document.querySelector('#keyboard-form').onsubmit=event=>{event.preventDefault()
 document.querySelector('#keyboard-defaults').onclick=()=>{bindingText.value=JSON.stringify(defaultBindings(),null,2);};
 window.addEventListener('keydown',event=>{
   if(event.target.matches('input,textarea,select')||event.metaKey||event.ctrlKey||event.altKey||!active())return;
-  const key=event.key.toLowerCase(),pad=bindings.pads[key];
+  const key=event.key.toLowerCase();
+  const customChords=latest.host.performance.mode==='chords'&&latest.host.performance.harmony.input_octaves;
+  const pad=layoutBindings(bindings,customChords,columns).pads[key];
   if(pad){event.preventDefault();if(event.repeat||keys.has(event.code))return;const id=nextId++;keys.set(event.code,id);update({id,...pad,z:Number(pressure.value),latched:latch.checked});return;}
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',bindings.pressure_down,bindings.pressure_up].includes(event.key)){
     event.preventDefault();if(key===bindings.pressure_down||key===bindings.pressure_up){setPressure(Number(pressure.value)+(key===bindings.pressure_up?.03:-.03));return;}
@@ -48,7 +50,8 @@ function loseFocus(){pointers.clear();keys.clear();for(const [id,c] of contacts)
 window.addEventListener('blur',loseFocus);document.addEventListener('visibilitychange',()=>{if(document.hidden)loseFocus();});
 for(const [id,number] of [['foot-left',1],['foot-right',2]]){const button=document.getElementById(id);button.onpointerdown=event=>{button.setPointerCapture(event.pointerId);send({type:'foot_switch',number,pressed:true});};for(const type of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(type,()=>send({type:'foot_switch',number,pressed:false}));button.onkeydown=event=>{if((event.key===' '||event.key==='Enter')&&!event.repeat)send({type:'foot_switch',number,pressed:true});};button.onkeyup=event=>{if(event.key===' '||event.key==='Enter')send({type:'foot_switch',number,pressed:false});};}
 for(const type of ['export','verify'])document.getElementById(`${type}-run`).onclick=()=>send({type:`${type}_run`,path:document.querySelector('#run-path').value});
-document.querySelector('#release').onclick=()=>{contacts.clear();keys.clear();pointers.clear();send({type:'release_all'});};
+export function releaseAllContacts(){contacts.clear();keys.clear();pointers.clear();selected=null;return send({type:'release_all'});}
+document.querySelector('#release').onclick=releaseAllContacts;
 document.querySelector('#example').onclick=()=>send({type:'play_example'});
 document.querySelector('#run-scenario').onclick=()=>send({type:'run_scenario',path:document.querySelector('#scenario-path').value});
 document.querySelector('#pause').onclick=()=>send({type:'pause',paused:!latest?.paused});
@@ -62,6 +65,11 @@ function draw(snapshot){
     ctx.fillStyle='#666e62';ctx.beginPath();ctx.roundRect(x+2,y+2,38,38,4);ctx.fill();
     if(rgb.some(v=>v>0)){ctx.fillStyle=`rgb(${rgb.join(',')})`;ctx.shadowBlur=10;ctx.shadowColor=ctx.fillStyle;ctx.beginPath();ctx.arc(x+21,y+21,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
   });
+  if(!snapshot.external_host && snapshot.firmware.surface.normal) for(const pad of snapshot.host.pad_help){
+    if(!pad.label)continue;
+    ctx.fillStyle='#fff';ctx.font='9px system-ui';ctx.textAlign='center';
+    ctx.fillText(pad.label,pad.column*42+21,(7-pad.row)*42+35,36);ctx.textAlign='start';
+  }
   if(document.querySelector('#markers').checked)for(const c of snapshot.contacts){const x=(c.x+.5)*42,y=(7.5-c.y)*42;ctx.strokeStyle=c.id===selected?'#fff':'#c5eb8b';ctx.lineWidth=2;ctx.setLineDash(c.latched?[3,3]:[]);ctx.beginPath();ctx.arc(x,y,10+c.z*5,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font='10px monospace';ctx.fillText(String(c.id),x+12,y-12);}
 }
 const contactButtons=new Map();
@@ -75,7 +83,7 @@ subscribers.push(snapshot=>{
   document.querySelector('#run-status').textContent=snapshot.run_full?'Buffer full: reset before new capture':`${snapshot.run_steps} steps captured${snapshot.verified_steps===null?'':` · ${snapshot.verified_steps} replay steps verified`}`;
   document.querySelector('#model').textContent=snapshot.firmware.model;
   document.querySelector('#revision').textContent=`54bb1c9 · sensor SPI / native C++`;
-  document.querySelector('#mode').textContent=snapshot.external_host?'EXTERNAL HOST CONTROLS MODE':snapshot.host.performance.mode==='clips'?'CLIPS · USER FIRMWARE MODE':snapshot.host.performance.mode==='chords'?'CHORDS · FIRMWARE MPE ±48 ST':'PLAY · MPE ±48 ST';
+  document.querySelector('#mode').textContent=snapshot.external_host?'EXTERNAL HOST CONTROLS MODE':snapshot.host.performance.mode==='clips'?'CLIPS · USER FIRMWARE MODE':snapshot.host.performance.mode==='chords'?(snapshot.host.performance.harmony.input_octaves?'CHORDS · USER FIRMWARE XYZ':'CHORDS · FIRMWARE MPE ±48 ST'):'PLAY · MPE ±48 ST';
   document.querySelector('#clip-layout').hidden=snapshot.external_host||snapshot.host.performance.mode!=='clips';
   document.querySelector('#fingers').textContent=`${snapshot.contacts.length} FINGERS`;
   document.querySelector('#pause').textContent=snapshot.paused?'Resume':'Pause';document.querySelector('#step').disabled=!snapshot.paused;

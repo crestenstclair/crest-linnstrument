@@ -87,7 +87,9 @@ void snapshot() {
         }
         std::cout<<']';
     }
-    std::cout<<"],\"sensor_reads\":"<<adc_reads<<",\"sensor_selects\":"<<sensor_selects<<",\"led_writes\":"<<led_writes<<"}\n"<<std::flush;
+    std::cout<<"],\"surface\":";
+    surface_metadata(std::cout);
+    std::cout<<",\"sensor_reads\":"<<adc_reads<<",\"sensor_selects\":"<<sensor_selects<<",\"led_writes\":"<<led_writes<<"}\n"<<std::flush;
     midi.erase(std::remove_if(midi.begin(),midi.end(),[](auto b){return b.at<=now;}),midi.end());
     if(duration>=25000) frame_since=now;
 }

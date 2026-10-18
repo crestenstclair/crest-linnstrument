@@ -1,0 +1,37 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.641
+Choose Strum low to high. Set Step spacing to 1/2 beat; Apply harmony.
+
+00:00:06.641 --> 00:00:12.141
+Start Record selected. The following held finger will record the staggered chord attacks.
+
+00:00:12.141 --> 00:00:17.641
+Click and latch pad I. The three chord tones attack in ascending order, 1/2 beat apart.
+
+00:00:17.641 --> 00:00:24.158
+Release all; Finish take. Scroll to the note editor to inspect the staggered attacks.
+
+00:00:24.158 --> 00:00:32.823
+Choose Arpeggio low to high: 1/2-beat steps, 1/4-beat gate. Apply harmony.
+
+00:00:32.823 --> 00:00:38.323
+Latch pad I. One held finger starts a repeating C–E–G arpeggio.
+
+00:00:38.323 --> 00:00:43.823
+Watch the capture: repeated note attacks and releases continue while the finger is held.
+
+00:00:43.823 --> 00:00:49.323
+Release all cancels future arpeggio attacks. No finger remains held.
+
+00:00:49.323 --> 00:00:57.272
+Choose Humanized chord. Delay 60000 ticks, velocity variation ±8, seed 42; Apply harmony.
+
+00:00:57.272 --> 00:01:02.772
+Latch pad I. Humanized chord applies bounded attack delay and velocity variation.
+
+00:01:02.772 --> 00:01:11.977
+Inspect output timestamps and velocities: the same C triad has varied attacks.
+
+00:01:11.977 --> 00:01:22.152
+Release all. Restore Together articulation for manual picking.

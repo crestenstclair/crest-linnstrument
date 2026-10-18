@@ -15,6 +15,14 @@ no Tracker application code was copied. Its current framework versions were conf
 from GitHub and the working checkout: Tauri 2.12.4, tauri-build 2.7.3, Wry 0.57.0, with
 plain HTML/CSS/JavaScript.
 
+## Unreleased dedicated chord layouts
+
+The working tree adds firmware-backed Chords and Strumplate layouts, assigned-only
+LEDs, hover help, one degree/octave bank, compact Crest Flower-style control groups, and UI
+root/scale selection. API 14/session 11/harmony algorithm 6 are development versions.
+No release tag or downstream Crest Synth/Tracker upgrade is implied. The production
+sound boundary remains unchanged. See [contract](contract.md#dedicated-chord-surface).
+
 ## Standalone qualification
 
 | Boundary | Evidence |

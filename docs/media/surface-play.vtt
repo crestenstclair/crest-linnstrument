@@ -1,0 +1,19 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.333
+Play: each pad plays one note. Dots are decoded firmware lights; numbered rings identify virtual fingers.
+
+00:00:06.333 --> 00:00:12.667
+Enable Latch. Click column 4, row 2; press A and K. Three fingers stay held independently.
+
+00:00:12.667 --> 00:00:19.667
+Select finger 1, then press Right five times. Only its X position changes; the other fingers remain held.
+
+00:00:19.667 --> 00:00:25.667
+Select finger 2, then press Up three times. Its Y movement controls timbre independently.
+
+00:00:25.667 --> 00:00:31.667
+Select finger 3, then press [ five times. Pressure changes without moving the other fingers.
+
+00:00:31.667 --> 00:00:37.667
+Release all removes every held contact. All three notes end; the stock note lights return.

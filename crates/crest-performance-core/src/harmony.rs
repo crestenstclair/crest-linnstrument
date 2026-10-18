@@ -5,7 +5,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const HARMONY_ALGORITHM_VERSION: u32 = 5;
+pub const HARMONY_ALGORITHM_VERSION: u32 = 6;
 pub const MAX_CHORD_VOICES: usize = MAX_VOICING_NOTES + 1;
 /// Reserved for engine-rendered notes. External input must use another source.
 pub const GENERATED_SOURCE: crate::SourceId = crate::SourceId(u32::MAX);
@@ -39,6 +39,23 @@ pub enum ChordExtension {
     Triad,
     Seventh,
     Ninth,
+    AddNinth,
+    Sixth,
+    MajorSeventh,
+    MinorSeventh,
+    MajorNinth,
+}
+/// Diatonic stacks the selected scale. Explicit qualities use chromatic
+/// intervals above that same scale-degree root.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChordQuality {
+    #[default]
+    Diatonic,
+    Major,
+    Minor,
+    Diminished,
+    Augmented,
 }
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -182,6 +199,12 @@ pub struct HarmonySettings {
     pub scale: Scale,
     pub degree: u8,
     pub extension: ChordExtension,
+    #[serde(default)]
+    pub quality: ChordQuality,
+    /// Seven input steps per octave around input_anchor. False retains the
+    /// original repeating, single-register chord-pad contract.
+    #[serde(default)]
+    pub input_octaves: bool,
     pub suspension: Suspension,
     pub borrowed: bool,
     pub inversion: i8,
@@ -206,6 +229,8 @@ impl Default for HarmonySettings {
             scale: Scale::Major,
             degree: 0,
             extension: ChordExtension::Triad,
+            quality: ChordQuality::Diatonic,
+            input_octaves: false,
             suspension: Suspension::None,
             borrowed: false,
             inversion: 0,
@@ -222,6 +247,14 @@ impl Default for HarmonySettings {
     }
 }
 impl HarmonySettings {
+    pub fn requires_chord_grid_schema(self) -> bool {
+        self.input_octaves
+            || self.quality != ChordQuality::Diatonic
+            || !matches!(
+                self.extension,
+                ChordExtension::Triad | ChordExtension::Seventh | ChordExtension::Ninth
+            )
+    }
     pub fn has_learned_chords(self) -> bool {
         self.learned.iter().any(Option::is_some)
     }
@@ -243,14 +276,29 @@ impl HarmonySettings {
     /// voice movement over octave placements and inversions; ties retain the
     /// requested inversion. A changed chord size starts from requested voicing.
     pub fn voicing(self, degree: u8, previous: Option<&Voicing>) -> Result<Voicing> {
-        if degree >= 7
+        self.voicing_at_octave(degree, 0, previous)
+    }
+    /// Explicit octave offset is applied before inversion and voice leading.
+    /// Rejects the complete voicing if any pitch falls outside MIDI range.
+    pub fn voicing_at_octave(
+        self,
+        degree: u8,
+        octave: i16,
+        previous: Option<&Voicing>,
+    ) -> Result<Voicing> {
+        if !(-10..=10).contains(&octave)
+            || degree >= 7
             || self.tonic > 127
             || !(-3..=3).contains(&self.register)
             || !(-4..=4).contains(&self.inversion)
         {
             return Err(Error::Invalid("chord degree or register"));
         }
-        let (mut notes, count, root) = self.chord_pitches(degree);
+        let (mut notes, count, mut root) = self.chord_pitches(degree);
+        root += octave * 12;
+        for note in &mut notes[..count] {
+            *note += octave * 12;
+        }
         invert(&mut notes[..count], self.inversion);
         if self.spread && count > 1 {
             notes[1] += 12;
@@ -284,7 +332,7 @@ impl HarmonySettings {
                 i16::from(chord.root()) + register,
             );
         }
-        let scale = if self.borrowed {
+        let scale = if self.borrowed && self.quality == ChordQuality::Diatonic {
             if self.scale == Scale::NaturalMinor {
                 Scale::Major
             } else {
@@ -294,25 +342,98 @@ impl HarmonySettings {
             self.scale
         };
         let root = i16::from(self.tonic) + register;
-        let count = match self.extension {
-            ChordExtension::Triad => 3,
-            ChordExtension::Seventh => 4,
-            ChordExtension::Ninth => 5,
-        };
+        let degree_root = root + scale.tone(i16::from(degree));
         let mut notes = [0i16; MAX_VOICING_NOTES];
-        for (index, note) in notes.iter_mut().take(count).enumerate() {
-            let step = if index == 1 {
-                match self.suspension {
-                    Suspension::None => 2,
-                    Suspension::Second => 1,
-                    Suspension::Fourth => 3,
-                }
-            } else {
-                2 * index as i16
-            };
-            *note = root + scale.tone(i16::from(degree) + step);
+        let third = match self.suspension {
+            Suspension::None => 2,
+            Suspension::Second => 1,
+            Suspension::Fourth => 3,
+        };
+        for (index, step) in [0, third, 4].into_iter().enumerate() {
+            notes[index] = root + scale.tone(i16::from(degree) + step);
         }
-        (notes, count, root + scale.tone(i16::from(degree)))
+        if self.quality != ChordQuality::Diatonic {
+            let third = match self.suspension {
+                Suspension::Second => 2,
+                Suspension::Fourth => 5,
+                Suspension::None => {
+                    if matches!(self.quality, ChordQuality::Minor | ChordQuality::Diminished) {
+                        3
+                    } else {
+                        4
+                    }
+                }
+            };
+            let fifth = match self.quality {
+                ChordQuality::Diminished => 6,
+                ChordQuality::Augmented => 8,
+                _ => 7,
+            };
+            notes[..3].copy_from_slice(&[degree_root, degree_root + third, degree_root + fifth]);
+        }
+        let count = self.extend_chord(&mut notes, root, degree_root, scale, degree);
+        (notes, count, degree_root)
+    }
+    fn extend_chord(
+        self,
+        notes: &mut [i16; MAX_VOICING_NOTES],
+        tonic: i16,
+        root: i16,
+        scale: Scale,
+        degree: u8,
+    ) -> usize {
+        let diatonic = self.quality == ChordQuality::Diatonic;
+        let seventh = if diatonic {
+            tonic + scale.tone(i16::from(degree) + 6)
+        } else {
+            root + if self.quality == ChordQuality::Diminished {
+                9
+            } else {
+                10
+            }
+        };
+        let ninth = if diatonic {
+            tonic + scale.tone(i16::from(degree) + 8)
+        } else {
+            root + 14
+        };
+        match self.extension {
+            ChordExtension::Triad => 3,
+            ChordExtension::AddNinth => {
+                notes[3] = ninth;
+                4
+            }
+            ChordExtension::Sixth => {
+                notes[3] = if diatonic {
+                    tonic + scale.tone(i16::from(degree) + 5)
+                } else {
+                    root + 9
+                };
+                4
+            }
+            ChordExtension::Seventh => {
+                notes[3] = seventh;
+                4
+            }
+            ChordExtension::MajorSeventh => {
+                notes[3] = root + 11;
+                4
+            }
+            ChordExtension::MinorSeventh => {
+                notes[3] = root + 10;
+                4
+            }
+            ChordExtension::Ninth => {
+                notes[3] = seventh;
+                notes[4] = ninth;
+                5
+            }
+            ChordExtension::MajorNinth => {
+                notes[3] = root + 11;
+                notes[4] = root + 14;
+                5
+            }
+        }
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -324,8 +445,8 @@ pub struct HarmonyGesture {
 }
 impl HarmonyGesture {
     pub fn validate(&self) -> Result<()> {
-        if self.algorithm_version < HARMONY_ALGORITHM_VERSION
-            && self.settings.articulation.is_humanized()
+        if (self.algorithm_version < 6 && self.settings.requires_chord_grid_schema())
+            || (self.algorithm_version < 5 && self.settings.articulation.is_humanized())
         {
             return Err(Error::Version(self.algorithm_version));
         }
@@ -336,7 +457,7 @@ impl HarmonyGesture {
             }
             2 => !self.settings.has_learned_chords() && !self.settings.articulation.is_repeating(),
             3 => !self.settings.articulation.is_repeating(),
-            4 => true,
+            4 | 5 => true,
             HARMONY_ALGORITHM_VERSION => true,
             _ => false,
         };

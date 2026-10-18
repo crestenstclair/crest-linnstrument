@@ -16,5 +16,7 @@ void contact(Contact);
 void release(int);
 void foot_switch(int, bool);
 void snapshot();
+// Read-only display metadata from the upstream sketch, never an input path.
+void surface_metadata(std::ostream&);
 void led_integrate();
 }

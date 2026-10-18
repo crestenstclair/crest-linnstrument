@@ -1,9 +1,48 @@
-# Public host contract, API 13
+# Public host contract, API 14 (development)
 
 Version v0.4.0 exposes API 13/session 10/host envelope 2. It adds temporary
 clip transposition without changing persisted data. Version v0.3.0 remains API 12/session 10,
 including per-note locks and A/B morphing. Tracker consumes that immutable release commit
 `a05f8dfcb56f27498fb42693d4c8930f10d8e621`; later upgrades remain deliberate decisions.
+
+The untagged development checkout uses API 14, session 11, harmony algorithm 6 and pattern algorithm 5.
+It adds `HarmonySettings.quality`, `input_octaves`, and sixth/add9/explicit seventh
+and ninth extensions. Versions 1–10 migrate with diatonic quality and the previous
+single-register input mapping. A falsely older schema containing new fields is rejected.
+Older library releases reject session 11; keep the original project when testing upgrades.
+
+## Dedicated chord surface
+
+- `input_octaves = true` maps each seven input steps around `input_anchor` to one
+  chord octave. The degree is `step.rem_euclid(7)` and octave is `step.div_euclid(7)`.
+  `voicing_at_octave` validates the complete chord before output. Legacy mapping stays
+  available with `input_octaves = false`.
+- The standalone host uses anchor 28 and one I–VII bank at columns 14–20 (200)
+  or 10–16 (128). The compact left-hand control block occupies columns 5–12 or 1–8
+  respectively. One inert column separates the hands; extra outer columns are dark. Rows 1–7 are octave offsets −4 through +2. With tonic C4 and
+  register zero this is C0–C6; register +1 gives C1–C7. Invalid complete voicings are dark.
+- User Firmware Mode emits coordinate notes and independent per-cell X/Y/Z.
+  `UserNoteInput` gives each cell a stable source/note identity. X begins at first
+  complete 14-bit sample and bends one semitone per cell width; Y and Z map 7-bit
+  values to full-range timbre and pressure. Custom chord surfaces disable firmware
+  slide mode: crossing cells retriggers. Stock Play still uses stock MPE slides.
+- Left controls use contiguous rows: quality/extensions, voicing, additional modes/colors,
+  then articulation. They select Diatonic/Chromatic, inversion, register, spread, voice
+  leading, articulation, quality, extensions, suspensions and borrowed harmony.
+  Chromatic qualities use the selected scale-degree root with fixed intervals.
+- The first control row follows [Crest Flower's published layout](https://github.com/crestenstclair/crest-flower/blob/35cee79d0e06b3de2b5dbafef253903884c9285a/docs/ORCHID_ADAPTATION.md#exact-v050-grid):
+  Dim, Min, Maj, Sus4, 6, m7, Maj7, Add9. The next row starts Inv−, Inv0, Inv+, Lead.
+  The existing chord register and Spread controls occupy its remaining four cells;
+  Flower's separate bass register controls are not implemented here. Additional
+  settings occupy adjacent rows below. Unlike Flower's Push top/bottom arrangement,
+  the LinnStrument retains its left-hand control/right-hand degree split.
+  This is a layout adaptation, not a copy of Flower's momentary/additive live modifiers:
+  current controls remain latched, extensions exclusive, and held chord pitches fixed.
+- Strumplate uses the same voicing controls, a top-right I–VII selector, and manual
+  tone pads below. Articulation controls are dark because manually picked notes are immediate.
+- All LED intent travels through firmware MIDI input and its decoded LED writes.
+  Labels and hover descriptions are separate read-only annotations. Root and scale
+  selection are application controls. Sound remains behind the host MIDI boundary.
 
 Rust consumers use the `crest-performance-core` and `crest-linnstrument` rlibs. No GUI,
 filesystem, MIDI backend, audio backend, tracker document, or host scene type enters core.

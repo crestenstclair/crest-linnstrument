@@ -1,0 +1,268 @@
+{
+  "software": "Crest Performance development surface redesign, based on v0.4.0",
+  "released": false,
+  "audio": false,
+  "firmware_commit": "54bb1c9d355b1075b474ade0a0246b80ff7f3524",
+  "method": "Step-by-step native app captures during real mouse and keyboard actions. Intermediate keyboard positions retained; captured states held for caption reading. No generated UI or LED animation. Silent; not real-time footage or latency evidence.",
+  "videos": [
+    {
+      "id": "surface-play",
+      "title": "Play",
+      "file": "surface-play.mp4",
+      "poster": "surface-play.jpg",
+      "captions": "surface-play.vtt",
+      "duration_seconds": 37.667,
+      "sha256": "3490acd87148d37178fb05529a9ad4ad4e42a16bf3f1c167c1659756769ad49b",
+      "steps": [
+        {
+          "start": 0,
+          "end": 6.333,
+          "caption": "Play: each pad plays one note. Dots are decoded firmware lights; numbered rings identify virtual fingers."
+        },
+        {
+          "start": 6.333,
+          "end": 12.667,
+          "caption": "Enable Latch. Click column 4, row 2; press A and K. Three fingers stay held independently."
+        },
+        {
+          "start": 12.667,
+          "end": 19.667,
+          "caption": "Select finger 1, then press Right five times. Only its X position changes; the other fingers remain held."
+        },
+        {
+          "start": 19.667,
+          "end": 25.667,
+          "caption": "Select finger 2, then press Up three times. Its Y movement controls timbre independently."
+        },
+        {
+          "start": 25.667,
+          "end": 31.667,
+          "caption": "Select finger 3, then press [ five times. Pressure changes without moving the other fingers."
+        },
+        {
+          "start": 31.667,
+          "end": 37.667,
+          "caption": "Release all removes every held contact. All three notes end; the stock note lights return."
+        }
+      ]
+    },
+    {
+      "id": "surface-chords",
+      "title": "Chords",
+      "file": "surface-chords.mp4",
+      "poster": "surface-chords.jpg",
+      "captions": "surface-chords.vtt",
+      "duration_seconds": 177.0,
+      "sha256": "f4071c61d9844835cea1a89860a45b7b8d39784870d357e9617651b09c06d58e",
+      "steps": [
+        {
+          "start": 0,
+          "end": 12.333,
+          "caption": "Chords: the left hand uses compact control rows, grouped like Crest Flower. The right hand plays one I\u2013VII bank across seven octave rows. One dark column separates the hands; extra outer pads are unused."
+        },
+        {
+          "start": 12.333,
+          "end": 21.667,
+          "caption": "Enable Latch, then press I in octave 4 with the right hand: C4\u2013E4\u2013G4. A numbered ring marks the held contact; firmware supplies the light underneath."
+        },
+        {
+          "start": 21.667,
+          "end": 33.333,
+          "caption": "Press Right twice and ] once while the finger is selected. X movement bends its three voices; the pressure key changes their pressure. These keys move the virtual contact before firmware processing."
+        },
+        {
+          "start": 33.333,
+          "end": 45.0,
+          "caption": "Release all, then press I one row lower: C3\u2013E3\u2013G3. Playing rows change octave. With C selected and register zero, root octaves run from C0 at the bottom to C6 at the top."
+        },
+        {
+          "start": 45.0,
+          "end": 55.667,
+          "caption": "Press II in C major: D4\u2013F4\u2013A4. Diatonic mode derives each quality from the selected scale. Keep the right hand on this bank while the left changes the nearby controls."
+        },
+        {
+          "start": 55.667,
+          "end": 66.333,
+          "caption": "Press Inv+ in the second control row. Inversion becomes 1. Inv\u2212, Inv0, Inv+ and Lead are adjacent, following Crest Flower\u2019s voicing group. Controls change future attacks without sounding notes."
+        },
+        {
+          "start": 66.333,
+          "end": 77.0,
+          "caption": "Press Spread at the end of the same row. Green means enabled: the second voiced tone moves up one octave. Oct\u2212, Oct0 and Oct+ beside it change chord register."
+        },
+        {
+          "start": 77.0,
+          "end": 88.667,
+          "caption": "Press Add9 directly above Spread. The top row groups Dim, Min, Maj, Sus4, 6, m7, Maj7 and Add9. Add9 adds the ninth without a seventh; 9 in the third row includes both."
+        },
+        {
+          "start": 88.667,
+          "end": 96.333,
+          "caption": "Press I again: E4\u2013C5\u2013D5\u2013G5, MIDI 64, 72, 74, 79. Inversion, spread and Add9 combine. Hover help lists the resulting pitches."
+        },
+        {
+          "start": 96.333,
+          "end": 105.667,
+          "caption": "Release all. Press Inv0, Spread and Triad to restore root position, close spacing and a three-note chord. These controls are adjacent within the left-hand block."
+        },
+        {
+          "start": 105.667,
+          "end": 116.0,
+          "caption": "Press Chrom in the third control row. Chromatic mode uses the same scale-degree roots with an explicit quality; Major is selected initially. Diat sits immediately to its left."
+        },
+        {
+          "start": 116.0,
+          "end": 124.333,
+          "caption": "Press II: D4\u2013F\u266f4\u2013A4. Chromatic Major produces D major where Diatonic produced D minor. Degree and octave positions stay in the same bank."
+        },
+        {
+          "start": 124.333,
+          "end": 136.667,
+          "caption": "Press Min and Maj7 on the same top row. Quality and extension are separate: this selects a minor-major seventh chord. Extensions remain exclusive in this library; the Flower grouping does not change that behavior."
+        },
+        {
+          "start": 136.667,
+          "end": 145.0,
+          "caption": "Press I: C4\u2013E\u266d4\u2013G4\u2013B4. Four output voices follow the selected quality and seventh. This demonstration captures MIDI; sound belongs to the downstream instrument."
+        },
+        {
+          "start": 145.0,
+          "end": 155.667,
+          "caption": "Choose D in the Root selector above the instrument. Root and scale stay in the application UI. The chord-pad labels update without using any performance pads for key selection."
+        },
+        {
+          "start": 155.667,
+          "end": 166.0,
+          "caption": "Focus the surface, then press K for I in octave 4: D4\u2013F4\u2013A4\u2013C\u266f5. The keyboard contact follows the new D root. A contact on the dark separator is silent."
+        },
+        {
+          "start": 166.0,
+          "end": 177.0,
+          "caption": "Release all leaves zero contacts and active notes. Default keys A\u2013J trigger I\u2013VII in octave 3; K triggers I in octave 4. Custom keyboard coordinate maps retain their physical assignments."
+        }
+      ]
+    },
+    {
+      "id": "surface-strumplate",
+      "title": "Strumplate",
+      "file": "surface-strumplate.mp4",
+      "poster": "surface-strumplate.jpg",
+      "captions": "surface-strumplate.vtt",
+      "duration_seconds": 77.0,
+      "sha256": "19d081f148a6beb4cba49a90fa14d1fdaabbdee1d08801379755f5ad646eef80",
+      "steps": [
+        {
+          "start": 0,
+          "end": 11.0,
+          "caption": "Strumplate keeps the same compact left-hand controls. The top of the right-hand bank selects I\u2013VII; pads below pick individual tones. Automatic articulation pads are dark because manual presses determine timing."
+        },
+        {
+          "start": 11.0,
+          "end": 21.667,
+          "caption": "Press V in the top row of the playing bank. This selects G harmony without sounding a chord. Picking pads now contain G, B and D in different octaves."
+        },
+        {
+          "start": 21.667,
+          "end": 31.667,
+          "caption": "Press G4. One contact produces one note. Latch keeps it held while the next manual pick is added. Its numbered ring is separate from the firmware light."
+        },
+        {
+          "start": 31.667,
+          "end": 41.0,
+          "caption": "Press B4 beside G4. Both notes stay held, with independent contact and expression ownership. In-cell X, Y and pressure affect only the selected finger\u2019s note."
+        },
+        {
+          "start": 41.0,
+          "end": 49.667,
+          "caption": "Press D5 to complete G4\u2013B4\u2013D5. The separate presses determine attack order and timing. Voicing and extension controls remain together under the left hand."
+        },
+        {
+          "start": 49.667,
+          "end": 59.333,
+          "caption": "Select I at the top while G4, B4 and D5 remain held. Existing notes retain their pitches. Picking labels now describe C harmony for future presses."
+        },
+        {
+          "start": 59.333,
+          "end": 68.667,
+          "caption": "Press C5 in the newly selected harmony. It joins the three old notes. Changing harmony did not retune held notes or transfer their expression ownership."
+        },
+        {
+          "start": 68.667,
+          "end": 77.0,
+          "caption": "Release all clears every held note and control contact. Chords returns to full chord triggers; Play returns to ordinary firmware MPE playing."
+        }
+      ]
+    },
+    {
+      "id": "surface-clips",
+      "title": "Clips",
+      "file": "surface-clips.mp4",
+      "poster": "surface-clips.jpg",
+      "captions": "surface-clips.vtt",
+      "duration_seconds": 77.0,
+      "sha256": "8045c2d02d23b74beb5facf073fea327475a01cfd963ecc56dce2c2456a19619",
+      "steps": [
+        {
+          "start": 0,
+          "end": 7.333,
+          "caption": "Clips: the bundled performance-showcase session is loaded. Blue bottom-row pads 1\u20133 contain stopped phrases; the other slots are empty."
+        },
+        {
+          "start": 7.333,
+          "end": 14.333,
+          "caption": "Latch is enabled for this demonstration. Press bottom-row pad 1: its green firmware light shows clip 1 looping."
+        },
+        {
+          "start": 14.333,
+          "end": 21.0,
+          "caption": "Release all removes the launch contact. The clip continues: launch is a press action, not a hold."
+        },
+        {
+          "start": 21.0,
+          "end": 28.667,
+          "caption": "Press and latch the pad directly above clip 1. Cyan marks mute; the loop continues while its notes are silenced."
+        },
+        {
+          "start": 28.667,
+          "end": 35.333,
+          "caption": "Release all ends the mute hold. Green returns and future notes play at the continuing loop position."
+        },
+        {
+          "start": 35.333,
+          "end": 44.333,
+          "caption": "Press row 4 above clip 1. Magenta shows octave-up held: future attacks shift up 12 semitones. Stored notes and held voices keep their pitches."
+        },
+        {
+          "start": 44.333,
+          "end": 50.333,
+          "caption": "Release the octave hold. Blue returns; subsequent attacks use the original pitch."
+        },
+        {
+          "start": 50.333,
+          "end": 57.0,
+          "caption": "Hold Fill: column 1, row 6. Magenta means Fill-conditioned attacks are enabled until the contact is released."
+        },
+        {
+          "start": 57.0,
+          "end": 63.333,
+          "caption": "Release Fill. Yellow means ready. Fill changes conditions at future attacks; existing note releases remain valid."
+        },
+        {
+          "start": 63.333,
+          "end": 70.0,
+          "caption": "Select Play and press A. The clip keeps looping while the new live finger has independent expression."
+        },
+        {
+          "start": 70.0,
+          "end": 77.0,
+          "caption": "Return to Clips, then press pad 1 again. Blue confirms stopped; the captured phrase remains in its slot."
+        }
+      ]
+    }
+  ],
+  "chord_layout_reference": {
+    "repository": "https://github.com/crestenstclair/crest-flower",
+    "commit": "35cee79d0e06b3de2b5dbafef253903884c9285a",
+    "adaptation": "Contiguous quality/extension and voicing groups. LinnStrument retains left-hand controls beside a single right-hand degree bank. Existing chord register/spread controls replace Flower bass controls; musical modifier behavior is unchanged."
+  }
+}

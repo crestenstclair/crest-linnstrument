@@ -13,6 +13,7 @@
         "label": "host",
         "title": "Crest Performance \u00b7 standalone test host",
         "url": "host.html",
+        "visible": false,
         "width": 860,
         "height": 760
       },

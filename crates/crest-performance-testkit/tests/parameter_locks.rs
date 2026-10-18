@@ -333,7 +333,7 @@ fn old_sessions_migrate_losslessly_and_new_locks_reject_false_older_labels() {
     let original = serde_json::to_vec(&session).unwrap();
     let migrated: Session = serde_json::from_slice(&original).unwrap();
     let migrated = migrated.migrate().unwrap();
-    assert_eq!(migrated.version, 10);
+    assert_eq!(migrated.version, SESSION_VERSION);
     assert_eq!(migrated.slots[0].clip, Some(old));
     assert_eq!(serde_json::to_vec(&session).unwrap(), original);
     let mut current = migrated;

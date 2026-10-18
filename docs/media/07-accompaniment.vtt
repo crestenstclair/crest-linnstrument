@@ -1,0 +1,43 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.642
+Select stopped slot 04. Set live harmony to degree I in C major.
+
+00:00:06.642 --> 00:00:23.627
+Open Accompaniment. Use 16 steps, 5 pulses, tone range -3 to -3 and Follow active harmony.
+
+00:00:23.627 --> 00:00:29.127
+Generate selected slot. Five root notes form a four-beat bass pattern; launch slot 04.
+
+00:00:29.127 --> 00:00:34.911
+Choose Clip pads. Enable Latch, then press top-row pad 6 to select VI (A minor).
+
+00:00:34.911 --> 00:00:42.956
+Host confirms VI is the follower harmony. The running bass now uses A below the chord.
+
+00:00:42.956 --> 00:00:48.456
+Click IV in the host. Future bass attacks follow F while the five-pulse rhythm stays unchanged.
+
+00:00:48.456 --> 00:00:53.956
+Click V. Future bass attacks follow G; already sounding notes retain their pitches.
+
+00:00:53.956 --> 00:01:02.235
+Stop selected. Open Accompaniment and click Freeze current harmony to store G bass pitches.
+
+00:01:02.235 --> 00:01:10.022
+Select I in Harmony after freezing. Relaunch slot 04; its bass no longer follows chord changes.
+
+00:01:10.022 --> 00:01:15.522
+Capture confirms repeated MIDI 55 (hex 37): the frozen G bass persists under selected harmony I.
+
+00:01:15.522 --> 00:01:23.465
+Stop selected and select stopped slot 05. Open Accompaniment for a separate seeded melody.
+
+00:01:23.465 --> 00:01:34.559
+Set tone range 0 to 5, Seed 42, and turn following off. Generate selected slot.
+
+00:01:34.559 --> 00:01:40.401
+Launch slot 05. The saved pitch pattern replays without drawing a new take on each loop.
+
+00:01:40.401 --> 00:01:46.601
+Stop selected and release the harmony-selection finger. The generated clips remain saved in memory.

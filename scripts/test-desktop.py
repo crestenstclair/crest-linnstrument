@@ -73,9 +73,16 @@ class Desktop:
             title = self.command('GET', '/title')
             self.windows['instrument' if 'firmware replica' in title else 'host'] = handle
         assert len(self.windows) == 2, self.windows
+        self.command('POST', '/window', {'handle': self.windows['instrument']})
+        self.state(lambda s: s['connected'], 'instrument-first startup')
+        self.capture('instrument-first-startup')
+        # Tools and device options are intentionally hidden in the normal playing view.
+        self.click('#device-options-toggle')
+        self.click('#show-tools')
         self.native_windows = {}
         for name, title in [('instrument', '^LinnStrument'), ('host', '^Crest Performance')]:
-            windows = self.native('search', '--onlyvisible', '--name', title).splitlines()
+            windows = wait_for(lambda: self.visible_windows(title),
+                               lambda found: len(found) == 1, f'{name} window visible')
             assert len(windows) == 1, (name, windows)
             self.native_windows[name] = windows[0]
 
@@ -112,6 +119,14 @@ class Desktop:
 
     def native(self, *arguments):
         return subprocess.check_output(['xdotool', *arguments], text=True, timeout=10).strip()
+
+    def visible_windows(self, title):
+        result = subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', title],
+                                capture_output=True, text=True, timeout=10)
+        if result.returncode == 1:  # No visible match while Tauri is showing Tools.
+            return []
+        result.check_returncode()
+        return result.stdout.splitlines()
 
     def press(self, key):
         self.native('key', key)

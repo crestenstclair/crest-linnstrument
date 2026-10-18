@@ -19,6 +19,35 @@ static_assert(sizeof(TouchInfo)==52, "ARM TouchInfo layout");
 static_assert(sizeof(CalibrationSample)==4 && sizeof(CalibrationY)==7, "ARM calibration layout");
 #include "arm-layout.inc"
 
+void sim::surface_metadata(std::ostream& out) {
+    out << "{\"normal\":" << (displayMode == displayNormal ? "true" : "false")
+        << ",\"user_mode\":" << (userFirmwareActive ? "true" : "false") << ",\"notes\":[";
+    for (int index=0; index<NUMCOLS*8; ++index) {
+        const byte col=index/8, row=index%8;
+        if(col || row) out << ',';
+        const byte split=getSplitOf(col);
+        const auto& settings=Split[split];
+        const short note=transposedNote(split,col,row);
+        const bool ordinary=col && displayMode==displayNormal && !userFirmwareActive &&
+            !settings.ccFaders && !settings.strum && !settings.sequencer &&
+            (row!=0 || settings.lowRowMode==lowRowNormal) && note>=0 && note<=127;
+        if(ordinary) out << note; else out << "null";
+    }
+    out << "],\"highlights\":[";
+    for (int index=0; index<NUMCOLS*8; ++index) {
+        const byte col=index/8, row=index%8;
+        if(col || row) out << ',';
+        const byte split=getSplitOf(col);
+        const short displayed=getNoteNumber(split,col,row)+Split[split].transposeOctave;
+        const int mask=1 << std::abs(displayed%12);
+        const char* role=customLedPatternActive ? "custom" :
+            (Global.accentNotes[Global.activeNotes]&mask) ? "accent" :
+            (Global.mainNotes[Global.activeNotes]&mask) ? "scale" : "unmarked";
+        out << '"' << role << '"';
+    }
+    out << "]}";
+}
+
 static void save_flash(const std::string& path) {
     std::ofstream out(path,std::ios::binary);
     out.write(reinterpret_cast<const char*>(sim::flash.data()),sim::flash.size());

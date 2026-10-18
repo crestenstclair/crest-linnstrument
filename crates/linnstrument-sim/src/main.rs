@@ -8,6 +8,16 @@ fn simulator_command(
 }
 #[cfg(feature = "desktop")]
 #[tauri::command]
+fn show_host(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    let host = app
+        .get_webview_window("host")
+        .ok_or("Tools window unavailable")?;
+    host.show().map_err(|error| error.to_string())?;
+    host.set_focus().map_err(|error| error.to_string())
+}
+#[cfg(feature = "desktop")]
+#[tauri::command]
 fn simulator_snapshot(
     bridge: tauri::State<'_, linnstrument_sim::Bridge>,
 ) -> Result<String, String> {
@@ -15,6 +25,7 @@ fn simulator_snapshot(
 }
 #[cfg(feature = "desktop")]
 fn main() {
+    use tauri::Manager;
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let model = std::env::var("LINNSTRUMENT_MODEL")
         .unwrap_or_else(|_| "200".into())
@@ -36,9 +47,22 @@ fn main() {
         .expect("build firmware worker with scripts/build-native.sh first");
     tauri::Builder::default()
         .manage(bridge)
+        .on_window_event(|window, event| {
+            if window.label() == "host"
+                && let tauri::WindowEvent::CloseRequested { api, .. } = event
+            {
+                api.prevent_close();
+                let _ = window.hide();
+            } else if window.label() == "main"
+                && matches!(event, tauri::WindowEvent::CloseRequested { .. })
+            {
+                window.app_handle().exit(0);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             simulator_command,
-            simulator_snapshot
+            simulator_snapshot,
+            show_host
         ])
         .run(tauri::generate_context!())
         .expect("webview shell failed");

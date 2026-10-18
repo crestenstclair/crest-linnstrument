@@ -248,7 +248,12 @@ impl Engine {
         } else {
             settings.degree
         };
-        let voicing = settings.voicing(degree, self.last_voicing.as_ref())?;
+        let octave = if settings.input_octaves && settings.playing == HarmonyPlaying::ChordPads {
+            step.div_euclid(7)
+        } else {
+            0
+        };
+        let voicing = settings.voicing_at_octave(degree, octave, self.last_voicing.as_ref())?;
         let count = if settings.playing == HarmonyPlaying::Strumplate {
             1
         } else {

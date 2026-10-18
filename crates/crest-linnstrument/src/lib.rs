@@ -11,3 +11,6 @@ pub use mpe::*;
 pub use note_input::*;
 pub use surface::*;
 pub use user_row::UserRowX;
+
+mod user_notes;
+pub use user_notes::UserNoteInput;

@@ -1,0 +1,728 @@
+{
+  "software": "Crest Performance v0.4.0",
+  "source_commit": "202bc47c39a70458563616f9683299b62cc0c4ed",
+  "firmware_commit": "54bb1c9d355b1075b474ade0a0246b80ff7f3524",
+  "recorded": "2026-10-17 America/Los_Angeles",
+  "audio": false,
+  "method": "Actual macOS application-window captures during UI actions. Pauses between steps removed. Source frame timing retained within steps; final frames held when needed for caption reading. No generated UI animation. Not a latency measurement.",
+  "videos": [
+    {
+      "id": "01-expressive-playing",
+      "title": "Expressive playing with independent virtual fingers",
+      "file": "01-expressive-playing.mp4",
+      "poster": "01-expressive-playing.jpg",
+      "captions": "01-expressive-playing.vtt",
+      "duration_seconds": 40.8,
+      "size_bytes": 1008531,
+      "sha256": "39d6db00534b928e46140523ff5fc8b47bb25814cff95d949368a3970776dac1",
+      "source_frames": 180,
+      "steps": [
+        {
+          "start": 0,
+          "end": 5.5,
+          "caption": "Mouse: press, drag horizontally and release. Firmware interprets the continuous contact."
+        },
+        {
+          "start": 5.5,
+          "end": 11.0,
+          "caption": "Enable Latch new fingers. Press A, F and K to hold three separated contacts."
+        },
+        {
+          "start": 11.0,
+          "end": 16.5,
+          "caption": "Select finger 131 (A). Press Right six times: only this finger moves in X."
+        },
+        {
+          "start": 16.5,
+          "end": 22.0,
+          "caption": "Select finger 132 (F). Press Up four times: only this finger moves in Y."
+        },
+        {
+          "start": 22.0,
+          "end": 27.722,
+          "caption": "Select finger 133 (K). Press [ ten times to reduce only its pressure."
+        },
+        {
+          "start": 27.722,
+          "end": 33.222,
+          "caption": "Open the inspector view: separate contact X/Y/Z values and raw firmware MIDI are visible."
+        },
+        {
+          "start": 33.222,
+          "end": 38.722,
+          "caption": "Release all removes all three fingers and sends their releases. Turn Latch off."
+        }
+      ]
+    },
+    {
+      "id": "02-chords-voicings",
+      "title": "Diatonic chords, inversions and modifiers",
+      "file": "02-chords-voicings.mp4",
+      "poster": "02-chords-voicings.jpg",
+      "captions": "02-chords-voicings.vtt",
+      "duration_seconds": 111.35,
+      "size_bytes": 2738649,
+      "sha256": "4e7bfadb0c9b782360fa7bf2566e51391e0d6d104bfbde795cb1f2473d238b43",
+      "source_frames": 292,
+      "steps": [
+        {
+          "start": 0,
+          "end": 12.548,
+          "caption": "Choose Chord pads. Default harmony: C major, triads, root position."
+        },
+        {
+          "start": 12.548,
+          "end": 18.048,
+          "caption": "Enable Latch new fingers. Click bottom-row pad 1: hold degree I (C major)."
+        },
+        {
+          "start": 18.048,
+          "end": 23.548,
+          "caption": "Host shows the resulting chord: MIDI 60, 64, 67. One finger holds three output notes."
+        },
+        {
+          "start": 23.548,
+          "end": 29.048,
+          "caption": "Release I, then click bottom-row pad 6 for VI (A minor)."
+        },
+        {
+          "start": 29.048,
+          "end": 34.548,
+          "caption": "Degree VI produces MIDI 69, 72, 76. Release before the next chord."
+        },
+        {
+          "start": 34.548,
+          "end": 40.048,
+          "caption": "Release VI; click bottom-row pad 4 for IV (F major)."
+        },
+        {
+          "start": 40.048,
+          "end": 45.548,
+          "caption": "Degree IV produces MIDI 65, 69, 72."
+        },
+        {
+          "start": 45.548,
+          "end": 51.048,
+          "caption": "Release IV; click bottom-row pad 5 for V (G major)."
+        },
+        {
+          "start": 51.048,
+          "end": 56.548,
+          "caption": "Degree V produces MIDI 67, 71, 74. This completes I–VI–IV–V."
+        },
+        {
+          "start": 56.548,
+          "end": 66.158,
+          "caption": "Release the finger. Set Inversion to 1, then Apply harmony."
+        },
+        {
+          "start": 66.158,
+          "end": 71.658,
+          "caption": "Click pad I again. The same C chord now uses first inversion."
+        },
+        {
+          "start": 71.658,
+          "end": 77.158,
+          "caption": "First inversion: MIDI 64, 67, 72. Held chord identity remains C."
+        },
+        {
+          "start": 77.158,
+          "end": 85.523,
+          "caption": "Release the finger and return Inversion to 0."
+        },
+        {
+          "start": 85.523,
+          "end": 91.023,
+          "caption": "Choose Chord: Seventh, then Apply harmony."
+        },
+        {
+          "start": 91.023,
+          "end": 96.523,
+          "caption": "Click pad I to play C major seventh."
+        },
+        {
+          "start": 96.523,
+          "end": 102.023,
+          "caption": "Seventh adds B: MIDI 60, 64, 67, 71. All four voices belong to one held finger."
+        },
+        {
+          "start": 102.023,
+          "end": 110.82,
+          "caption": "Release all. Restore Triad for the next exercise."
+        }
+      ]
+    },
+    {
+      "id": "03-articulations",
+      "title": "Strum, arpeggio and humanized chords",
+      "file": "03-articulations.mp4",
+      "poster": "03-articulations.jpg",
+      "captions": "03-articulations.vtt",
+      "duration_seconds": 82.7,
+      "size_bytes": 2356891,
+      "sha256": "0118e249c1699c0439530f2afc87782e1ca6329309104eae0d79dbaa9f133dc1",
+      "source_frames": 269,
+      "steps": [
+        {
+          "start": 0,
+          "end": 6.641,
+          "caption": "Choose Strum low to high. Set Step spacing to 1/2 beat; Apply harmony."
+        },
+        {
+          "start": 6.641,
+          "end": 12.141,
+          "caption": "Start Record selected. The following held finger will record the staggered chord attacks."
+        },
+        {
+          "start": 12.141,
+          "end": 17.641,
+          "caption": "Click and latch pad I. The three chord tones attack in ascending order, 1/2 beat apart."
+        },
+        {
+          "start": 17.641,
+          "end": 24.158,
+          "caption": "Release all; Finish take. Scroll to the note editor to inspect the staggered attacks."
+        },
+        {
+          "start": 24.158,
+          "end": 32.823,
+          "caption": "Choose Arpeggio low to high: 1/2-beat steps, 1/4-beat gate. Apply harmony."
+        },
+        {
+          "start": 32.823,
+          "end": 38.323,
+          "caption": "Latch pad I. One held finger starts a repeating C–E–G arpeggio."
+        },
+        {
+          "start": 38.323,
+          "end": 43.823,
+          "caption": "Watch the capture: repeated note attacks and releases continue while the finger is held."
+        },
+        {
+          "start": 43.823,
+          "end": 49.323,
+          "caption": "Release all cancels future arpeggio attacks. No finger remains held."
+        },
+        {
+          "start": 49.323,
+          "end": 57.272,
+          "caption": "Choose Humanized chord. Delay 60000 ticks, velocity variation ±8, seed 42; Apply harmony."
+        },
+        {
+          "start": 57.272,
+          "end": 62.772,
+          "caption": "Latch pad I. Humanized chord applies bounded attack delay and velocity variation."
+        },
+        {
+          "start": 62.772,
+          "end": 71.977,
+          "caption": "Inspect output timestamps and velocities: the same C triad has varied attacks."
+        },
+        {
+          "start": 71.977,
+          "end": 82.152,
+          "caption": "Release all. Restore Together articulation for manual picking."
+        }
+      ]
+    },
+    {
+      "id": "04-strumplate",
+      "title": "Manual Strumplate and learned chords",
+      "file": "04-strumplate.mp4",
+      "poster": "04-strumplate.jpg",
+      "captions": "04-strumplate.vtt",
+      "duration_seconds": 79.3,
+      "size_bytes": 2472632,
+      "sha256": "6850565b05b47bcc85874bd4dabea4642c8a8aa69a6543c79adffb199284b14b",
+      "source_frames": 253,
+      "steps": [
+        {
+          "start": 0,
+          "end": 5.701,
+          "caption": "Set Playing to Strumplate. Select degree I and Apply harmony."
+        },
+        {
+          "start": 5.701,
+          "end": 11.548,
+          "caption": "Enable Latch. Click five separate bottom-row pads to pick C–E–G–C–E across octaves."
+        },
+        {
+          "start": 11.548,
+          "end": 17.048,
+          "caption": "Five independent pad attacks produce five held chord tones. Release all ends the picked notes."
+        },
+        {
+          "start": 17.048,
+          "end": 22.548,
+          "caption": "Select degree VI. The same pad positions now pick tones of A minor."
+        },
+        {
+          "start": 22.548,
+          "end": 28.048,
+          "caption": "Click the first three bottom-row pads: A, C and E. Release all afterward."
+        },
+        {
+          "start": 28.048,
+          "end": 33.901,
+          "caption": "Prepare a custom chord: Release all, choose Play mode, then select degree I."
+        },
+        {
+          "start": 33.901,
+          "end": 39.715,
+          "caption": "In Play mode, latch keys A, F and K to hold three ordinary notes."
+        },
+        {
+          "start": 39.715,
+          "end": 45.706,
+          "caption": "Click Learn held notes to selected degree. Degree I now stores MIDI 42, 45, 49."
+        },
+        {
+          "start": 45.706,
+          "end": 55.938,
+          "caption": "Release fingers; choose Chord pads as the Playing style, Apply harmony, then Chord pads mode."
+        },
+        {
+          "start": 55.938,
+          "end": 61.438,
+          "caption": "Click pad I: one finger now recalls the three learned pitches."
+        },
+        {
+          "start": 61.438,
+          "end": 66.938,
+          "caption": "The host confirms the learned voicing. Its stored pitches replace the diatonic triad."
+        },
+        {
+          "start": 66.938,
+          "end": 78.759,
+          "caption": "Release all; restore the selected degree to diatonic harmony."
+        }
+      ]
+    },
+    {
+      "id": "05-record-loop-launch",
+      "title": "Record, loop and launch an expressive phrase",
+      "file": "05-record-loop-launch.mp4",
+      "poster": "05-record-loop-launch.jpg",
+      "captions": "05-record-loop-launch.vtt",
+      "duration_seconds": 66.1,
+      "size_bytes": 1647845,
+      "sha256": "6e342f9c76eeffecc01dc878d9c73c263d69d425c5eb0d3cdd3c3ef2eae6dee2",
+      "source_frames": 259,
+      "steps": [
+        {
+          "start": 0,
+          "end": 5.5,
+          "caption": "Choose empty slot 02. Click Record selected in Play mode."
+        },
+        {
+          "start": 5.5,
+          "end": 11.0,
+          "caption": "Open the instrument and click Play scripted phrase: three contacts move independently through firmware."
+        },
+        {
+          "start": 11.0,
+          "end": 16.5,
+          "caption": "Return to the host and click Finish take. Slot 02 now contains the expressive phrase."
+        },
+        {
+          "start": 16.5,
+          "end": 22.0,
+          "caption": "Inspect the recorded notes. Their original timing and expression are retained."
+        },
+        {
+          "start": 22.0,
+          "end": 27.5,
+          "caption": "Choose Clip pads mode, then open the firmware surface."
+        },
+        {
+          "start": 27.5,
+          "end": 33.0,
+          "caption": "Click bottom-row pad 2. Blue recorded state changes to green while clip 02 plays."
+        },
+        {
+          "start": 33.0,
+          "end": 40.495,
+          "caption": "Host confirms slot 02 PLAYING. Scheduled MIDI includes recorded per-note expression."
+        },
+        {
+          "start": 40.495,
+          "end": 47.368,
+          "caption": "Return to Play mode without stopping the clip. Latch A to play a live note beside playback."
+        },
+        {
+          "start": 47.368,
+          "end": 55.798,
+          "caption": "Observe live and clip output in the capture sink. Each voice keeps its own expression."
+        },
+        {
+          "start": 55.798,
+          "end": 65.591,
+          "caption": "Release the live finger. Stop all ends clip playback."
+        }
+      ]
+    },
+    {
+      "id": "06-overdub-capture",
+      "title": "Overdub, Undo and retrospective capture",
+      "file": "06-overdub-capture.mp4",
+      "poster": "06-overdub-capture.jpg",
+      "captions": "06-overdub-capture.vtt",
+      "duration_seconds": 56.85,
+      "size_bytes": 1308377,
+      "sha256": "d6fd87a50926cc5a54a0dc7be28329f2fd278f01c8f9b7ebce1067df3b2da262",
+      "source_frames": 125,
+      "steps": [
+        {
+          "start": 0,
+          "end": 5.5,
+          "caption": "With recorded slot 02 selected, click Overdub. Existing notes are kept."
+        },
+        {
+          "start": 5.5,
+          "end": 11.0,
+          "caption": "Play another scripted phrase through the firmware while overdub is active."
+        },
+        {
+          "start": 11.0,
+          "end": 17.769,
+          "caption": "Finish take commits the added notes. The editor now shows both layers."
+        },
+        {
+          "start": 17.769,
+          "end": 23.269,
+          "caption": "Click Undo to remove the overdub and restore the previous phrase."
+        },
+        {
+          "start": 23.269,
+          "end": 31.132,
+          "caption": "For retrospective capture, select empty slot 03. Set tempo to 60 BPM; four beats now span four seconds."
+        },
+        {
+          "start": 31.132,
+          "end": 38.316,
+          "caption": "Without recording, play the scripted phrase. Immediately click Capture last 4 beats in the host."
+        },
+        {
+          "start": 38.316,
+          "end": 43.816,
+          "caption": "Slot 03 contains the recent performance. Inspect the recovered notes."
+        },
+        {
+          "start": 43.816,
+          "end": 50.141,
+          "caption": "Click the selected slot 03 to loop the recovered phrase. Stop selected ends playback."
+        },
+        {
+          "start": 50.141,
+          "end": 56.375,
+          "caption": "Stop selected. Restore 120 BPM before the accompaniment exercise."
+        }
+      ]
+    },
+    {
+      "id": "07-accompaniment",
+      "title": "Euclidean accompaniment, harmony following and freeze",
+      "file": "07-accompaniment.mp4",
+      "poster": "07-accompaniment.jpg",
+      "captions": "07-accompaniment.vtt",
+      "duration_seconds": 107.1,
+      "size_bytes": 3096064,
+      "sha256": "4b825ddd4e19b170f5cd4735b6e0186db68f9c3d825d658d6b708cadf8afd910",
+      "source_frames": 255,
+      "steps": [
+        {
+          "start": 0,
+          "end": 6.642,
+          "caption": "Select stopped slot 04. Set live harmony to degree I in C major."
+        },
+        {
+          "start": 6.642,
+          "end": 23.627,
+          "caption": "Open Accompaniment. Use 16 steps, 5 pulses, tone range -3 to -3 and Follow active harmony."
+        },
+        {
+          "start": 23.627,
+          "end": 29.127,
+          "caption": "Generate selected slot. Five root notes form a four-beat bass pattern; launch slot 04."
+        },
+        {
+          "start": 29.127,
+          "end": 34.911,
+          "caption": "Choose Clip pads. Enable Latch, then press top-row pad 6 to select VI (A minor)."
+        },
+        {
+          "start": 34.911,
+          "end": 42.956,
+          "caption": "Host confirms VI is the follower harmony. The running bass now uses A below the chord."
+        },
+        {
+          "start": 42.956,
+          "end": 48.456,
+          "caption": "Click IV in the host. Future bass attacks follow F while the five-pulse rhythm stays unchanged."
+        },
+        {
+          "start": 48.456,
+          "end": 53.956,
+          "caption": "Click V. Future bass attacks follow G; already sounding notes retain their pitches."
+        },
+        {
+          "start": 53.956,
+          "end": 62.235,
+          "caption": "Stop selected. Open Accompaniment and click Freeze current harmony to store G bass pitches."
+        },
+        {
+          "start": 62.235,
+          "end": 70.022,
+          "caption": "Select I in Harmony after freezing. Relaunch slot 04; its bass no longer follows chord changes."
+        },
+        {
+          "start": 70.022,
+          "end": 75.522,
+          "caption": "Capture confirms repeated MIDI 55 (hex 37): the frozen G bass persists under selected harmony I."
+        },
+        {
+          "start": 75.522,
+          "end": 83.465,
+          "caption": "Stop selected and select stopped slot 05. Open Accompaniment for a separate seeded melody."
+        },
+        {
+          "start": 83.465,
+          "end": 94.559,
+          "caption": "Set tone range 0 to 5, Seed 42, and turn following off. Generate selected slot."
+        },
+        {
+          "start": 94.559,
+          "end": 100.401,
+          "caption": "Launch slot 05. The saved pitch pattern replays without drawing a new take on each loop."
+        },
+        {
+          "start": 100.401,
+          "end": 106.601,
+          "caption": "Stop selected and release the harmony-selection finger. The generated clips remain saved in memory."
+        }
+      ]
+    },
+    {
+      "id": "08-clip-controls",
+      "title": "Multiple clips, quantized launch and temporary controls",
+      "file": "08-clip-controls.mp4",
+      "poster": "08-clip-controls.jpg",
+      "captions": "08-clip-controls.vtt",
+      "duration_seconds": 52.25,
+      "size_bytes": 877687,
+      "sha256": "94fced3e162760d8a83b0b4b57dccc416252d233e701cdd585edf89d0b7f0723",
+      "source_frames": 343,
+      "steps": [
+        {
+          "start": 0,
+          "end": 7.067,
+          "caption": "Set Launch grid to 4 beats. Launch recorded slots 04 and 05 from the surface."
+        },
+        {
+          "start": 7.067,
+          "end": 12.789,
+          "caption": "Two green bottom-row pads show the running bass and melody clips. Enable Latch for a sustained hold."
+        },
+        {
+          "start": 12.789,
+          "end": 19.067,
+          "caption": "Click row 1, column 5: hold mute for melody clip 05. Its pad turns cyan while the loop continues."
+        },
+        {
+          "start": 19.067,
+          "end": 24.567,
+          "caption": "Release all removes the mute hold. The melody pad returns green and future attacks resume."
+        },
+        {
+          "start": 24.567,
+          "end": 30.067,
+          "caption": "Click row 4, column 5: hold octave up for clip 05. Magenta shows the temporary shift."
+        },
+        {
+          "start": 30.067,
+          "end": 35.567,
+          "caption": "Release all restores original future pitches. Stored notes are unchanged."
+        },
+        {
+          "start": 35.567,
+          "end": 43.855,
+          "caption": "Turn Latch off. Stop all in the host; running clips return to recorded state."
+        },
+        {
+          "start": 43.855,
+          "end": 49.355,
+          "caption": "The firmware surface shows blue recorded pads after playback stops."
+        }
+      ]
+    },
+    {
+      "id": "09-conditions-fill",
+      "title": "Periodic note conditions and held Fill",
+      "file": "09-conditions-fill.mp4",
+      "poster": "09-conditions-fill.jpg",
+      "captions": "09-conditions-fill.vtt",
+      "duration_seconds": 67.0,
+      "size_bytes": 1595203,
+      "sha256": "646eb69e4ef562e052ddb4985f03fa79be4ccf5b59434688678ce41d02ea6014",
+      "source_frames": 253,
+      "steps": [
+        {
+          "start": 0,
+          "end": 12.975,
+          "caption": "Select empty slot 06. Generate a one-beat test clip: 4 steps, 1 pulse, tone range 0 to 0."
+        },
+        {
+          "start": 12.975,
+          "end": 19.253,
+          "caption": "Select the note with Next note. Choose Loop N of period, Loop N 4, Period 4; Apply note condition."
+        },
+        {
+          "start": 19.253,
+          "end": 27.186,
+          "caption": "Launch slot 06. One attack occurs on loops 4, 8, 12…; other loops skip the note."
+        },
+        {
+          "start": 27.186,
+          "end": 34.211,
+          "caption": "Stop selected. Change Playback condition to While Fill held, then Apply note condition."
+        },
+        {
+          "start": 34.211,
+          "end": 39.711,
+          "caption": "Launch slot 06 again. With Fill released, no new note attacks are emitted."
+        },
+        {
+          "start": 39.711,
+          "end": 45.433,
+          "caption": "Enable Latch and click row 6, column 1: hold Fill. The pad changes from yellow to magenta."
+        },
+        {
+          "start": 45.433,
+          "end": 51.155,
+          "caption": "While Fill is held, the note plays every loop. The capture stream now advances on every beat."
+        },
+        {
+          "start": 51.155,
+          "end": 59.146,
+          "caption": "Release all clears Fill. Future attacks stop, while the clip keeps looping."
+        },
+        {
+          "start": 59.146,
+          "end": 64.646,
+          "caption": "Stop selected completes the exercise."
+        }
+      ]
+    },
+    {
+      "id": "10-parameters-morph",
+      "title": "Per-note locks and A/B morph — capture only",
+      "file": "10-parameters-morph.mp4",
+      "poster": "10-parameters-morph.jpg",
+      "captions": "10-parameters-morph.vtt",
+      "duration_seconds": 71.6,
+      "size_bytes": 1887058,
+      "sha256": "cd98e6e59e6040957ba0792139f03f84240721ed39e56a9ac015f11dcf554795",
+      "source_frames": 254,
+      "steps": [
+        {
+          "start": 0,
+          "end": 6.607,
+          "caption": "Stop slot 06 and restore Every loop. Apply a note parameter: reference 0, value 32768."
+        },
+        {
+          "start": 6.607,
+          "end": 12.124,
+          "caption": "Launch slot 06. Open A/B MORPH to inspect voice-scoped parameter events from each attack."
+        },
+        {
+          "start": 12.124,
+          "end": 17.846,
+          "caption": "Each captured attack carries parameter 0 = 32768 on its own voice. No audible mapping is connected."
+        },
+        {
+          "start": 17.846,
+          "end": 23.346,
+          "caption": "Stop selected. Click Add parameter to configure an A/B morph endpoint."
+        },
+        {
+          "start": 23.346,
+          "end": 29.902,
+          "caption": "Parameter 1 maps State A = 0 to State B = 65535. Add a second parameter for an inverse curve."
+        },
+        {
+          "start": 29.902,
+          "end": 37.777,
+          "caption": "Set parameter 2 to A = 65535, B = 0. Apply A/B endpoints."
+        },
+        {
+          "start": 37.777,
+          "end": 43.499,
+          "caption": "Click State A, then State B. The capture shows opposite endpoint values for parameters 1 and 2."
+        },
+        {
+          "start": 43.499,
+          "end": 57.377,
+          "caption": "Latch a finger on row 2 (third row from bottom). Press Right twenty times to move the contact in small steps."
+        },
+        {
+          "start": 57.377,
+          "end": 62.877,
+          "caption": "The capture now lists successive global values: parameter 1 rises while parameter 2 falls."
+        },
+        {
+          "start": 62.877,
+          "end": 71.121,
+          "caption": "Release all. The last morph value remains; releasing a finger does not reset parameters."
+        }
+      ]
+    },
+    {
+      "id": "11-edit-save",
+      "title": "Edit, quantize, duplicate and save a session",
+      "file": "11-edit-save.mp4",
+      "poster": "11-edit-save.jpg",
+      "captions": "11-edit-save.vtt",
+      "duration_seconds": 47.85,
+      "size_bytes": 999233,
+      "sha256": "bf979af73abb2a133606af0517825753169eb3839f69ecca8177c31398656f5b",
+      "source_frames": 95,
+      "steps": [
+        {
+          "start": 0,
+          "end": 8.158,
+          "caption": "Select recorded slot 03. Collapse A/B MORPH and select a recovered note with Next note."
+        },
+        {
+          "start": 8.158,
+          "end": 17.034,
+          "caption": "Change Note to 65, Start ticks to 1200000 and Duration ticks to 480000. Apply edit."
+        },
+        {
+          "start": 17.034,
+          "end": 22.534,
+          "caption": "Undo restores the original pitch and timing. Expression stays attached to the edited note."
+        },
+        {
+          "start": 22.534,
+          "end": 28.034,
+          "caption": "Choose Attack grid: 1/4 beat. Quantize clip attacks aligns note starts explicitly."
+        },
+        {
+          "start": 28.034,
+          "end": 34.034,
+          "caption": "Undo restores free timing. Select slot 06 and Duplicate to next to copy it into empty slot 07."
+        },
+        {
+          "start": 34.034,
+          "end": 40.091,
+          "caption": "Set Session file path to /tmp/crest-manual-video-session.json and click Save session."
+        },
+        {
+          "start": 40.091,
+          "end": 45.591,
+          "caption": "Click Reopen. Saved clips, output profiles and parameter endpoints return; playback remains stopped."
+        }
+      ]
+    }
+  ]
+}

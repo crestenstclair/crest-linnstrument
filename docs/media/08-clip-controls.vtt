@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:07.067
+Set Launch grid to 4 beats. Launch recorded slots 04 and 05 from the surface.
+
+00:00:07.067 --> 00:00:12.789
+Two green bottom-row pads show the running bass and melody clips. Enable Latch for a sustained hold.
+
+00:00:12.789 --> 00:00:19.067
+Click row 1, column 5: hold mute for melody clip 05. Its pad turns cyan while the loop continues.
+
+00:00:19.067 --> 00:00:24.567
+Release all removes the mute hold. The melody pad returns green and future attacks resume.
+
+00:00:24.567 --> 00:00:30.067
+Click row 4, column 5: hold octave up for clip 05. Magenta shows the temporary shift.
+
+00:00:30.067 --> 00:00:35.567
+Release all restores original future pitches. Stored notes are unchanged.
+
+00:00:35.567 --> 00:00:43.855
+Turn Latch off. Stop all in the host; running clips return to recorded state.
+
+00:00:43.855 --> 00:00:49.355
+The firmware surface shows blue recorded pads after playback stops.

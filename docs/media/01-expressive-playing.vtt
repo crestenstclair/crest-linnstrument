@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.500
+Mouse: press, drag horizontally and release. Firmware interprets the continuous contact.
+
+00:00:05.500 --> 00:00:11.000
+Enable Latch new fingers. Press A, F and K to hold three separated contacts.
+
+00:00:11.000 --> 00:00:16.500
+Select finger 131 (A). Press Right six times: only this finger moves in X.
+
+00:00:16.500 --> 00:00:22.000
+Select finger 132 (F). Press Up four times: only this finger moves in Y.
+
+00:00:22.000 --> 00:00:27.722
+Select finger 133 (K). Press [ ten times to reduce only its pressure.
+
+00:00:27.722 --> 00:00:33.222
+Open the inspector view: separate contact X/Y/Z values and raw firmware MIDI are visible.
+
+00:00:33.222 --> 00:00:38.722
+Release all removes all three fingers and sends their releases. Turn Latch off.

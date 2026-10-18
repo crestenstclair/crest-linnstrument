@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:08.158
+Select recorded slot 03. Collapse A/B MORPH and select a recovered note with Next note.
+
+00:00:08.158 --> 00:00:17.034
+Change Note to 65, Start ticks to 1200000 and Duration ticks to 480000. Apply edit.
+
+00:00:17.034 --> 00:00:22.534
+Undo restores the original pitch and timing. Expression stays attached to the edited note.
+
+00:00:22.534 --> 00:00:28.034
+Choose Attack grid: 1/4 beat. Quantize clip attacks aligns note starts explicitly.
+
+00:00:28.034 --> 00:00:34.034
+Undo restores free timing. Select slot 06 and Duplicate to next to copy it into empty slot 07.
+
+00:00:34.034 --> 00:00:40.091
+Set Session file path to /tmp/crest-manual-video-session.json and click Save session.
+
+00:00:40.091 --> 00:00:45.591
+Click Reopen. Saved clips, output profiles and parameter endpoints return; playback remains stopped.

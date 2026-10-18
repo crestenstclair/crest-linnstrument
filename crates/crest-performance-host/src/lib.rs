@@ -1,4 +1,5 @@
 //! Standalone host orchestration. Uses only public library contracts.
+mod chord_surface;
 mod clip_surface;
 mod holds;
 #[cfg(feature = "midi")]
@@ -6,6 +7,7 @@ pub mod midi_ports;
 #[cfg(feature = "midi")]
 pub mod midi_runner;
 pub mod storage;
+pub use clip_surface::PadHelp;
 use crest_linnstrument::*;
 use crest_performance_core::*;
 use crest_performance_testkit::CapturedMidi;
@@ -16,6 +18,8 @@ use std::collections::BTreeMap;
 
 #[derive(Serialize)]
 pub struct HostSnapshot {
+    /// Descriptions of the host's control layout; these never supply LED pixels.
+    pub pad_help: Vec<PadHelp>,
     pub launch_quantum: BeatTime,
     pub tempo_milli_bpm: u32,
     pub outputs: Vec<OutputRoute>,
@@ -40,6 +44,8 @@ pub struct TestHost {
     /// Applies to future GUI/CLI/controller launches, never moves queued clips.
     pub launch_quantum: BeatTime,
     input: NoteInput,
+    chord_input: UserNoteInput,
+    chord_controls: chord_surface::Controls,
     parser: MidiParser,
     outputs: BTreeMap<DestinationId, MidiOutput>,
     clock: ClockMapping,
@@ -83,6 +89,8 @@ impl TestHost {
                     ..Limits::default()
                 },
             )?,
+            chord_input: UserNoteInput::new(geometry, SourceId(2), input_track),
+            chord_controls: chord_surface::Controls::default(),
             input: NoteInput::mpe(MpeZone::lower(), SourceId(1), input_track),
             launch_quantum: BeatTime(0),
             parser: MidiParser::default(),
@@ -216,7 +224,9 @@ impl TestHost {
         let Some(message) = self.parser.feed(byte) else {
             return Ok(());
         };
-        if self.mode == SurfaceMode::Clips {
+        if self.chord_grid() {
+            self.accept_chord_message(at, message)?;
+        } else if self.mode == SurfaceMode::Clips {
             if self.engine.session().scene_morph.is_some()
                 && let Some(position) = self.scene_row.accept(message)?
             {
@@ -262,6 +272,24 @@ impl TestHost {
         self.capture_output()
     }
     pub fn command(&mut self, command: Command) -> Result<()> {
+        let was_grid = self.chord_grid();
+        if let Command::SetHarmony(settings) = command
+            && self.mode == SurfaceMode::Chords
+            && settings.input_octaves != self.engine.session().harmony.input_octaves
+        {
+            settings.validate()?;
+            if settings.bass_track.is_some_and(|id| {
+                !self
+                    .engine
+                    .session()
+                    .tracks
+                    .iter()
+                    .any(|track| track.id == id)
+            }) {
+                return Err(Error::NotFound);
+            }
+            self.engine.command(Command::SetMode(self.mode))?;
+        }
         let replaced_slot =
             match command {
                 Command::Launch { slot, .. }
@@ -290,16 +318,27 @@ impl TestHost {
         self.holds.reconcile(&self.engine.snapshot());
         if matches!(command, Command::Stop) {
             self.input.reset();
+            self.chord_input.reset();
+            self.chord_controls = chord_surface::Controls::default();
             self.scene_row.reset();
             self.clip_controls = clip_surface::Controls::default();
         }
         if let Command::SetMode(mode) = command {
             self.mode = mode;
+        }
+        if matches!(command, Command::SetMode(_)) || was_grid != self.chord_grid() {
             self.clip_controls = clip_surface::Controls::default();
             self.input.reset();
+            self.chord_input.reset();
+            self.chord_controls = chord_surface::Controls::default();
             self.parser = MidiParser::default();
-            self.device_commands
-                .extend(user_mode(mode == SurfaceMode::Clips));
+            self.device_commands.extend(user_mode(
+                self.mode == SurfaceMode::Clips || self.chord_grid(),
+            ));
+            if self.chord_grid() {
+                self.device_commands
+                    .extend(self.chord_input.configuration());
+            }
             self.leds.invalidate();
             self.configure_scene_row();
         }
@@ -316,6 +355,15 @@ impl TestHost {
         }
     }
     pub fn paint(&mut self) -> Result<()> {
+        if self.chord_grid() {
+            let frame = chord_surface::frame(
+                self.engine.session().harmony,
+                self.geometry,
+                &self.chord_input,
+            );
+            self.device_commands.extend(self.leds.diff(&frame, 16)?);
+            return Ok(());
+        }
         if self.mode != SurfaceMode::Clips {
             return Ok(());
         }
@@ -367,11 +415,21 @@ impl TestHost {
         Ok(())
     }
     pub fn snapshot(&self) -> HostSnapshot {
+        let performance = self.engine.snapshot();
         HostSnapshot {
+            pad_help: if self.chord_grid() {
+                chord_surface::help(performance.harmony, self.geometry)
+            } else {
+                clip_surface::help(
+                    &performance,
+                    self.geometry,
+                    self.engine.session().scene_morph.is_some(),
+                )
+            },
             launch_quantum: self.launch_quantum,
             tempo_milli_bpm: self.clock.milli_bpm(),
             outputs: self.output_routes(),
-            performance: self.engine.snapshot(),
+            performance,
             tracks: self.engine.session().tracks.clone(),
             clips: self
                 .engine
@@ -433,6 +491,8 @@ impl TestHost {
         self.holds.reconcile(&self.engine.snapshot());
         self.engine.drain_output().for_each(drop);
         self.input.reset();
+        self.chord_input.reset();
+        self.chord_controls = chord_surface::Controls::default();
         self.scene_row.reset();
         self.clip_controls = clip_surface::Controls::default();
         self.parser = MidiParser::default();

@@ -4,7 +4,7 @@ use crate::random::word as random;
 use crate::*;
 use serde::{Deserialize, Serialize};
 
-pub const PATTERN_ALGORITHM_VERSION: u32 = 4;
+pub const PATTERN_ALGORITHM_VERSION: u32 = 5;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatternSettings {
@@ -140,15 +140,15 @@ pub struct PatternOrigin {
 }
 impl PatternOrigin {
     pub fn validate(self) -> Result<()> {
-        if self.algorithm_version < PATTERN_ALGORITHM_VERSION
-            && self.harmony.articulation.is_humanized()
+        if (self.algorithm_version < 5 && self.harmony.requires_chord_grid_schema())
+            || (self.algorithm_version < 4 && self.harmony.articulation.is_humanized())
         {
             return Err(Error::Version(self.algorithm_version));
         }
         let supported = match self.algorithm_version {
             1 => !self.harmony.has_learned_chords() && !self.harmony.articulation.is_repeating(),
             2 => !self.harmony.articulation.is_repeating(),
-            3 => true,
+            3 | 4 => true,
             PATTERN_ALGORITHM_VERSION => true,
             _ => false,
         };

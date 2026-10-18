@@ -9,6 +9,13 @@ use std::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FirmwareSurface {
+    pub normal: bool,
+    pub user_mode: bool,
+    pub notes: Vec<Option<u8>>,
+    pub highlights: Vec<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirmwareSnapshot {
     pub version: u32,
     pub firmware: String,
@@ -18,6 +25,7 @@ pub struct FirmwareSnapshot {
     pub model: u16,
     pub midi: Vec<(u64, u8)>,
     pub leds: Vec<[u8; 3]>,
+    pub surface: FirmwareSurface,
     pub sensor_reads: u64,
     pub sensor_selects: u64,
     pub led_writes: u64,

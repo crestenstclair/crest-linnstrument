@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.607
+Stop slot 06 and restore Every loop. Apply a note parameter: reference 0, value 32768.
+
+00:00:06.607 --> 00:00:12.124
+Launch slot 06. Open A/B MORPH to inspect voice-scoped parameter events from each attack.
+
+00:00:12.124 --> 00:00:17.846
+Each captured attack carries parameter 0 = 32768 on its own voice. No audible mapping is connected.
+
+00:00:17.846 --> 00:00:23.346
+Stop selected. Click Add parameter to configure an A/B morph endpoint.
+
+00:00:23.346 --> 00:00:29.902
+Parameter 1 maps State A = 0 to State B = 65535. Add a second parameter for an inverse curve.
+
+00:00:29.902 --> 00:00:37.777
+Set parameter 2 to A = 65535, B = 0. Apply A/B endpoints.
+
+00:00:37.777 --> 00:00:43.499
+Click State A, then State B. The capture shows opposite endpoint values for parameters 1 and 2.
+
+00:00:43.499 --> 00:00:57.377
+Latch a finger on row 2 (third row from bottom). Press Right twenty times to move the contact in small steps.
+
+00:00:57.377 --> 00:01:02.877
+The capture now lists successive global values: parameter 1 rises while parameter 2 falls.
+
+00:01:02.877 --> 00:01:11.121
+Release all. The last morph value remains; releasing a finger does not reset parameters.

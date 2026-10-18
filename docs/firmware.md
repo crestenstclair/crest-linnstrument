@@ -97,6 +97,16 @@ out-of-bounds input is rejected before contacting the worker. Mouse pressure is 
 The worker protocol is bounded line commands and JSON snapshots. `contact`, `release`,
 `release_all`, `switch`, `midi`, `advance`, `snapshot`, and `save` are implemented commands.
 
+Display snapshots also include read-only `surface` metadata: whether the firmware is
+in its normal display or User Firmware Mode, per-cell nominal MIDI notes (or null for
+non-note cells), and the upstream note-highlight role. Indexing is `column * 8 + row`.
+These values use upstream note/transposition/settings functions and never create MIDI
+or LED pixels. The webview still renders only decoded `leds`. Host-owned control
+explanations come from the same mapping that handles pads, in `host.pad_help`; they
+are descriptions of actions, not substitutes for firmware feedback. Unknown external
+host assignments and firmware settings pages are identified explicitly. Hover and
+Alt+arrow inspection never place contacts or advance musical time.
+
 The native bridge timestamps receipt with `Instant`. Its scheduler advances before applying
 each received command; X/Y and target pressure are held until the next native update.
 Optional linear pressure envelopes apply a 0–2 second attack/release, sampled every 1 ms

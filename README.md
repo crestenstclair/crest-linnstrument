@@ -5,7 +5,37 @@ The workspace is named `crest-performance`; it currently lives in the existing
 `crest-linnstrument` repository. No Crest Tracker checkout, application code, sound engine,
 physical controller, MIDI device, or sound card is needed for the development path.
 
-**Version `0.4.0`, public API 13, session schema 10, host envelope 2.**
+**Released v0.4.0: API 13, session 10, host envelope 2.**
+**Development checkout: API 14, session 11, host envelope 2.**
+
+Dedicated Chords uses firmware User Mode with one I–VII octave bank on the right,
+compact quality/extension and voicing rows on the left, following Crest Flower’s
+control grouping. Diatonic/Chromatic and articulation controls sit directly below.
+Root and scale stay above the instrument. Unassigned pads are dark. Strumplate has
+its own harmony selector and tone pads. Custom surfaces preserve per-cell expression;
+crossing cells retriggers. Stock Play retains firmware MPE slides.
+
+The expanded palette includes major/minor/diminished/augmented qualities, sixths,
+add9 without a seventh, seventh/ninth variants, suspensions and borrowed harmony.
+These changes are unreleased; Crest Synth/Tracker consumers keep their existing pins.
+
+The [HTML user manual](docs/manual.html) opens with a virtual LinnStrument reference:
+select Play, Chords, Strumplate or Clips, then hover or focus pads to read their actions
+and decoded firmware light states. Four captioned surface demos cover the development UI;
+11 complete v0.4.0 workflow demos remain in expandable reference chapters. All videos,
+images and captions are embedded for offline use. The guide distinguishes released
+musical features from the unreleased surface redesign and chord palette.
+Edit `docs/manual-source.html` and run `python3 scripts/build-manual.py` to rebuild the offline HTML.
+
+The development simulator opens the instrument only. Its compact mode buttons select
+Play, Chords, Strumplate or Clips. Hover identifies notes and control actions; focus the
+surface and use Alt+arrow keys to inspect without playing. **Tools** opens the existing
+standalone host for recording, editing and session work; closing it returns to the
+instrument. **Input / device options** reveals diagnostics. Closing the instrument exits
+the application. MIDI and firmware behavior remain behind the same public library and
+worker boundaries. Crest Synth remains the eventual production sound engine; the
+standalone capture backend does not generate audio.
+
 The previous `v0.3.0` release uses API 12 and the same persistence formats.
 The firmware-backed play/record/loop/pad-launch path runs without Crest Tracker or hardware.
 The matching [v0.4.0 release tag](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.4.0)
@@ -18,10 +48,10 @@ quantization, A/B morph capture and voice-scoped parameter locks. Version 0.2 ad
 per-note conditions, chord-clip leaders and temporary mute. The first integration baseline,
 [v0.1.0](https://github.com/crestenstclair/crest-linnstrument/releases/tag/v0.1.0), remains
 API 2/session 2. Crest Tracker's independent integration branch now consumes released v0.3.0 commit
-`a05f8df` (API 12). It remains pinned while this repository advances API 13.
-Schemas 1–9 load losslessly; saving with this checkout writes schema 10, rejected by
-readers older than v0.3. Both v0.3 and v0.4 read the same schema-10 sessions; temporary
-octaves never alter saved pitches. Keep original files when migrating earlier schemas.
+`a05f8df` (API 12). It remains pinned while this repository advances API 14.
+Schemas 1–10 migrate to schema 11. Saving with this development checkout writes schema 11,
+which released v0.4.0 and older readers reject. Keep original files when testing upgrades.
+The released v0.3 and v0.4 packages continue to share schema 10.
 
 API 13 adds temporary clip transposition. **Hold octave down/up** changes
 only future attacks of the selected playing clip; stored notes, held expression and releases
@@ -101,7 +131,7 @@ On Linux, the desktop additionally needs WebKitGTK 4.1 and GTK 3 development pac
 sudo apt-get install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libasound2-dev
 ```
 
-The desktop opens two independent views: the instrument and the minimal standalone host.
+The desktop starts with the instrument. Select **Tools** to open the standalone host.
 Select a host slot, choose **Record selected**, play the instrument, then **Finish take**.
 Click the selected recorded slot to launch. **Clip pads** switches stock firmware into
 User Firmware Mode: bottom-row pads 1–8 launch or stop slots. **Play mode** restores stock

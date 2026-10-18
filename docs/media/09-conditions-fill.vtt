@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:12.975
+Select empty slot 06. Generate a one-beat test clip: 4 steps, 1 pulse, tone range 0 to 0.
+
+00:00:12.975 --> 00:00:19.253
+Select the note with Next note. Choose Loop N of period, Loop N 4, Period 4; Apply note condition.
+
+00:00:19.253 --> 00:00:27.186
+Launch slot 06. One attack occurs on loops 4, 8, 12…; other loops skip the note.
+
+00:00:27.186 --> 00:00:34.211
+Stop selected. Change Playback condition to While Fill held, then Apply note condition.
+
+00:00:34.211 --> 00:00:39.711
+Launch slot 06 again. With Fill released, no new note attacks are emitted.
+
+00:00:39.711 --> 00:00:45.433
+Enable Latch and click row 6, column 1: hold Fill. The pad changes from yellow to magenta.
+
+00:00:45.433 --> 00:00:51.155
+While Fill is held, the note plays every loop. The capture stream now advances on every beat.
+
+00:00:51.155 --> 00:00:59.146
+Release all clears Fill. Future attacks stop, while the clip keeps looping.
+
+00:00:59.146 --> 00:01:04.646
+Stop selected completes the exercise.

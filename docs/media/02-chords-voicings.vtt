@@ -1,0 +1,52 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:12.548
+Choose Chord pads. Default harmony: C major, triads, root position.
+
+00:00:12.548 --> 00:00:18.048
+Enable Latch new fingers. Click bottom-row pad 1: hold degree I (C major).
+
+00:00:18.048 --> 00:00:23.548
+Host shows the resulting chord: MIDI 60, 64, 67. One finger holds three output notes.
+
+00:00:23.548 --> 00:00:29.048
+Release I, then click bottom-row pad 6 for VI (A minor).
+
+00:00:29.048 --> 00:00:34.548
+Degree VI produces MIDI 69, 72, 76. Release before the next chord.
+
+00:00:34.548 --> 00:00:40.048
+Release VI; click bottom-row pad 4 for IV (F major).
+
+00:00:40.048 --> 00:00:45.548
+Degree IV produces MIDI 65, 69, 72.
+
+00:00:45.548 --> 00:00:51.048
+Release IV; click bottom-row pad 5 for V (G major).
+
+00:00:51.048 --> 00:00:56.548
+Degree V produces MIDI 67, 71, 74. This completes I–VI–IV–V.
+
+00:00:56.548 --> 00:01:06.158
+Release the finger. Set Inversion to 1, then Apply harmony.
+
+00:01:06.158 --> 00:01:11.658
+Click pad I again. The same C chord now uses first inversion.
+
+00:01:11.658 --> 00:01:17.158
+First inversion: MIDI 64, 67, 72. Held chord identity remains C.
+
+00:01:17.158 --> 00:01:25.523
+Release the finger and return Inversion to 0.
+
+00:01:25.523 --> 00:01:31.023
+Choose Chord: Seventh, then Apply harmony.
+
+00:01:31.023 --> 00:01:36.523
+Click pad I to play C major seventh.
+
+00:01:36.523 --> 00:01:42.023
+Seventh adds B: MIDI 60, 64, 67, 71. All four voices belong to one held finger.
+
+00:01:42.023 --> 00:01:50.820
+Release all. Restore Triad for the next exercise.

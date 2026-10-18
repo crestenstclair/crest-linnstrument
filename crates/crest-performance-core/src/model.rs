@@ -231,6 +231,18 @@ impl Default for Session {
 impl Session {
     /// Lossless upgrades of earlier schemas; later features cannot claim an older label.
     pub fn migrate(mut self) -> Result<Self> {
+        if (1..=10).contains(&self.version)
+            && (self.harmony.requires_chord_grid_schema()
+                || self
+                    .slots
+                    .iter()
+                    .filter_map(|slot| slot.clip.as_ref())
+                    .any(Clip::requires_chord_grid_schema))
+        {
+            return Err(Error::Invalid(
+                "older session contains v11 chord grid fields",
+            ));
+        }
         if (1..=9).contains(&self.version)
             && self
                 .slots
@@ -315,7 +327,7 @@ impl Session {
             }
             self.version = SESSION_VERSION;
         }
-        if matches!(self.version, 3..=9) {
+        if matches!(self.version, 3..=10) {
             self.version = SESSION_VERSION;
         }
         self.validate()?;
@@ -397,6 +409,15 @@ pub(crate) fn validate_lifecycle(
 }
 
 impl Clip {
+    fn requires_chord_grid_schema(&self) -> bool {
+        self.harmony_origin.iter().any(|origin| {
+            origin.algorithm_version >= 6 || origin.settings.requires_chord_grid_schema()
+        }) || self.pattern_origin.iter().any(|origin| {
+            origin.algorithm_version >= 5 || origin.harmony.requires_chord_grid_schema()
+        }) || self
+            .follow
+            .is_some_and(|follow| follow.reference.requires_chord_grid_schema())
+    }
     fn requires_humanized_schema(&self) -> bool {
         self.harmony_origin.iter().any(|origin| {
             origin.algorithm_version >= 5 || origin.settings.articulation.is_humanized()

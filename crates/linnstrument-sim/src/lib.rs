@@ -2,6 +2,8 @@
 #[cfg(test)]
 mod articulation_pad_tests;
 #[cfg(test)]
+mod chord_grid_tests;
+#[cfg(test)]
 mod condition_tests;
 mod contact_envelope;
 #[cfg(test)]

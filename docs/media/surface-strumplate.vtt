@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:11.000
+Strumplate keeps the same compact left-hand controls. The top of the right-hand bank selects I–VII; pads below pick individual tones. Automatic articulation pads are dark because manual presses determine timing.
+
+00:00:11.000 --> 00:00:21.667
+Press V in the top row of the playing bank. This selects G harmony without sounding a chord. Picking pads now contain G, B and D in different octaves.
+
+00:00:21.667 --> 00:00:31.667
+Press G4. One contact produces one note. Latch keeps it held while the next manual pick is added. Its numbered ring is separate from the firmware light.
+
+00:00:31.667 --> 00:00:41.000
+Press B4 beside G4. Both notes stay held, with independent contact and expression ownership. In-cell X, Y and pressure affect only the selected finger’s note.
+
+00:00:41.000 --> 00:00:49.667
+Press D5 to complete G4–B4–D5. The separate presses determine attack order and timing. Voicing and extension controls remain together under the left hand.
+
+00:00:49.667 --> 00:00:59.333
+Select I at the top while G4, B4 and D5 remain held. Existing notes retain their pitches. Picking labels now describe C harmony for future presses.
+
+00:00:59.333 --> 00:01:08.667
+Press C5 in the newly selected harmony. It joins the three old notes. Changing harmony did not retune held notes or transfer their expression ownership.
+
+00:01:08.667 --> 00:01:17.000
+Release all clears every held note and control contact. Chords returns to full chord triggers; Play returns to ordinary firmware MPE playing.

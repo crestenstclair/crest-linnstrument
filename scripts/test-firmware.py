@@ -44,6 +44,12 @@ def independent_expression(model):
         device.send(command)
     assert len(device.notes)==3, device.notes
     # Default row-fourths layout: row 0 starts at MIDI 30; column 1 is root.
+    surface=device.trace[-1]['snapshot']['surface']
+    assert surface['normal'] and not surface['user_mode']
+    assert len(surface['notes'])==(17 if model==128 else 26)*8
+    assert len(surface['highlights'])==len(surface['notes'])
+    assert surface['notes'][:8]==[None]*8
+    assert [surface['notes'][c*8+r] for c,r in [(4,2),(9,3),(14,4)]]==[43,53,63]
     expected={43,53,63}
     assert set(device.notes.values())==expected, device.notes
     channels={note:channel for channel,note in device.notes.items()}
@@ -62,6 +68,8 @@ def independent_expression(model):
     # User mode and LED round trip must traverse firmware's MIDI parser and SPI.
     device.send('midi 176 99 1 176 98 117 176 6 0 176 38 1'); device.send('advance 200000')
     device.send('midi 176 20 5 176 21 2 176 22 1'); frame,_=device.send('advance 100000')
+    assert frame['surface']['normal'] and frame['surface']['user_mode']
+    assert all(note is None for note in frame['surface']['notes'])
     red=frame['leds'][5*8+2]; assert red[0]>200 and red[1:]==[0,0],red
     device.send('contact 9 5 2 0.5'); _,messages=device.send('advance 200000')
     assert any(m[0]==0x92 and m[1]==5 and m[2]>0 for m in messages),messages
@@ -174,6 +182,8 @@ def control_column_octave(model):
     # Short control tap latches the firmware's own octave settings screen.
     device.send('contact 1 0 4 0.5');frame,_=device.send('advance 200000')
     assert frame['leds'][4][2]>200
+    assert not frame['surface']['normal']
+    assert all(note is None for note in frame['surface']['notes'])
     device.send('release 1');device.send('advance 100000')
     device.send('contact 2 9 4 0.5');device.send('advance 150000')  # +12
     device.send('release 2');device.send('advance 100000')
@@ -181,6 +191,7 @@ def control_column_octave(model):
     device.send('contact 3 0 4 0.5');device.send('advance 200000')
     device.send('release 3');frame,_=device.send('advance 100000')
     assert frame['leds'][4]==[0,0,0]
+    assert frame['surface']['normal'] and frame['surface']['notes'][4*8+2]==55
     device.send('contact 4 4 2 0.5');device.send('advance 200000')
     assert set(device.notes.values())=={55},device.notes
     device.send('release 4');device.send('advance 100000')

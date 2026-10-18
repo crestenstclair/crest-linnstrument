@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.500
+With recorded slot 02 selected, click Overdub. Existing notes are kept.
+
+00:00:05.500 --> 00:00:11.000
+Play another scripted phrase through the firmware while overdub is active.
+
+00:00:11.000 --> 00:00:17.769
+Finish take commits the added notes. The editor now shows both layers.
+
+00:00:17.769 --> 00:00:23.269
+Click Undo to remove the overdub and restore the previous phrase.
+
+00:00:23.269 --> 00:00:31.132
+For retrospective capture, select empty slot 03. Set tempo to 60 BPM; four beats now span four seconds.
+
+00:00:31.132 --> 00:00:38.316
+Without recording, play the scripted phrase. Immediately click Capture last 4 beats in the host.
+
+00:00:38.316 --> 00:00:43.816
+Slot 03 contains the recent performance. Inspect the recovered notes.
+
+00:00:43.816 --> 00:00:50.141
+Click the selected slot 03 to loop the recovered phrase. Stop selected ends playback.
+
+00:00:50.141 --> 00:00:56.375
+Stop selected. Restore 120 BPM before the accompaniment exercise.

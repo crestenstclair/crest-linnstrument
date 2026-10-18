@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.500
+Choose empty slot 02. Click Record selected in Play mode.
+
+00:00:05.500 --> 00:00:11.000
+Open the instrument and click Play scripted phrase: three contacts move independently through firmware.
+
+00:00:11.000 --> 00:00:16.500
+Return to the host and click Finish take. Slot 02 now contains the expressive phrase.
+
+00:00:16.500 --> 00:00:22.000
+Inspect the recorded notes. Their original timing and expression are retained.
+
+00:00:22.000 --> 00:00:27.500
+Choose Clip pads mode, then open the firmware surface.
+
+00:00:27.500 --> 00:00:33.000
+Click bottom-row pad 2. Blue recorded state changes to green while clip 02 plays.
+
+00:00:33.000 --> 00:00:40.495
+Host confirms slot 02 PLAYING. Scheduled MIDI includes recorded per-note expression.
+
+00:00:40.495 --> 00:00:47.368
+Return to Play mode without stopping the clip. Latch A to play a live note beside playback.
+
+00:00:47.368 --> 00:00:55.798
+Observe live and clip output in the capture sink. Each voice keeps its own expression.
+
+00:00:55.798 --> 00:01:05.591
+Release the live finger. Stop all ends clip playback.

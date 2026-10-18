@@ -18,3 +18,13 @@ export function parseBindings(text,columns) {
   if(value.pressure_down===value.pressure_up)throw new Error('Pressure keys must differ.');
   return value;
 }
+
+// Built-in keys follow the playing surface. Explicit coordinate maps keep their
+// physical assignments in every mode, including custom maps using A–K.
+export function layoutBindings(bindings, chordGrid, columns) {
+  if (!chordGrid || JSON.stringify(bindings.pads) !== JSON.stringify(defaultBindings().pads)) return bindings;
+  const start = columns === 17 ? 10 : 14;
+  const pads = Object.fromEntries([...'asdfghj'].map((key,index)=>[key,{x:start+index,y:4}]));
+  pads.k = {x:start,y:5};
+  return {...bindings,pads};
+}
